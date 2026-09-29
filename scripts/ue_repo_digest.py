@@ -89,8 +89,8 @@ def lfs_pointer_size(p: Path) -> int | None:
     return int(m.group(1)) if m else 0
 
 
-def pull_lfs(repo: Path, paths: list[Path], max_mb: float) -> dict:
-    """Download LFS objects for small .uasset files only (Blueprints are small; textures/meshes are not)."""
+def pull_lfs(repo: Path, paths: list[Path], max_mb: float, map_max_mb: float = 64.0) -> dict:
+    """Download LFS objects for small .uasset files and for maps (Blueprints/data are small; textures/meshes are not)."""
     report = {"pointers": 0, "requested": 0, "skipped_large": 0, "failed": 0, "error": None, "bytes": 0}
     wanted = []
     for p in paths:
@@ -98,7 +98,9 @@ def pull_lfs(repo: Path, paths: list[Path], max_mb: float) -> dict:
         if size is None:
             continue
         report["pointers"] += 1
-        if p.suffix.lower() != ".uasset" or size > max_mb * 1024 * 1024:
+        ext = p.suffix.lower()
+        limit = map_max_mb if ext == ".umap" else max_mb
+        if ext not in (".uasset", ".umap") or size > limit * 1024 * 1024:
             report["skipped_large"] += 1
             continue
         wanted.append(p.relative_to(repo).as_posix())
@@ -110,7 +112,7 @@ def pull_lfs(repo: Path, paths: list[Path], max_mb: float) -> dict:
         report["error"] = "git-lfs is not installed — LFS-stored assets could not be downloaded"
         report["failed"] = len(wanted)
         return report
-    log(f"[lfs] downloading {len(wanted)} small .uasset files ({report['bytes'] / 1e6:.1f} MB) ...")
+    log(f"[lfs] downloading {len(wanted)} .uasset/.umap files ({report['bytes'] / 1e6:.1f} MB) ...")
     batch, length = [], 0
     batches = []
     for w in wanted:
@@ -589,7 +591,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
     # parse report
     md += ["## Parse report", ""]
     if lfs and lfs.get("pointers"):
-        md.append(f"- Git LFS: {lfs['pointers']} LFS assets; downloaded {lfs['requested'] - lfs['failed']} small .uasset files, "
+        md.append(f"- Git LFS: {lfs['pointers']} LFS assets; downloaded {lfs['requested'] - lfs['failed']} .uasset/.umap files, "
                   f"skipped {lfs['skipped_large']} large/non-uasset files" + (f"; ⚠ {lfs['failed']} could not be downloaded" if lfs["failed"] else ""))
         if lfs.get("error"):
             md.append(f"  - LFS error: `{lfs['error'][:300]}`")
@@ -623,9 +625,11 @@ def main(argv=None):
     ap.add_argument("source", help="git URL (https/ssh) or a local project directory")
     ap.add_argument("--ref", help="branch, tag or commit SHA to read (default: remote HEAD)")
     ap.add_argument("--out", help="output directory (default: ./<name>_digest)")
+    ap.add_argument("--source-label", help="what to show as the source in INDEX.md (e.g. a URL without credentials)")
     ap.add_argument("--project", help="which .uproject to read when the repo holds several (name or relative path)")
     ap.add_argument("--workdir", help="where to clone (default: ./.ue-repo-reader/<name>)")
     ap.add_argument("--lfs-max-mb", type=float, default=8.0, help="only download LFS .uasset files up to this size (default 8)")
+    ap.add_argument("--lfs-map-max-mb", type=float, default=64.0, help="only download LFS .umap files up to this size (default 64)")
     ap.add_argument("--workers", type=int, default=max(1, min(8, (os.cpu_count() or 2) - 1)))
     ap.add_argument("--timeout", type=int, default=90, help="seconds allowed per Blueprint (default 90)")
     ap.add_argument("--max-bp-mb", type=float, default=64.0, help="skip Blueprint candidates larger than this")
@@ -647,6 +651,8 @@ def main(argv=None):
             meta["commit_date"] = run(["git", "-C", str(repo), "log", "-1", "--format=%cI"]).stdout.strip()
         except Exception:
             pass
+    if a.source_label:
+        meta["url"] = a.source_label
     out = Path(a.out or Path.cwd() / f"{name}_digest").resolve()
     if out.exists():
         shutil.rmtree(out)
@@ -683,7 +689,7 @@ def main(argv=None):
     mounts = mount_points(proj)
     assets = [p for c, _ in mounts for p in c.rglob("*") if p.suffix.lower() in (".uasset", ".umap")]
     log(f"[scan] {len(assets)} assets under {len(mounts)} content roots")
-    lfs = pull_lfs(repo, assets, a.lfs_max_mb)
+    lfs = pull_lfs(repo, assets, a.lfs_max_mb, a.lfs_map_max_mb)
 
     maps, candidates, others = [], [], []
     local = []
@@ -784,7 +790,7 @@ def main(argv=None):
     level_results, map_failures = process_blueprints(map_items, a.workers, a.timeout * 4, worker=_map_worker, label="map")
     for gp, p in map_files.items():
         if lfs_pointer_size(p) is not None:
-            map_failures[gp] = "not downloaded (Git LFS; maps are usually larger than --lfs-max-mb)"
+            map_failures[gp] = "not downloaded (Git LFS: over --lfs-map-max-mb or LFS not accessible)"
     log(f"[map] rendered {len(level_results)} in {time.time() - t0:.1f}s, {len(map_failures)} failed")
     placed_in = defaultdict(Counter)  # class -> map -> count
     for gp, r in level_results.items():

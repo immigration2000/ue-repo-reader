@@ -1,0 +1,31 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ue-repo-reader",
+  "version": "1.3.0",
+  "description": "Read Unreal Engine projects from a git URL: Blueprints, maps and data assets decoded from binary .uasset/.umap files, no editor needed.",
+  "author": {
+    "name": "immigration2000",
+    "url": "https://github.com/immigration2000"
+  },
+  "homepage": "https://github.com/immigration2000/ue-repo-reader",
+  "repository": "https://github.com/immigration2000/ue-repo-reader",
+  "keywords": ["unreal", "unreal-engine", "blueprint", "gamedev", "code-review"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "UE Repo Reader",
+        "shortDescription": "Analyze Unreal projects, Blueprints included, from a git URL",
+        "longDescription": "Give it an Unreal Engine git repository URL. It decodes Blueprints (graphs as pseudo-code), Level Blueprints and placed actors, DataTables, structs, enums, Behavior Trees, input mappings and DataAssets straight from the binary assets, indexes the C++, and lets ChatGPT review or explain the whole project.",
+        "developerName": "immigration2000",
+        "category": "Developer Tools",
+        "capabilities": ["Read"],
+        "websiteURL": "https://github.com/immigration2000/ue-repo-reader",
+        "defaultPrompt": [
+          "Analyze this Unreal project: https://github.com/OWNER/REPO",
+          "Review the Blueprints in this repo for performance problems",
+          "Explain how input flows from the player controller to gameplay in this project"
+        ]
+      }
+    }
+  }
+}
