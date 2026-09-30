@@ -9,7 +9,7 @@ Claude Code와 Codex가 같은 `SKILL.md` 형식을 쓰기 때문에 둘 다에�
 
 | 어디서 | 방법 |
 |---|---|
-| **ChatGPT 데스크톱 앱 (Codex)** — Free·Plus 포함 모든 요금제 | 이 저장소를 스킬 폴더에 클론 → 주소만 주면 내 PC에서 분석. 안내: [docs/CHATGPT.ko.md](docs/CHATGPT.ko.md) 맨 앞 |
+| **ChatGPT 데스크톱 앱 (Codex)** — Free·Plus 포함 모든 요금제 | 이 저장소를 스킬 폴더에 클론 → 주소만 주면 내 PC에서 분석. 안내: [docs/CHATGPT.ko.md](docs/CHATGPT.ko.md) 맨 앞 · Codex에게 설치 맡기기: [docs/CODEX_SETUP.ko.md](docs/CODEX_SETUP.ko.md) |
 | **ChatGPT 웹 채팅** — Pro·Business·Enterprise | MCP 서버를 한 번 띄우고 플러그인으로 연결. 안내: [docs/CHATGPT.ko.md](docs/CHATGPT.ko.md) |
 | **Claude 채팅** | Claude 계정 스킬(`ue-repo-reader`) 사용, 또는 같은 MCP 서버를 커스텀 커넥터로 연결 |
 | **Claude Code / Codex CLI** (PC) | 이 폴더를 스킬로 설치(아래) |
