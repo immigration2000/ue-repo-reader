@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 UASSET_READ_REPO = "https://github.com/soatori/uasset_read.git"
-UASSET_READ_COMMIT = "a33da094177c3000d5eed5b246f5634b9764042c"
+UASSET_READ_COMMIT = "b10a83a592e43156d17b9cdc0948790b1ab486f9"  # v0.5.4.44, MIT (v0.5.4.45 only removed the LICENSE file)
 
 _PATCHED = False
 # Which version-gated pin fields exist in the package currently being parsed.
