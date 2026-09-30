@@ -179,7 +179,8 @@ def run_job(job: Job) -> None:
                    "--workers", str(WORKERS)]
             if job.project:
                 cmd += ["--project", job.project]
-            env = dict(os.environ, UE_REPO_READER_CACHE=str(DATA / "cache"), GIT_TERMINAL_PROMPT="0")
+            env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+            env.setdefault("UE_REPO_READER_CACHE", str(DATA / "cache"))  # keep the parser pre-fetched at image build
             proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
             deadline = time.time() + JOB_TIMEOUT
             for line in proc.stdout:
