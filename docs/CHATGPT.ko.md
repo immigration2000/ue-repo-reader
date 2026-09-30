@@ -18,6 +18,20 @@ ChatGPT 채팅 ──(MCP 도구 호출)──▶ ue-repo-reader 서버 ──(g
 | `search_digest` | 요약본 전체 검색(선택: C++·설정 파일까지) |
 | `read_source_file` | 저장소의 C++ / Build.cs / ini 등 텍스트 파일 읽기 |
 
+## 0단계: 요금제 확인 (중요)
+
+OpenAI 도움말 기준으로 커스텀 MCP(Developer mode)는 요금제마다 다릅니다.
+
+| 요금제 | 사용 가능 여부 |
+|---|---|
+| Free / Plus | **지원 안 됨** |
+| Pro | 가능 (읽기 도구만 — 이 서버는 전부 읽기 전용이라 문제없음) |
+| Business | 관리자·소유자만 |
+| Enterprise / Edu | 관리자 + 권한 받은 멤버 |
+
+Plus라면 ChatGPT 웹 채팅에서는 쓸 수 없습니다. 대신 Claude(추가 설정 없이 스킬로 동작, 또는 아래
+"Claude에서도 같은 서버 쓰기")나 Codex(저장소 루트의 `SKILL.md`를 스킬로 사용)를 쓰세요.
+
 ## 1단계: 서버 띄우기
 
 ### A. Hugging Face Spaces (추천: 무료, PC를 꺼도 동작)
@@ -28,15 +42,18 @@ ChatGPT 채팅 ──(MCP 도구 호출)──▶ ue-repo-reader 서버 ──(g
 2. Space의 **Files** 탭에서 이 저장소의 `deploy/huggingface/Dockerfile`과 `deploy/huggingface/README.md`
    두 파일을 올립니다(README.md는 기존 파일을 덮어쓰기).
 3. **Settings → Variables and secrets**에서 *Secret*으로 추가:
-   - `UE_READER_SECRET`: 길고 무작위인 문자열(예: 비밀번호 생성기로 32자)
+   - `UE_READER_SECRET`: 길고 무작위인 문자열. 영문·숫자만 쓰세요(`/ ? #` 금지).
+     Windows PowerShell에서 `[guid]::NewGuid().ToString("N")` 실행 → 32자 문자열이 나옵니다.
    - `GITHUB_TOKEN`: 비공개 저장소를 읽을 때만. GitHub → Settings → Developer settings →
      Fine-grained tokens → 대상 저장소 선택, **Contents: Read-only**
    - (선택) `UE_READER_ALLOWED_OWNERS`: `immigration2000` — 내 저장소만 분석하도록 제한
-4. 빌드가 끝나면 Space 주소가 `https://<계정>-<space이름>.hf.space`입니다. 브라우저로 열어
+4. 빌드가 끝나면(상단 상태가 **Running**) Space 주소가 `https://<계정>-<space이름>.hf.space`입니다
+   (Space 화면 오른쪽 위 **⋮ → Embed this Space → Direct URL**에서 정확한 주소 확인). 브라우저로 열어
    `ue-repo-reader MCP server is running.`이 보이면 정상입니다.
 5. MCP 주소: `https://<계정>-<space이름>.hf.space/<UE_READER_SECRET>/mcp`
 
-무료 Space는 한동안 쓰지 않으면 잠들고, 다음 호출 때 깨어나느라 1~2분 걸릴 수 있습니다.
+무료 Space는 48시간 동안 쓰지 않으면 잠듭니다. 잠든 Space는 페이지를 한 번 열면 깨어나고, 1~2분 걸릴 수 있습니다.
+분석 캐시는 재시작하면 지워지므로 첫 분석은 다시 1분 안팎 걸립니다.
 코드를 업데이트하려면 Space Settings의 **Factory rebuild**를 누르면 GitHub 최신 코드로 다시 빌드됩니다.
 
 다른 호스팅(Render, Railway, Fly.io, Cloud Run 등)도 저장소 루트의 `Dockerfile`로 그대로 배포됩니다.
@@ -55,16 +72,16 @@ ChatGPT 채팅 ──(MCP 도구 호출)──▶ ue-repo-reader 서버 ──(g
 OpenAI 문서 기준 절차입니다(메뉴 이름은 바뀔 수 있습니다).
 
 1. ChatGPT → **Settings → Security and login → Developer mode** 켜기
-2. **Plugins**(또는 Apps)에서 새로 만들기 → MCP 서버 URL에 위의 MCP 주소 입력
-   → 인증은 **없음(No authentication)** → 생성
-3. 일반 채팅에서 바로 사용:
+   (Business/Enterprise는 **Settings → Apps → Advanced settings**에 있을 수 있습니다.)
+2. **Plugins**(화면에 따라 **Apps**) → **+ / Create**
+   - 이름: `UE Repo Reader`, 설명: `언리얼 저장소 분석(블루프린트 포함)`
+   - Connection(연결): MCP 서버 URL에 위의 MCP 주소(끝이 `/mcp`) 입력
+   - 인증(Authentication): **없음(No authentication)**
+   - 위험 안내 체크박스가 나오면 확인 후 체크 → **Scan Tools**가 있으면 눌러 도구 6개가 보이는지 확인 → **Create**
+3. 새 채팅을 열고 입력창의 **+ / 도구 메뉴**에서 UE Repo Reader를 켠 뒤(또는 `@UE Repo Reader`):
    > https://github.com/immigration2000/ExtractionGame_Fin 분석해줘
 
-   도구가 안 불리면 메시지 앞에 플러그인을 선택(@UE Repo Reader)하세요.
-
-요금제: OpenAI 문서마다 개인 플랜(Plus/Pro)의 커스텀 MCP 지원 범위가 다르게 적혀 있습니다(Pro는 "읽기 도구만"
-이라는 설명도 있음). 이 서버의 도구는 전부 **읽기 전용**이라 그 제한 안에서도 동작합니다. 내 계정에서
-Developer mode 메뉴가 보이는지 먼저 확인하세요.
+서버 코드를 업데이트한 뒤 도구 목록이 바뀌었다면 Plugins에서 해당 연결을 열고 **Refresh**를 누르세요.
 
 ### 스킬까지 포함한 플러그인 패키지 (선택)
 
