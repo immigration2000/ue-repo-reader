@@ -1,4 +1,40 @@
-# ChatGPT에서 쓰기 (플러그인 / MCP)
+# ChatGPT에서 쓰기
+
+| 요금제 | 방법 |
+|---|---|
+| Free · Plus (+ 모든 요금제) | **ChatGPT 데스크톱 앱의 Codex + 스킬** — 서버 필요 없음, 내 PC에서 실행 (바로 아래) |
+| Pro · Business · Enterprise | 위 방법, 또는 웹 채팅용 **MCP 서버 + 플러그인** (아래 0~2단계) |
+
+## Plus·무료 요금제: ChatGPT 데스크톱 앱(Codex)
+
+ChatGPT 데스크톱 앱(Windows/Mac)에는 모든 요금제에 Codex가 들어 있고, Codex는 내 PC에서 스킬의 스크립트를
+실행할 수 있습니다. 한 번만 설치하면 이후로는 주소만 주면 됩니다.
+
+1. **필요한 프로그램 설치** (PowerShell, 이미 있으면 건너뛰기)
+   ```powershell
+   winget install -e --id Python.Python.3.12
+   winget install -e --id Git.Git
+   ```
+   설치 후 PowerShell을 새로 열고 한 번 실행:
+   ```powershell
+   git lfs install
+   git config --global core.longpaths true
+   python --version   # 3.10 이상이면 OK. 안 되면 py -3 --version 이 되는지 확인(스킬이 py도 씁니다)
+   ```
+2. **스킬 설치** — 스킬 폴더에 이 저장소를 그대로 클론합니다.
+   ```powershell
+   git clone https://github.com/immigration2000/ue-repo-reader "$env:USERPROFILE\.agents\skills\ue-repo-reader"
+   ```
+   업데이트: `git -C "$env:USERPROFILE\.agents\skills\ue-repo-reader" pull`
+3. **ChatGPT 데스크톱 앱 → Codex**에서 작업 폴더를 하나 엽니다(예: 빈 폴더 `C:\UEReview`, 요약본이 여기에 생깁니다).
+   스킬이 안 보이면 앱을 다시 시작하세요(사이드바 **Skills**에서 확인).
+4. 이렇게 말합니다:
+   > https://github.com/immigration2000/ExtractionGame_Fin 분석해줘
+
+   (확실히 부르려면 `$ue-repo-reader https://github.com/...`)
+   명령 실행이나 네트워크(깃 클론) 허용을 물으면 허용하세요.
+
+## Pro 이상: 웹 채팅용 MCP 서버 + 플러그인
 
 웹 ChatGPT는 스킬 안의 스크립트를 실행하지 못합니다(git 클론, 파이썬 불가). 그래서 분석 도구를 **MCP 서버**로
 인터넷에 띄우고, ChatGPT가 그 서버의 도구를 호출하는 구조입니다.

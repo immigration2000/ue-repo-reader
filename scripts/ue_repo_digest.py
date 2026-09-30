@@ -621,6 +621,14 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
 # =========================================================================== main
 
 def main(argv=None):
+    # Windows pipes default to the ANSI code page (cp949 on Korean systems): force UTF-8 so logs with
+    # asset names or symbols never crash, here and in the spawned worker processes.
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8:replace")
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("source", help="git URL (https/ssh) or a local project directory")
     ap.add_argument("--ref", help="branch, tag or commit SHA to read (default: remote HEAD)")
