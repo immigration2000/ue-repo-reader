@@ -66,7 +66,7 @@
 | R2 | todo | - | Codex Cloud 레시피(환경 + AGENTS.md) 시험 | S |
 | R3 | done | codex | 스킬 폴더 표준화(.agents/.claude/.github skills) | S |
 | R4 | todo | - | Claude Code 플러그인 마켓플레이스 | S |
-| R5 | todo | - | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
+| R5 | doing | codex | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
 | R6 | todo | - | MCP Registry 등록(stdio 패키지) | S |
 | V1 | todo | - | 사람 PC에서 UE Shed / UAsset Translator와 실측 비교 (이 세션에선 실행 불가) | S |
 | V2 | done | codex | 실제 Windows PowerShell 5.1에서 격리된 설치 가이드 E2E·Python 선택·native stderr/종료 코드·특수문자 LFS 다운로드 검증 | S |
@@ -89,7 +89,7 @@
 | X1 | todo | - | 바이트 열거형 배열이 숫자로 나옴(`Stashinfo = [7, 0, …]`, Array<E_Crates>) → 같은 저장소의 UserDefinedEnum 문서로 이름 매핑 | S |
 | X2 | todo | - | PDA_PlayerData 변수 표 `Map<E_Crates, None>` — Map 값 타입 디코딩 확인 | S |
 | X3 | todo | - | UE 4.25 저장 몽타주(AR 스파이더) 섹션 이름이 `0`, `1` — 실제 이름인지 FName 해석 문제인지 확인 | S |
-| X4 | todo | - | 기존 클론 재사용 + `--ref`가 `git checkout ref`로 빠진 큰 blob을 lazy fetch → T2의 materialize 재사용 | S |
+| X4 | doing | codex | 기존 클론 재사용 + `--ref`가 `git checkout ref`로 빠진 큰 blob을 lazy fetch → T2의 materialize 재사용 | S |
 | X5 | todo | - | 함수 MetaData(툴팁·카테고리·CallInEditor) 표시 | S |
 | X6 | todo | - | 맵 배치 인스턴스의 변수·태그 오버라이드가 요약본에 나오는지 확인(AR LeverBP KeyCard → GameplayTags "미사용" 오판 가능) | S–M |
 | X7 | todo | - | InputAction 에셋 자체의 트리거·모디파이어(IA 단위 설정) 표시 | S |
