@@ -62,7 +62,7 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| R1 | todo | - | 문서 정정: HF Docker 신규 생성은 PRO, 서버는 선택 사항, 개발자 모드는 Plugins 안, GPT 경로 미사용 | S |
+| R1 | doing | codex | 문서 정정: HF Docker 신규 생성은 PRO, 서버는 선택 사항, 개발자 모드는 Plugins 안, GPT 경로 미사용 | S |
 | R2 | todo | - | Codex Cloud 레시피(환경 + AGENTS.md) 시험 | S |
 | R3 | todo | - | 스킬 폴더 표준화(.agents/.claude/.github skills) | S |
 | R4 | todo | - | Claude Code 플러그인 마켓플레이스 | S |
@@ -79,8 +79,8 @@
 | A2 | done | codex | P1: 출력 경로가 입력 프로젝트 또는 그 상위이면 삭제하지 않고 거부; 기존 출력 교체 범위도 검증(D-006) | S |
 | A3 | done | codex | P1: 파서 최초 설치를 부모 프로세스에서 완료하고 워커 시작; 공유 캐시 설치 동시성 보호(D-007) | S |
 | A4 | done | codex | P1: 맵의 레벨 BP·외부 액터·속성 실패와 그래프 렌더 실패를 summary/INDEX로 전파; 회귀에서 검사(D-008, v1.6.0) | S–M |
-| A5 | todo | - | P2: MCP 작업 제한시간을 stdout 수신과 독립적으로 집행; 프로세스 종료·수거 보장 | S |
-| A6 | todo | - | P2: MCP 캐시 키에 도구/출력 버전과 충돌 없는 프로젝트 식별자 포함 | S |
+| A5 | doing | codex | P2: MCP 작업 제한시간을 stdout 수신과 독립적으로 집행; 프로세스 종료·수거 보장 | S |
+| A6 | doing | codex | P2: MCP 캐시 키에 도구/출력 버전과 충돌 없는 프로젝트 식별자 포함 | S |
 
 ## 후속 — 작업 중 발견 (2026-10-27, claude)
 
