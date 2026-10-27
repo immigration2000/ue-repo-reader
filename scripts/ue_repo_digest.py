@@ -487,6 +487,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  - `return <value>` / `return (A=.., B=..)` — a function's output values at that exit",
            "  - one statement per executed node; data inputs are inlined as expressions (`Target.Func(Arg=value)`)",
            "  - `#N = Func(...)` — an impure node whose output is used later as `#N` / `#N.PinName`",
+           "  - `$N` — a long pure expression used in several places, spelled out once in the graph's `// where` block",
            "  - `[true]:` / `[cast ok]:` / `[LoopBody]:` / `[then_1]:` — the named exec output a block runs from",
            "  - `→ goto #N` — execution merges into a node already shown; `[#N]` marks such merge targets",
            "  - `// ── text ──` — the comment box the following nodes sit in; `// text` — a node comment",

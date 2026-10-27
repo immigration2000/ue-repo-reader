@@ -65,6 +65,14 @@
         "must_not_match": [
           "_\\d+_[0-9A-F]{32}"
         ]
+      },
+      {
+        "bug": "B8",
+        "file": "blueprints/Game/DeltaForce/Blueprints/UI/Grid/WBP_GridSlot.md",
+        "must_contain": [
+          "return (AStartLocal={X=$1.AStart1, Y=$2.AStart1}",
+          "//   $1 = SnapDragAxis(MouseLocal=InMouseGridLocal.X"
+        ]
       }
     ]
   },

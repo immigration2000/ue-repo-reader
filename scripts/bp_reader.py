@@ -282,6 +282,8 @@ class ObjRef(int):
     resolve it to an object name (uasset_read returns bare ints for object properties nested in structs)."""
 
 
+_ALIAS_MIN_LEN = 60  # pure expressions longer than this, used by 2+ inputs, go to the graph's `where` block
+
 _CUR_CTX = None  # Ctx of the package being rendered (set by Ctx.__init__; one package at a time per process)
 
 _MEMBER_GUID = re.compile(r"\b([A-Za-z][A-Za-z0-9]*)_\d+_[0-9A-F]{32}\b")
@@ -601,6 +603,7 @@ class GraphRenderer:
                     if self.resolve(link):
                         self.used_outputs.add(id(p))
         self.visited = set()
+        self.aliases, self.alias_enabled = {}, False
         self.current_box = None
         self.comment_boxes = []
         for n in self.nodes:
@@ -829,11 +832,19 @@ class GraphRenderer:
         key = (id(n), pname)
         if key in self.expr_stack or len(self.expr_stack) > 14:
             return "…"
+        if key in self.aliases:
+            return self.aliases[key][0]
         self.expr_stack.add(key)
         try:
-            return self.pure_expr(n, out_pin)
+            e = self.pure_expr(n, out_pin)
         finally:
             self.expr_stack.discard(key)
+        # A long pure expression feeding several inputs is printed once in the graph's `where` block.
+        if self.alias_enabled and len(e) > _ALIAS_MIN_LEN and len(out_pin.linked_to_raw) >= 2:
+            name = f"${len(self.aliases) + 1}"
+            self.aliases[key] = (name, e)
+            return name
+        return e
 
     def cast_type(self, n) -> str:
         t = self.props(n).get("TargetType")
@@ -869,7 +880,7 @@ class GraphRenderer:
             elif fn.startswith("Conv_") and len(ins) == 1:
                 e = f"{fn[5:]}({self.input_expr(n, ins[0].pin_name)})"
             else:
-                e = f"{self.target_prefix(n)}{fn}({', '.join(self.arg_list(n))})"
+                e = self._shared_call(n, f"{self.target_prefix(n)}{fn}({', '.join(self.arg_list(n))})")
             return e if pname == "ReturnValue" else f"{e}.{pname}"
         if cls == "K2Node_BreakStruct":
             ins = [p for p in n.pins if p.direction == 0]
@@ -900,6 +911,19 @@ class GraphRenderer:
         name = cls.replace("K2Node_", "").replace("AnimGraphNode_", "")
         e = f"{name}({', '.join(self.arg_list(n))})"
         return e if pname in ("ReturnValue", "Output", "Result") else f"{e}.{pname}"
+
+    def _shared_call(self, n, e: str) -> str:
+        """A long pure call whose outputs feed 2+ inputs in total (e.g. several output pins of one call)
+        is printed once in the `where` block and referenced by name."""
+        key = (id(n), "*call")
+        if key in self.aliases:
+            return self.aliases[key][0]
+        uses = sum(len(q.linked_to_raw) for q in n.pins if q.direction == 1 and not _is_exec(q))
+        if self.alias_enabled and len(e) > _ALIAS_MIN_LEN and uses >= 2:
+            name = f"${len(self.aliases) + 1}"
+            self.aliases[key] = (name, e)
+            return name
+        return e
 
     def macro_name(self, n) -> str:
         mg = _fields(self.props(n).get("MacroGraphReference")).get("MacroGraph")
@@ -1092,6 +1116,16 @@ class GraphRenderer:
 
     def _render_exec_once(self) -> list[str]:
         self.labelled, self.missing_labels = set(), set()
+        self.aliases, self.alias_enabled = {}, True
+        lines = self._render_exec_body()
+        if self.aliases:
+            lines.append("")
+            lines.append("// where (pure expressions — re-evaluated at every use):")
+            for name, e in self.aliases.values():
+                lines.append(f"//   {name} = {e}")
+        return lines
+
+    def _render_exec_body(self) -> list[str]:
         lines: list[str] = []
         entries = [n for n in self.nodes if n.class_name in _ENTRY_CLASSES
                    and not (n.class_name == "K2Node_Tunnel" and any(p.direction == 0 and _is_exec(p) for p in n.pins))]
