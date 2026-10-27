@@ -48,7 +48,9 @@ A local path works too (e.g. the user's own checkout) — then nothing is cloned
    decorators, services and blackboard keys), Blackboards, StateTrees (state hierarchy), EQS queries,
    input mapping contexts and actions, curves (keys), and DataAssets of project C++ types (saved values).
    Each file ends with **Used by** (Blueprints/data assets that reference it).
-5. `<out>/cpp/CLASSES.md` to locate C++ types, then read the **real** C++ sources in the clone for details.
+5. `<out>/config/GameplayTags.md` (when the project uses tags) — every tag, where it is defined (ini, tag
+   DataTable or native C++), who uses it, tags used but never defined, redirects.
+6. `<out>/cpp/CLASSES.md` to locate C++ types, then read the **real** C++ sources in the clone for details.
 
 Skip `digest.json` (a machine-readable copy of the same facts). A file that ends with
 `→ continued in X.part2.md` is split; read the parts in order.

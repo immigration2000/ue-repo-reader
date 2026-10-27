@@ -11,6 +11,16 @@
 
 ---
 
+## 2026-10-27 13:10 KST · claude · F1
+- 한 일: `config/GameplayTags.md` 신규 + INDEX에 GameplayTags 절.
+  - 정의: `Config/DefaultGameplayTags.ini`, `Config/Tags/*.ini`, 플러그인 Config, GameplayTagTableRow DataTable,
+    C++ `UE_DEFINE_GAMEPLAY_TAG(_COMMENT|_STATIC|_TYPED)`. 리다이렉트(`GameplayTagRedirects`)도.
+  - 사용: 요약본 Markdown의 `TagName=X`(BP·data·map) + C++의 `RequestGameplayTag("X")`와 네이티브 태그 변수 사용.
+  - 경고: 쓰였는데 어디에도 정의 안 된 태그, 옛 이름(리다이렉트)으로 저장된 태그. "정의됐는데 미사용" 목록은 보수적 표현.
+- 검증: regress 3/3 PASS + unit 6/6, AR에서 22개 정의(네이티브 12)·12개 사용·리다이렉트 2개 확인. EG는 태그가 없어 절 생략.
+- 남은 일·주의: 런타임 문자열로 만든 태그는 못 봄(문서에 명시). 맵 인스턴스의 태그 오버라이드가 요약본에 안 나오면 미사용으로 잡힐 수 있음
+  (AR의 KeyCard.* — LeverBP 배치 인스턴스 오버라이드 확인 필요, 별도 조사 거리).
+
 ## 2026-10-27 12:40 KST · claude · F2
 - 한 일:
   - IMC 표의 모디파이어·트리거를 서브오브젝트로 펼쳐 설정값 표시: `InputModifierNegate_4` → `Negate`,

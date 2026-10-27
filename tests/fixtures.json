@@ -136,6 +136,22 @@
           "`IA_Move` (in PlayerConfigData)",
           "`IA_PauseMenu`"
         ]
+      },
+      {
+        "bug": "F1",
+        "file": "config/GameplayTags.md",
+        "must_contain": [
+          "| `Action.Sprint` | Source/ActionRoguelike/SharedGameplayTags.cpp (native) |",
+          "| `Status.Stunned` | Config/DefaultGameplayTags.ini |",
+          "- `Action.Sprinting` → `Status.Sprinting`"
+        ]
+      },
+      {
+        "bug": "F1",
+        "file": "INDEX.md",
+        "must_contain": [
+          "22 tags defined, 12 used"
+        ]
       }
     ]
   },

@@ -500,6 +500,101 @@ def split_large_markdown(out: Path, limit: int = MD_PART_CHARS) -> int:
     return n
 
 
+_TAG_LIST = re.compile(r'GameplayTagList=\(\s*Tag="([^"]+)"(?:\s*,\s*DevComment="((?:[^"\\]|\\.)*)")?')
+_TAG_REDIRECT = re.compile(r'GameplayTagRedirects=\(\s*OldTagName="([^"]+)"\s*,\s*NewTagName="([^"]*)"')
+_TAG_DEFINE = re.compile(r'UE_DEFINE_GAMEPLAY_TAG(?:_COMMENT|_STATIC|_TYPED)?\s*\(\s*(\w+)\s*,\s*(?:TEXT\s*\()?\s*"([^"]+)"'
+                         r'(?:\s*\)?\s*,\s*(?:TEXT\s*\()?\s*"([^"]*)")?')
+_TAG_REQUEST = re.compile(r'(?:RequestGameplayTag|FGameplayTag::RequestGameplayTag)\s*\(\s*(?:FName\s*\(\s*)?(?:TEXT\s*\(\s*)?"([^"]+)"')
+_TAG_USE = re.compile(r"TagName=([A-Za-z0-9_][A-Za-z0-9_.]*)")
+
+
+def gameplay_tags(proj: Path, docs: dict) -> tuple[list[str], str | None]:
+    """GameplayTags: definitions (config ini, tag DataTables, native C++ tags), redirects, and which
+    Blueprints/data/maps use each tag. Returns (INDEX lines, config/GameplayTags.md text or None)."""
+    defined: dict[str, dict] = {}
+    redirects = {}
+    cfg_dirs = [proj / "Config"] + ([p / "Config" for p in (proj / "Plugins").rglob("*") if (p / "Config").is_dir()
+                                     and any(p.glob("*.uplugin"))] if (proj / "Plugins").is_dir() else [])
+    for d in cfg_dirs:
+        for ini in [d / "DefaultGameplayTags.ini", *sorted((d / "Tags").glob("*.ini"))]:
+            if not ini.is_file():
+                continue
+            t = ini.read_text(encoding="utf-8-sig", errors="replace")
+            rel = ini.relative_to(proj).as_posix()
+            for tag, comment in _TAG_LIST.findall(t):
+                defined.setdefault(tag, {"where": rel, "comment": comment})
+            for old, new in _TAG_REDIRECT.findall(t):
+                redirects[old] = new
+    cpp_vars, cpp_uses, sources = {}, defaultdict(set), []
+    roots = [proj / "Source"] + ([q for q in (proj / "Plugins").glob("*/Source")] if (proj / "Plugins").is_dir() else [])
+    for root in roots:
+        if root.is_dir():
+            sources += [f for f in root.rglob("*") if f.suffix in (".h", ".cpp")]
+    texts = {}
+    for f in sources:
+        try:
+            texts[f] = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        rel = f.relative_to(proj).as_posix()
+        for var, tag, comment in _TAG_DEFINE.findall(texts[f]):
+            defined.setdefault(tag, {"where": rel + " (native)", "comment": comment})
+            cpp_vars[var] = tag
+        for tag in _TAG_REQUEST.findall(texts[f]):
+            cpp_uses[tag].add(f.name)
+    for var, tag in cpp_vars.items():  # uses of a native tag through its C++ variable
+        pat = re.compile(rf"\b{re.escape(var)}\b")
+        for f, t in texts.items():
+            n = len(pat.findall(t)) - len(re.findall(rf"UE_(?:DE(?:FINE|CLARE))_GAMEPLAY_TAG\w*\s*\(\s*{re.escape(var)}\b", t))
+            if n > 0:
+                cpp_uses[tag].add(f.name)
+    used = defaultdict(set)
+    for gp, md in docs.items():
+        name = gp.rsplit("/", 1)[-1]
+        for tag in set(_TAG_USE.findall(md)):
+            if tag != "None":
+                used[tag].add(name)
+        if "GameplayTagTableRow" in md:  # tag DataTable: its rows define tags
+            for tag in re.findall(r"\bTag=([A-Za-z0-9_][A-Za-z0-9_.]*)", md):
+                defined.setdefault(tag, {"where": gp + " (DataTable)", "comment": ""})
+    if not defined and not used:
+        return [], None
+    parents = {".".join(t.split(".")[:i]) for t in defined for i in range(1, t.count(".") + 1)}
+    known = set(defined) | parents
+    undefined = sorted(t for t in used if t not in known and t not in redirects)
+    via_redirect = sorted(t for t in used if t in redirects)
+    unused = sorted(t for t in defined if t not in used and t not in cpp_uses
+                    and not any(u.startswith(t + ".") for u in used))
+    lines = ["# GameplayTags", "",
+             f"{len(defined)} tags defined ({sum(1 for v in defined.values() if 'native' in v['where'])} native C++), "
+             f"{len(used)} used by Blueprints/data/maps. Usage is what the saved assets literally contain; tags built at "
+             "runtime from strings are not seen.", ""]
+    if undefined:
+        lines += ["## ⚠ Used but not defined anywhere in this repo", "",
+                  *[f"- `{t}` ← {', '.join(sorted(used[t])[:8])}" for t in undefined], ""]
+    if via_redirect:
+        lines += ["## Used through a redirect (old name still saved in assets)", "",
+                  *[f"- `{t}` → `{redirects[t]}` ← {', '.join(sorted(used[t])[:8])}" for t in via_redirect], ""]
+    lines += ["## Tags", "", "| Tag | Defined in | Comment | Used by |", "|---|---|---|---|"]
+    for t in sorted(defined):
+        users = sorted(used.get(t, set()) | {f"{c} (C++)" for c in cpp_uses.get(t, set())})
+        shown = ", ".join(users[:6]) + (f" … (+{len(users) - 6})" if len(users) > 6 else "")
+        lines.append(f"| `{t}` | {defined[t]['where']} | {defined[t]['comment'].replace('|', '/')} | {shown or '—'} |")
+    lines.append("")
+    if redirects:
+        lines += ["## Redirects", "", *[f"- `{o}` → `{n}`" for o, n in sorted(redirects.items())], ""]
+    if unused:
+        lines += ["## Defined but not used by any asset or C++ reference found", "", ", ".join(f"`{t}`" for t in unused), ""]
+    index = [f"## GameplayTags", "",
+             f"{len(defined)} tags defined, {len(used)} used — see [config/GameplayTags.md](<config/GameplayTags.md>)."]
+    if undefined:
+        index.append(f"- ⚠ used but not defined: " + ", ".join(f"`{t}`" for t in undefined[:12])
+                     + (" …" if len(undefined) > 12 else ""))
+    if via_redirect:
+        index.append(f"- used via redirect: " + ", ".join(f"`{t}`" for t in via_redirect[:12]))
+    return index + [""], "\n".join(lines) + "\n"
+
+
 def input_check(bps: dict, datas: dict) -> list[str]:
     """Enhanced Input cross-check: actions a Blueprint handles but no mapping context in the repo maps
     (they can never fire unless C++ adds a mapping), and mapped actions no Blueprint handles."""
@@ -590,6 +685,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, DataAssets) are",
            "  rendered under `data/` — see the Data assets table below.",
            "- C++ is summarized in `cpp/CLASSES.md`; read the real sources in the repo for implementation details.",
+           "- GameplayTags (definitions, users, undefined tags) are in `config/GameplayTags.md` when the project has any.",
            "- Files longer than ~60k characters are split: `X.md` ends with a link to `X.part2.md`.",
            "- `digest.json` is the same information for scripts — don't read it to understand the project.",
            "- This is a static read of saved assets: it cannot show runtime values, and names are the internal",
@@ -729,6 +825,12 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append("")
 
     md += input_check(bps, datas)
+    docs = {gp: r["markdown"] for gp, r in list(bps.items()) + list(datas.items()) + list((levels or {}).items())}
+    tag_index, tag_doc = gameplay_tags(proj, docs)
+    if tag_doc:
+        (out / "config").mkdir(exist_ok=True)
+        (out / "config" / "GameplayTags.md").write_text(tag_doc, encoding="utf-8")
+        md += tag_index
 
     # parse report
     md += ["## Parse report", ""]
