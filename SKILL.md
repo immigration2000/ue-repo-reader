@@ -28,6 +28,11 @@ the machine's normal git credentials. Use `python3` or `py -3` if `python` is no
 
 A local path works too (e.g. the user's own checkout) — then nothing is cloned.
 
+Use a dedicated `--out` directory. It can be new, empty, or a recognized ue-repo-reader digest; an existing
+digest is replaced, including its generated `blueprints/`, `data/`, `maps/`, `cpp/` and `config/` folders.
+The input repository, its ancestors, symlinks/junctions, and output directories with unrelated top-level
+entries are rejected. If an incomplete run left an unrecognized output, choose a new `--out` directory.
+
 ## 2. Read it in this order
 
 1. `<out>/INDEX.md` — read all of it first. It has the project summary (modules, plugins, default map and

@@ -49,6 +49,11 @@ python scripts/ue_repo_digest.py D:/Work/MySoulsLike              # 로컬 체�
 python scripts/ue_repo_digest.py <url> --ref dev --project Chapter03/Game   # 브랜치 / 멀티 프로젝트
 ```
 
+`--out`은 요약본 전용 폴더를 지정하세요. 새 폴더·빈 폴더 또는 기존 ue-repo-reader 요약본만 사용할 수 있습니다.
+입력 저장소 자체·그 상위 경로·심볼릭 링크/정션은 거부합니다. 기존 요약본은 `digest.json`의 도구 식별자와
+최상위 파일/폴더 구성을 확인한 뒤 교체하며, `blueprints/`, `data/`, `maps/`, `cpp/`, `config/`는 생성 결과 전용입니다.
+별도 메모 등 다른 최상위 항목이 있거나 이전 실행이 중단되어 요약본을 식별할 수 없으면 새 출력 폴더를 지정하세요.
+
 ## 결과물
 
 ```

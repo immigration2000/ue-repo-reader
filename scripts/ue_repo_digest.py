@@ -22,6 +22,7 @@ import multiprocessing as mp
 import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -1008,6 +1009,47 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
 
 # =========================================================================== main
 
+def validate_output_dir(output: Path, repo: Path, project: Path | None = None) -> Path:
+    """Only replace a dedicated digest directory, never the source or a directory containing it."""
+    # lstat's reparse attribute also covers junctions on Python 3.10/3.11 (before Path.is_junction).
+    reparse = False
+    if os.name == "nt":
+        try:
+            reparse = bool(output.lstat().st_file_attributes & stat.FILE_ATTRIBUTE_REPARSE_POINT)
+        except FileNotFoundError:
+            pass
+    if output.is_symlink() or reparse:
+        raise ValueError(f"output directory must not be a symlink or junction: {output}")
+    out = output.resolve()
+    for source in (repo, project):
+        if source is not None:
+            source = source.resolve()
+            if out == source or out in source.parents:
+                raise ValueError(f"output directory would delete an input repository/project: {out}; choose a separate --out")
+    if not out.exists():
+        return out
+    if not out.is_dir():
+        raise ValueError(f"output path is not a directory: {out}")
+    entries = list(out.iterdir())
+    if not entries:
+        return out
+    try:
+        manifest = json.loads((out / "digest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        manifest = None
+    if not isinstance(manifest, dict) or not str(manifest.get("tool", "")).startswith("ue-repo-reader "):
+        raise ValueError(f"output directory is not a recognized ue-repo-reader digest: {out}; choose a new --out")
+    dirs = {"blueprints", "cpp", "data", "maps", "config"}
+    files = {"INDEX.md", "digest.json"}
+    for entry in entries:
+        if entry.name in dirs and entry.is_dir():
+            continue
+        if (entry.name in files or re.fullmatch(r"INDEX\.part(?:[2-9]|[1-9][0-9]+)\.md", entry.name)) and entry.is_file():
+            continue
+        raise ValueError(f"output directory contains an unrelated entry: {entry}; choose a new --out")
+    return out
+
+
 def main(argv=None):
     # Windows pipes default to the ANSI code page (cp949 on Korean systems): force UTF-8 so logs with
     # asset names or symbols never crash, here and in the spawned worker processes.
@@ -1031,16 +1073,25 @@ def main(argv=None):
     ap.add_argument("--max-bp-mb", type=float, default=64.0, help="skip Blueprint candidates larger than this")
     a = ap.parse_args(argv)
 
-    meta: dict = {}
-    if looks_like_url(a.source):
+    remote = looks_like_url(a.source)
+    if remote:
         name = re.sub(r"\.git$", "", a.source.rstrip("/").split("/")[-1].split(":")[-1]) or "repo"
-        repo = Path(a.workdir or Path.cwd() / ".ue-repo-reader" / name)
-        meta.update(clone(a.source, repo, a.ref, a.lfs_max_mb, a.lfs_map_max_mb))
+        repo = Path(a.workdir or Path.cwd() / ".ue-repo-reader" / name).resolve()
     else:
         repo = Path(a.source).resolve()
         if not repo.is_dir():
             ap.error(f"not a directory: {repo}")
         name = repo.name
+    output = Path(a.out or Path.cwd() / f"{name}_digest")
+    try:
+        out = validate_output_dir(output, repo)
+    except ValueError as e:
+        ap.error(str(e))
+
+    meta: dict = {}
+    if remote:
+        meta.update(clone(a.source, repo, a.ref, a.lfs_max_mb, a.lfs_map_max_mb))
+    else:
         try:
             meta["commit"] = run(["git", "-C", str(repo), "rev-parse", "HEAD"]).stdout.strip()
             meta["branch"] = run(["git", "-C", str(repo), "rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip()
@@ -1049,7 +1100,15 @@ def main(argv=None):
             pass
     if a.source_label:
         meta["url"] = a.source_label
-    out = Path(a.out or Path.cwd() / f"{name}_digest").resolve()
+
+    # Select the project before replacing previous results. A clone/checkout may also have
+    # populated a requested output directory inside the source tree, so validate it again.
+    uproject, all_projects = pick_uproject(repo, a.project)
+    proj = uproject.parent if uproject else repo
+    try:
+        out = validate_output_dir(output, repo, proj)
+    except ValueError as e:
+        ap.error(str(e))
     if out.exists():
         shutil.rmtree(out)
     (out / "blueprints").mkdir(parents=True)
@@ -1057,8 +1116,6 @@ def main(argv=None):
     (out / "data").mkdir(parents=True)
     (out / "maps").mkdir(parents=True)
 
-    uproject, all_projects = pick_uproject(repo, a.project)
-    proj = uproject.parent if uproject else repo
     if len(all_projects) > 1:
         meta["other_projects"] = [p.relative_to(repo).as_posix() for p in all_projects if p != uproject]
         log(f"[warn] {len(all_projects)} .uproject files in repo; reading {uproject.relative_to(repo).as_posix()} "
