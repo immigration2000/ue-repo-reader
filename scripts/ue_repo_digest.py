@@ -31,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -53,19 +53,48 @@ def looks_like_url(s: str) -> bool:
 
 def clone(url: str, dest: Path, ref: str | None) -> dict:
     env = dict(os.environ, GIT_LFS_SKIP_SMUDGE="1", GIT_TERMINAL_PROMPT="0")
+
+    def git(*args, check=True):
+        return run(["git", "-C", str(dest), *args], env=env, check=check)
+
+    def fail(msg):
+        raise SystemExit(f"error: {msg}")
+
+    full_sha = bool(ref and re.fullmatch(r"[0-9a-fA-F]{40}", ref))
+    short_hex = bool(ref and not full_sha and re.fullmatch(r"[0-9a-fA-F]{4,39}", ref))
     if dest.exists() and (dest / ".git").exists():
         log(f"[fetch] reusing existing clone at {dest}")
+        if ref:  # make sure the reused clone is at the requested ref
+            if git("checkout", "-q", ref, check=False).returncode != 0:
+                if git("fetch", "-q", "--depth", "1", "origin", ref, check=False).returncode != 0:
+                    fail(f"ref {ref!r} not found in {url}" + (" (use the full 40-character SHA)" if short_hex else ""))
+                git("checkout", "-q", "FETCH_HEAD")
     else:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        is_sha = bool(ref and re.fullmatch(r"[0-9a-f]{7,40}", ref))
-        cmd = ["git", "clone", "--depth", "1", "--no-tags"]
-        if ref and not is_sha:
-            cmd += ["--branch", ref]
         log(f"[fetch] cloning {url} ...")
-        run(cmd + [url, str(dest)], env=env)
-        if is_sha:
-            run(["git", "-C", str(dest), "fetch", "--depth", "1", "origin", ref], env=env)
-            run(["git", "-C", str(dest), "checkout", "-q", "FETCH_HEAD"], env=env)
+        if full_sha:
+            # fetch exactly that commit; no need to download the default branch first
+            dest.mkdir(parents=True, exist_ok=True)
+            git("init", "-q")
+            git("remote", "add", "origin", url)
+            if git("fetch", "-q", "--depth", "1", "origin", ref, check=False).returncode != 0:
+                fail(f"commit {ref} not found in {url}")
+            git("checkout", "-q", "FETCH_HEAD")
+        elif ref:
+            r = run(["git", "clone", "--depth", "1", "--no-tags", "--branch", ref, url, str(dest)], env=env, check=False)
+            if r.returncode != 0:
+                if not short_hex:
+                    fail(f"branch or tag {ref!r} not found in {url}: {r.stderr.strip()[-300:]}")
+                # abbreviated SHA: servers refuse to fetch those, so take the history without file contents
+                shutil.rmtree(dest, ignore_errors=True)
+                log(f"[fetch] {ref} looks like a short commit SHA; fetching history to resolve it")
+                run(["git", "clone", "--filter=blob:none", "--no-checkout", "--no-tags", url, str(dest)], env=env)
+                r = git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False)
+                if r.returncode != 0 or not r.stdout.strip():
+                    fail(f"commit {ref!r} not found in {url} (use the full 40-character SHA)")
+                git("checkout", "-q", r.stdout.strip())
+        else:
+            run(["git", "clone", "--depth", "1", "--no-tags", url, str(dest)], env=env)
     info = {"url": url, "ref": ref}
     try:
         info["commit"] = run(["git", "-C", str(dest), "rev-parse", "HEAD"]).stdout.strip()
@@ -286,6 +315,13 @@ def _worker_init():
         print(f"[worker] setup failed: {type(e).__name__}: {e}", file=sys.stderr, flush=True)
 
 
+def _clean_class(cls):
+    """Drop class names that are really a mis-resolved name-table index (e.g. `/Script/CoreUObject.Vector_1476395008`)."""
+    if not cls or "/" in cls or re.search(r"_\d{6,}$", cls):
+        return None
+    return cls
+
+
 def _classify(path):
     """Main asset class from header + export table only (bodies are not read)."""
     import importlib
@@ -297,7 +333,7 @@ def _classify(path):
         best = None
         for e in r.export_map or []:
             if getattr(e, "b_is_asset", False) or e.object_name == stem:
-                cls = get_asset_class(e, r.import_map, r.export_map)
+                cls = _clean_class(get_asset_class(e, r.import_map, r.export_map))
                 if e.object_name == stem:
                     return path, cls or "?"
                 best = best or cls
@@ -447,14 +483,17 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
     md += ["## How to read this digest", "",
            "- Blueprints were decoded **directly from the binary .uasset files** (no editor). Each one has a file under",
            "  `blueprints/` that mirrors its content path. Graphs are rendered as pseudo-code of the execution flow:",
-           "  - `event X(...)`, `custom event`, `input IA_X`, `on Comp.Delegate(...)`, `function F(...)` — entry points",
+           "  - `event X(...)`, `custom event`, `input IA_X`, `on Comp.Delegate(...)`, `function F(...) -> Out: T` — entry points",
+           "  - `return <value>` / `return (A=.., B=..)` — a function's output values at that exit",
            "  - one statement per executed node; data inputs are inlined as expressions (`Target.Func(Arg=value)`)",
            "  - `#N = Func(...)` — an impure node whose output is used later as `#N` / `#N.PinName`",
            "  - `[true]:` / `[cast ok]:` / `[LoopBody]:` / `[then_1]:` — the named exec output a block runs from",
            "  - `→ goto #N` — execution merges into a node already shown; `[#N]` marks such merge targets",
            "  - `// ── text ──` — the comment box the following nodes sit in; `// text` — a node comment",
-           "  - `∅` — input left unset; `⚠ disconnected execution chains` — nodes nothing can execute (dead code)",
-           "  - Anim graphs: pose trees (`← Node`), state machines as `A → B when <rule>`",
+           "  - `Pin=∅` — object input left unconnected (the call receives None); `⚠ disconnected execution chains` — dead code",
+           "  - Anim graphs: pose trees (`← Node`), state machines as `A → B when <rule>`; `when auto (...)` = fires when the",
+           "    state's animation finishes; `when never` = rule is constant False; `[blend 0.1s, on start notify X]` =",
+           "    non-default transition settings",
            f"- Coverage: {len(bps)} Blueprints rendered, {len(failures)} failed; graph nodes decoded {ok_nodes}/{total_nodes}.",
            "  A Blueprint file says `⚠ N nodes unreadable` when part of a graph could not be decoded.",
            "- Maps are rendered under `maps/`: Level Blueprint, placed actors with per-instance overrides, game mode.",
@@ -556,10 +595,20 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
     # content overview
     folders = Counter()
     kinds = Counter()
+    guessed = Counter()
     for gp, name, cls in other_assets:
         top = "/".join(gp.split("/")[:3])
         folders[top] += 1
-        kinds[cls if cls != "?" else asset_kind(name) + " (by name)"] += 1
+        if cls != "?":
+            kinds[cls] += 1
+        else:
+            guessed[asset_kind(name)] += 1
+    for kind, v in guessed.items():  # header unreadable: fold name-based guesses into the real class when it exists
+        as_class = kind.replace(" ", "")
+        if as_class in kinds:
+            kinds[as_class] += v
+        else:
+            kinds["unknown class" if kind == "other" else f"{kind} (guessed from name)"] += v
     md += ["## Content overview", "",
            f"{len(other_assets) + len(bps) + len(failures)} .uasset files · {len(maps)} maps · Blueprints {len(bps) + len(failures)}", ""]
     if kinds:
@@ -769,13 +818,15 @@ def main(argv=None):
     names = {gp.rsplit("/", 1)[-1]: gp for gp in datas}
     word = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
     for gp, r in bps.items():
+        me = gp.rsplit("/", 1)[-1]
         for w in set(word.findall(r["markdown"])):
-            if w in names and names[w] != gp:
-                used_by[names[w]].add(gp.rsplit("/", 1)[-1])
+            if w in names and names[w] != gp and w != me:
+                used_by[names[w]].add(me)
     for gp, r in datas.items():
+        me = gp.rsplit("/", 1)[-1]
         for w in set(r["summary"].get("references", [])) | set(word.findall(r["markdown"])):
-            if w in names and names[w] != gp:
-                used_by[names[w]].add(gp.rsplit("/", 1)[-1])
+            if w in names and names[w] != gp and w != me:  # same-named asset elsewhere is not a user
+                used_by[names[w]].add(me)
     for gp, r in datas.items():
         r["summary"]["used_by"] = sorted(used_by.get(gp, []))
         md = r["markdown"]

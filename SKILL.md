@@ -35,7 +35,8 @@ A local path works too (e.g. the user's own checkout) — then nothing is cloned
    non-Blueprint logic/data assets, and the parse report. It also explains the pseudo-code notation.
 2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, variables, class defaults,
    event dispatchers, and every graph rendered as execution-flow pseudo-code (anim graphs as pose trees,
-   state machines as `A → B when <rule>`).
+   state machines as `A → B when <rule>`, `when auto (...)` = automatic transition; functions show
+   `-> Out: T` and `return <value>`; `Pin=∅` = object input left unconnected).
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment

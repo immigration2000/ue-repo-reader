@@ -8,12 +8,12 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| B1 | todo | - | 함수 반환값·출력 파라미터 누락: `return` → `return true`, 헤더에 `-> bool` (WBP_GridSlot.CanPlaceItem) | S |
-| B2 | todo | - | 자동 전환(`bAutomaticRuleBasedOnSequencePlayerInState`)이 `when False`로 표시 (ABP_Hands) | S |
-| B3 | todo | - | `→ goto #N`인데 `[#N]` 대상이 출력되지 않음 (BP_FirstPersonCharacter IA_Move, AR A_FootstepFoleyComponent) | S–M |
-| B4 | todo | - | 연결 안 된 필수 입력이 안 보임: `Possess()` → `Possess(InPawn=∅)` (BP_NullPointPC) | S |
-| B5 | todo | - | `--ref`에 짧은 SHA를 주면 CalledProcessError로 종료 | S |
-| B6 | todo | - | 색인 잡음: Used by 자기 참조, `/Script/CoreUObject.Vector_1476395008` 같은 분류 라벨, Niagara 라벨 분리 | S |
+| B1 | done | claude | 함수 반환값·출력 파라미터 누락: `return` → `return true`, 헤더에 `-> bool` (WBP_GridSlot.CanPlaceItem) | S |
+| B2 | done | claude | 자동 전환(`bAutomaticRuleBasedOnSequencePlayerInState`)이 `when False`로 표시 (ABP_Hands) | S |
+| B3 | done | claude | `→ goto #N`인데 `[#N]` 대상이 출력되지 않음 (BP_FirstPersonCharacter IA_Move, AR A_FootstepFoleyComponent) | S–M |
+| B4 | done | claude | 연결 안 된 필수 입력이 안 보임: `Possess()` → `Possess(InPawn=∅)` (BP_NullPointPC) | S |
+| B5 | done | claude | `--ref`에 짧은 SHA를 주면 CalledProcessError로 종료 | S |
+| B6 | done | claude | 색인 잡음: Used by 자기 참조, `/Script/CoreUObject.Vector_1476395008` 같은 분류 라벨, Niagara 라벨 분리 | S |
 | B7 | todo | - | 구조체 기본값 원시 출력(GUID 붙은 멤버명, `=-143` 객체 인덱스, 벡터 문자열) | S–M |
 | B8 | todo | - | 순수 노드 반복 인라인(SnapDragAxis 8회) → `let` 한 번 | S |
 

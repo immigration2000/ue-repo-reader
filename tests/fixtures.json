@@ -3,21 +3,91 @@
     "url": "https://github.com/immigration2000/ExtractionGame_Fin",
     "sha": "f7335adbb7a896457127303fe4eb30a5292ead8f",
     "note": "UE 5.8.2/5.8.3 with 5.3/5.6 packs; user's main project",
-    "expect": {"blueprints": 49, "nodes": 1779},
-    "checks": []
+    "expect": {
+      "blueprints": 49,
+      "nodes": 1779
+    },
+    "checks": [
+      {
+        "bug": "B1",
+        "file": "blueprints/Game/DeltaForce/Blueprints/UI/Grid/WBP_GridSlot.md",
+        "must_contain": [
+          "function CanPlaceItem(TopLeftCell: IntPoint, ItemSize: IntPoint, GridSize: IntPoint) -> NewParam: bool",
+          "return true",
+          "return false",
+          "Func_CanPlaceItem(Strindex: int, GridSize: IntPoint, ItemSize: IntPoint) -> NewParam1: bool"
+        ]
+      },
+      {
+        "bug": "B2",
+        "file": "blueprints/Game/Knife_FPS_Animations/FirstPersonArms/Character/Animations/ABP_Hands.md",
+        "must_contain": [
+          "Hands_draw → Hands_idle   when auto (current state's animation finishes)",
+          "on start notify DisableInputControl"
+        ],
+        "must_not_contain": [
+          "when False"
+        ]
+      },
+      {
+        "bug": "B4",
+        "file": "blueprints/Game/BP_NullPointPC.md",
+        "must_contain": [
+          "Possess(InPawn=∅)"
+        ]
+      },
+      {
+        "bug": "B6",
+        "file": "data/Game/Input/Actions/IA_Jump.md",
+        "must_not_match": [
+          "^`?IA_Jump`?,|, `IA_Jump`"
+        ]
+      },
+      {
+        "bug": "B6",
+        "file": "INDEX.md",
+        "must_not_match": [
+          "/Script/[A-Za-z]+[._][A-Za-z]*_\\d{6,}",
+          " \\(by name\\) "
+        ]
+      }
+    ]
   },
   "ar": {
     "url": "https://github.com/tomlooman/ActionRoguelike",
     "sha": "31bd38491d9dcec99460d85f3084c79441c5ce8b",
     "note": "UE 5.6 project with assets saved by 4.25-5.6",
-    "expect": {"blueprints": 69, "nodes": 1271},
-    "checks": []
+    "expect": {
+      "blueprints": 69,
+      "nodes": 1271
+    },
+    "checks": [
+      {
+        "bug": "B3",
+        "file": "blueprints/Game/ActionRoguelike/Audio/Components/A_FootstepFoleyComponent.md",
+        "must_contain": [
+          "[#1] IsValid",
+          "[#2] IsValid",
+          "→ goto #2"
+        ]
+      },
+      {
+        "bug": "B2",
+        "file": "blueprints/Game/ControlRig/Characters/Mannequins/Animations/Gideon/GideonManny_AnimBlueprint.md",
+        "must_not_contain": [
+          "when False"
+        ]
+      }
+    ]
   },
   "ves": {
     "url": "https://github.com/MarcelKrawczyk/UE5-character-input-framework",
     "sha": "bc6badd01dea44ce8f9d1b38b85fdd12fcfd291d",
     "note": "UE 5.7.2, World Partition external actors",
-    "expect": {"blueprints": 2, "nodes": 7},
+    "expect": {
+      "blueprints": 2,
+      "nodes": 7
+    },
     "checks": []
   }
 }

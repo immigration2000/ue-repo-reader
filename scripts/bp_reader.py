@@ -533,13 +533,15 @@ class GraphRenderer:
             for p in n.pins:
                 if p.direction != 1:
                     continue
+                if _is_exec(p):
+                    if n.class_name == "K2Node_Knot":
+                        continue  # counted at the real source, through the knot
+                    t = self.exec_target(p)  # follows reroute knots to the real target
+                    if t is not None:
+                        self.exec_in[id(t)] = self.exec_in.get(id(t), 0) + 1
+                    continue
                 for link in p.linked_to_raw:
-                    tgt = self.resolve(link)
-                    if not tgt:
-                        continue
-                    if _is_exec(p):
-                        self.exec_in[id(tgt[0])] = self.exec_in.get(id(tgt[0]), 0) + 1
-                    else:
+                    if self.resolve(link):
                         self.used_outputs.add(id(p))
         self.visited = set()
         self.current_box = None
@@ -706,7 +708,17 @@ class GraphRenderer:
             v = self.pin_value(n, p)
             if v is not None:
                 args.append(f"{p.pin_name}={v}")
+            elif self._is_empty_object_input(p):
+                args.append(f"{p.pin_name}=∅")  # object input left unconnected: the call gets None
         return args
+
+    def _is_empty_object_input(self, p) -> bool:
+        cat = p.pin_type.pin_category if p.pin_type else ""
+        if cat not in ("object", "class", "interface", "softobject", "softclass"):
+            return False
+        if p.hidden or getattr(p, "advanced_view", False) or p.linked_to_raw or p.default_object_ref is not None:
+            return False
+        return (p.default_value or "None") in ("None", "")
 
     def input_expr(self, n, pin_name):
         for p in n.pins:
@@ -840,12 +852,26 @@ class GraphRenderer:
                 and p.pin_name != "OutputDelegate" and not p.parent_pin]
         return ", ".join(f"{p.pin_name}: {pin_type_str(p)}" for p in outs)
 
+    def result_pins(self, n):
+        return [p for p in n.pins if p.direction == 0 and not _is_exec(p) and not p.parent_pin
+                and p.pin_type is not None and p.pin_name not in ("self",)]
+
+    def returns_sig(self) -> str:
+        """` -> T` / ` -> (A: T, B: U)` from the graph's FunctionResult node (output parameters)."""
+        res = next((x for x in self.nodes if x.class_name == "K2Node_FunctionResult"), None)
+        outs = self.result_pins(res) if res is not None else []
+        if not outs:
+            return ""
+        if len(outs) == 1:
+            return f" -> {outs[0].pin_name}: {pin_type_str(outs[0])}"
+        return " -> (" + ", ".join(f"{p.pin_name}: {pin_type_str(p)}" for p in outs) + ")"
+
     def entry_header(self, n) -> str:
         cls = n.class_name
         p = self.props(n)
         nd = n.node_data if isinstance(n.node_data, dict) else {}
         if cls == "K2Node_FunctionEntry":
-            return f"function {self.name}({self.params_sig(n)})"
+            return f"function {self.name}({self.params_sig(n)}){self.returns_sig()}"
         if cls == "K2Node_CustomEvent":
             name = p.get("CustomFunctionName") or nd.get("custom_function_name") or "?"
             flags = []
@@ -935,8 +961,15 @@ class GraphRenderer:
             fn = p.get("ProxyFactoryFunctionName") or cls.replace("K2Node_", "")
             return f"{prefix}async {fn}({', '.join(self.arg_list(n))})"
         if cls == "K2Node_FunctionResult":
-            args = ", ".join(self.arg_list(n))
-            return f"return ({args})" if args else "return"
+            # Every output is returned, even when it equals the pin's auto-default (5.8 stores
+            # default_value == auto_default_value for literal results, so the "unchanged default" filter hid them).
+            outs = self.result_pins(n)
+            if not outs:
+                return "return"
+            vals = [(p.pin_name, self.input_expr(n, p.pin_name)) for p in outs]
+            if len(vals) == 1:
+                return f"return {vals[0][1]}"
+            return "return (" + ", ".join(f"{k}={v}" for k, v in vals) + ")"
         if cls == "K2Node_Tunnel":
             return f"exit → {entered_via}" if entered_via else "exit"
         return f"{prefix}{cls.replace('K2Node_', '')}({', '.join(self.arg_list(n))}){dis}"
@@ -956,6 +989,8 @@ class GraphRenderer:
             pad = "  " * indent
             if id(n) in self.visited:
                 lines.append(f"{pad}→ goto {self.nid(n)}")
+                if id(n) not in self.labelled:
+                    self.missing_labels.add(id(n))
                 return
             self.visited.add(id(n))
             box = self.comment_for(n)
@@ -966,7 +1001,10 @@ class GraphRenderer:
             if note and not note.startswith(_GHOST_TEXT):
                 for ln in note.splitlines()[:3]:
                     lines.append(f"{pad}// {ln[:160]}")
-            label = f"[{self.nid(n)}] " if self.exec_in.get(id(n), 0) > 1 else ""
+            label = ""
+            if self.exec_in.get(id(n), 0) > 1 or id(n) in self.force_label:
+                label = f"[{self.nid(n)}] "
+                self.labelled.add(id(n))
             lines.append(pad + label + self.statement(n, via))
             outs = [p for p in n.pins if p.direction == 1 and _is_exec(p)]
             linked = [(p, self.exec_target(p)) for p in outs]
@@ -984,6 +1022,17 @@ class GraphRenderer:
             return
 
     def render_exec(self) -> list[str]:
+        self.force_label = set()
+        lines = self._render_exec_once()
+        if self.missing_labels:
+            # a goto points at a statement printed without a [#N] label: label those and render again
+            self.force_label = set(self.missing_labels)
+            self.visited, self.unused_events, self.current_box = set(), [], None
+            lines = self._render_exec_once()
+        return lines
+
+    def _render_exec_once(self) -> list[str]:
+        self.labelled, self.missing_labels = set(), set()
         lines: list[str] = []
         entries = [n for n in self.nodes if n.class_name in _ENTRY_CLASSES
                    and not (n.class_name == "K2Node_Tunnel" and any(p.direction == 0 and _is_exec(p) for p in n.pins))]
@@ -1094,7 +1143,7 @@ class GraphRenderer:
         return None
 
     def state_machine(self):
-        """Returns (states, entry_state, transitions[(src, dst, bound_graph_ref)])."""
+        """Returns (states, entry_state, transitions[(src, dst, bound_graph_ref, transition_props)])."""
         states = {}
         for n in self.nodes:
             if n.class_name in ("AnimStateNode", "AnimStateConduitNode", "AnimStateAliasNode"):
@@ -1118,7 +1167,8 @@ class GraphRenderer:
                                 src = other[0]
                             else:
                                 dst = other[0]
-                trans.append((states.get(id(src), "?"), states.get(id(dst), "?"), self.props(n).get("BoundGraph")))
+                trans.append((states.get(id(src), "?"), states.get(id(dst), "?"), self.props(n).get("BoundGraph"),
+                              self.props(n)))
         return list(states.values()), entry, trans
 
     def mode(self) -> str:
@@ -1128,6 +1178,35 @@ class GraphRenderer:
         if any(_is_exec(p) for n in self.nodes for p in n.pins):
             return "exec"
         return "dataflow"
+
+
+def _transition_suffix(tp: dict, cond) -> str:
+    """`   when <rule>` plus transition settings. Automatic rules ignore the rule graph (it is usually a
+    leftover constant False), so print what actually triggers the transition instead."""
+    tp = tp or {}
+    auto = bool(tp.get("bAutomaticRuleBasedOnSequencePlayerInState"))
+    if auto:
+        when = "   when auto (current state's animation finishes)"
+        if cond and str(cond) not in ("False", "false"):
+            when += f" — rule graph ignored: {cond}"
+    elif cond is not None and str(cond) in ("False", "false"):
+        when = "   when never (rule is constant False)"
+    else:
+        when = f"   when {cond}" if cond else ""
+    extra = []
+    xf = tp.get("CrossfadeDuration")
+    if isinstance(xf, (int, float)) and abs(xf - 0.2) > 1e-6:
+        extra.append(f"blend {_fmt_num(float(xf))}s")
+    pr = tp.get("PriorityOrder")
+    if isinstance(pr, int) and pr != 1:
+        extra.append(f"priority {pr}")
+    if tp.get("Bidirectional"):
+        extra.append("bidirectional")
+    for key, label in (("TransitionStart", "on start"), ("TransitionEnd", "on end"), ("TransitionInterrupt", "on interrupt")):
+        name = _fields(tp.get(key)).get("NotifyName")
+        if name and str(name) not in ("None", ""):
+            extra.append(f"{label} notify {name}")
+    return when + (f"  [{', '.join(extra)}]" if extra else "")
 
 
 # =========================================================================== blueprint document
@@ -1315,7 +1394,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     trans_title = {}
     for k, gr in renderers.items():
         if gr.mode() == "state machine":
-            for src, dst, ref in gr.state_machine()[2]:
+            for src, dst, ref, _tp in gr.state_machine()[2]:
                 fn = ref.get("full_name") if isinstance(ref, dict) else None
                 if fn and fn in renderers:
                     trans_title[fn] = f"{src} → {dst}"
@@ -1417,10 +1496,9 @@ def read_blueprint(path: str, game_path: str) -> dict:
             if mode == "state machine":
                 states, entry_state, trans = gr.state_machine()
                 lines = ["states: " + ", ".join(states), f"entry → {entry_state or '?'}"]
-                for src, dst, ref in trans:
+                for src, dst, ref, tp in trans:
                     fn = ref.get("full_name") if isinstance(ref, dict) else None
-                    cond = rule_of.get(fn)
-                    lines.append(f"{src} → {dst}" + (f"   when {cond}" if cond else ""))
+                    lines.append(f"{src} → {dst}" + _transition_suffix(tp, rule_of.get(fn)))
             elif mode == "exec":
                 lines = gr.render_exec()
             else:
