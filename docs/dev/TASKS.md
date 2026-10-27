@@ -26,7 +26,7 @@
 | H3 | done | claude | 단정밀도 플로트 플래그를 `FUE5ReleaseStreamObjectVersion >= 36` 게이트로 | S |
 | H5 | done | claude | 모르는 `FileVersionUE5`(>1018)·커스텀 버전이면 경고 후 부분 출력 (5.9 대비) | S |
 | H6 | todo | - | 회귀 세트 확장(버그 재현 픽스처, UE Shed/AssetTools 픽스처 검토) | S–M |
-| H7 | todo | - | Windows 실기 점검: LFS `--include` 이스케이프, `<PY>` 자리표시자, PowerShell 5.1 stderr | S |
+| H7 | todo | - | Windows 실기 점검: LFS `--include` 이스케이프, `<PY>` 자리표시자, PowerShell 5.1 stderr; regress.py의 cp949 출력 실패 재현됨(A1) | S |
 | T1 | done | claude | `digest.json`을 "전부 읽기" 대상에서 제외, 큰 DataTable 상한 | S |
 | T2 | done | claude | 부분 클론(`--filter=blob:limit` 또는 `blob:none` 후 필요한 것만) — 콜드 실행의 85~90%가 클론 | M |
 | T3 | todo | - | 에셋별 blob SHA 캐시(바뀐 것만 재파싱) | S–M |
@@ -74,4 +74,9 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| A1 | doing | codex | 현재 코드 구조·실행 흐름·회귀 상태와 정확성/운영 위험 분석 | S |
+| A1 | done | codex | 현재 코드 구조·실행 흐름·회귀 상태와 정확성/운영 위험 분석 — REVIEW-2026-10-27.md | S |
+| A2 | todo | - | P1: 출력 경로가 입력 프로젝트 또는 그 상위이면 삭제하지 않고 거부; 기존 출력 교체 범위도 검증 | S |
+| A3 | todo | - | P1: 파서 최초 설치를 부모 프로세스에서 완료하고 워커 시작; 공유 캐시 설치 동시성 보호 | S |
+| A4 | todo | - | P1: 맵의 레벨 BP·외부 액터·속성 실패와 그래프 렌더 실패를 summary/INDEX로 전파; 회귀에서 검사 | S–M |
+| A5 | todo | - | P2: MCP 작업 제한시간을 stdout 수신과 독립적으로 집행; 프로세스 종료·수거 보장 | S |
+| A6 | todo | - | P2: MCP 캐시 키에 도구/출력 버전과 충돌 없는 프로젝트 식별자 포함 | S |
