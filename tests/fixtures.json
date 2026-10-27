@@ -5,7 +5,10 @@
     "note": "UE 5.8.2/5.8.3 with 5.3/5.6 packs; user's main project",
     "expect": {
       "blueprints": 49,
-      "nodes": 1779
+      "nodes": 1779,
+      "data_assets": 43,
+      "maps": 5,
+      "external_actors": 64
     },
     "checks": [
       {
@@ -131,7 +134,10 @@
     "note": "UE 5.6 project with assets saved by 4.25-5.6",
     "expect": {
       "blueprints": 69,
-      "nodes": 1271
+      "nodes": 1271,
+      "data_assets": 50,
+      "maps": 3,
+      "external_actors": 0
     },
     "checks": [
       {
@@ -226,8 +232,24 @@
     "note": "UE 5.7.2, World Partition external actors",
     "expect": {
       "blueprints": 2,
-      "nodes": 7
+      "nodes": 7,
+      "data_assets": 4,
+      "maps": 1,
+      "external_actors": 138
     },
-    "checks": []
+    "summary_checks": [
+      {
+        "collection": "maps_detail",
+        "path": "/Game/Maps/World",
+        "fields": {"world_partition": true, "external_actors": 138, "actor_count": 139}
+      }
+    ],
+    "checks": [
+      {
+        "bug": "H6-WorldPartition",
+        "file": "maps/Game/Maps/World.md",
+        "must_contain": ["World Partition: yes — 138 external actor packages"]
+      }
+    ]
   }
 }

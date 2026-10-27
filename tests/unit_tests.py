@@ -21,6 +21,8 @@ from failure_tests import (test_partial_map_reporting, test_empty_and_partial_le
                           test_graph_render_failure_reporting, test_property_failure_reporting,
                           test_data_failure_defaults_unknown, test_regress_checks_non_blueprint_failures,
                           test_native_struct_not_probed_as_tags)
+from coverage_tests import (test_regress_detects_missing_assets, test_asset_oracle_rejects_wrong_text,
+                           test_asset_download_hash_guard)
 
 
 class _Ar:

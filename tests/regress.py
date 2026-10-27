@@ -3,6 +3,7 @@
 
   python tests/regress.py                        # all fixtures (clones into tests/.cache/)
   python tests/regress.py --only eg ar           # some fixtures
+  python tests/regress.py --only assets          # small assets with independent editor oracles
   python tests/regress.py --repo eg=D:/clones/ExtractionGame_Fin   # reuse a local clone (must be at the pinned SHA)
 
 Exit code 0 = all passed, 1 = a check failed, 2 = a digest could not be built.
@@ -95,6 +96,18 @@ def check(fx: dict, out: Path) -> list[str]:
                     errors.append(f"{gp}: external actors incomplete")
     if (digest.get("lfs") or {}).get("failed"):
         errors.append(f"{digest['lfs']['failed']} LFS downloads failed")
+    for field, collection in (("data_assets", "data_assets"), ("maps", "maps_detail")):
+        if field in exp and len(digest.get(collection) or {}) != exp[field]:
+            errors.append(f"{field} {len(digest.get(collection) or {})} != expected {exp[field]}")
+    if "external_actors" in exp:
+        count = sum(s.get("external_actors", 0) for s in (digest.get("maps_detail") or {}).values())
+        if count != exp["external_actors"]:
+            errors.append(f"external actors {count} != expected {exp['external_actors']}")
+    for check in fx.get("summary_checks", []):
+        summary = (digest.get(check["collection"]) or {}).get(check["path"], {})
+        for field, expected in check["fields"].items():
+            if field not in summary or summary[field] != expected:
+                errors.append(f"{check['path']}: {field} {summary.get(field)!r} != expected {expected!r}")
     for c in fx.get("checks", []):
         f = out / c["file"]
         if not f.is_file():
@@ -125,16 +138,23 @@ def _utf8_stdio() -> None:
 def main() -> int:
     _utf8_stdio()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--only", nargs="*", help="fixture names to run")
+    ap.add_argument("--only", nargs="*", help="fixture names to run (eg, ar, ves, assets)")
     ap.add_argument("--repo", action="append", default=[], help="NAME=PATH: use an existing local clone")
     ap.add_argument("--keep", action="store_true", help="keep digests in tests/.cache/<name>_digest (always kept)")
     a = ap.parse_args()
     fixtures = json.loads(FIXTURES.read_text(encoding="utf-8"))
+    unknown = set(a.only or []) - set(fixtures) - {"assets"}
+    if unknown:
+        ap.error("unknown fixtures: " + ", ".join(sorted(unknown)))
     local = dict(r.split("=", 1) for r in a.repo)
     CACHE.mkdir(exist_ok=True)
     unit = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "unit_tests.py")],
                           env=dict(os.environ, PYTHONIOENCODING="utf-8:replace"))
     worst = 1 if unit.returncode else 0
+    if not a.only or "assets" in a.only:
+        assets = subprocess.run([sys.executable, str(ROOT / "tests" / "asset_regress.py")],
+                                env=dict(os.environ, PYTHONIOENCODING="utf-8:replace"))
+        worst = max(worst, assets.returncode)
     for name, fx in fixtures.items():
         if a.only and name not in a.only:
             continue

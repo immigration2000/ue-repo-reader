@@ -1,0 +1,92 @@
+{
+  "repository": "ue-shed/ue-shed",
+  "commit": "73f7c7015e1a5d688c7d3c69abf92d1e4e28ba78",
+  "license": {
+    "path": "LICENSE",
+    "blob": "894109e70ba532ae329dd663d9a1a995d0086fc4"
+  },
+  "cases": [
+    {
+      "id": "pins-4.27",
+      "engine": "4.27",
+      "kind": "blueprint",
+      "nodes": 9,
+      "asset": {
+        "path": "fixtures/graph-pin-text/4.27/BP_Keys.uasset",
+        "blob": "49108b7134e5cbee3c59c1f5bc71f74afc5805d7"
+      },
+      "oracle": {
+        "path": "fixtures/graph-pin-text/4.27/expected.json",
+        "blob": "ed1df1c2791963258820f02c8521b5ef967dd27e"
+      }
+    },
+    {
+      "id": "pins-5.6",
+      "engine": "5.6",
+      "kind": "blueprint",
+      "nodes": 9,
+      "asset": {
+        "path": "fixtures/graph-pin-text/5.6/BP_Keys.uasset",
+        "blob": "b3f45eebebb49f81f655847b27bcdc1bb1c776f0"
+      },
+      "oracle": {
+        "path": "fixtures/graph-pin-text/5.6/expected.json",
+        "blob": "996b6caecae292fe45ffe1d2328f027e7ec428bc"
+      }
+    },
+    {
+      "id": "pins-5.7",
+      "engine": "5.7",
+      "kind": "blueprint",
+      "nodes": 9,
+      "asset": {
+        "path": "fixtures/graph-pin-text/5.7/BP_Keys.uasset",
+        "blob": "123bf72362133b4d3b1bc1e9954cec27977c00ef"
+      },
+      "oracle": {
+        "path": "fixtures/graph-pin-text/5.7/expected.json",
+        "blob": "530274e1eef00639659f010f0b941ee4cbef4d16"
+      }
+    },
+    {
+      "id": "pins-5.8",
+      "engine": "5.8",
+      "kind": "blueprint",
+      "nodes": 9,
+      "asset": {
+        "path": "fixtures/graph-pin-text/5.8/BP_Keys.uasset",
+        "blob": "ad591bb609d94270a81aa8a3d68a5c91f48e3ca6"
+      },
+      "oracle": {
+        "path": "fixtures/graph-pin-text/5.8/expected.json",
+        "blob": "5e8e43efd969c759eeedbd5ec0853f8f6b491a91"
+      }
+    },
+    {
+      "id": "strings-4.27",
+      "engine": "4.27",
+      "kind": "string_table",
+      "asset": {
+        "path": "fixtures/legacy-unreal-project/Generated/4.27/Content/Legacy/ST_LegacyText.uasset",
+        "blob": "28014d9ddf75e3f535066c0a8f39a50c7095fd00"
+      },
+      "oracle": {
+        "path": "fixtures/legacy-unreal-project/Generated/4.27/evidence.json",
+        "blob": "35ee2836cb8dafe3dd385881d5177a092b0e87d3"
+      }
+    },
+    {
+      "id": "strings-5.3",
+      "engine": "5.3",
+      "kind": "string_table",
+      "asset": {
+        "path": "fixtures/legacy-unreal-project/Generated/5.3/Content/Legacy/ST_LegacyText.uasset",
+        "blob": "216435fbb948e329ae3e32ddcf89e1de5bb5a819"
+      },
+      "oracle": {
+        "path": "fixtures/legacy-unreal-project/Generated/5.3/evidence.json",
+        "blob": "cce363103f54fdb06de3c61132089d67868d2ea3"
+      }
+    }
+  ]
+}
