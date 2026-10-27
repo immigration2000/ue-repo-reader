@@ -25,3 +25,10 @@
   상수 False 규칙은 `when never (…)`. 포맷이 바뀌면 VERSION을 올리고 범례·SKILL.md를 함께 고친다.
 - 이유: AI는 요약본을 사실로 읽는다. 생략(빈 return, when False)이 "값이 없다/절대 안 일어난다"로 오독됐다.
 - 영향: 이전 요약본과 텍스트 diff가 생긴다(서버 캐시는 커밋+버전 단위로 다시 만들 것).
+
+## D-005 5.8 FText 추가 필드 = DevNotes FString, 커스텀 버전으로 게이트 (2026-10-27, claude)
+- 결정: Base 히스토리 FText 뒤의 필드를 FString(DevNotes)으로 읽는다. 게이트는 "저장 엔진 ≥ 5.8" 대신
+  `FFortniteMainBranchObjectVersion >= 260 && !PKG_FilterEditorOnly` (요약 정보의 커스텀 버전 표). 표를 못 읽으면 기존 엔진 버전 기준.
+- 이유: int32 0과 빈 FString은 같은 4바이트라 지금 데이터로는 구분 불가였지만, 개발 노트가 있는 텍스트에서 int32로 읽으면 핀 전체가 어긋난다.
+  포맷 사실은 UE 동작과 공개 고지(UAsset Translator THIRD-PARTY-NOTICES의 "FText DevNotes")에서 확인. 무라이선스 코드는 보지 않고 직접 구현.
+- 영향: 고정 커밋 3개 출력은 바이트 단위로 동일. 노트가 있으면 BP 헤더에 "N text dev notes (editor-only) not shown".

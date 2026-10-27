@@ -53,6 +53,8 @@ python tests/regress.py --only eg       # 하나만
 python tests/regress.py --repo eg=/path/to/local/clone   # 이미 받아 둔 클론 재사용
 ```
 
+- `tests/unit_tests.py`(클론 없이 도는 빠른 검사)가 regress 시작 때 먼저 돈다. 저장소로 재현할 수 없는 포맷 경우(예: 비어 있지 않은
+  DevNotes)는 여기에 합성 바이트로 검사를 넣는다.
 - 기대값(`tests/fixtures.json`): BP 수, 노드 수 `N/N`, 실패 0, 그리고 버그 재발 방지용 문자열 검사
   (`must_contain` / `must_not_contain`). 버그를 고치면 **그 버그를 잡는 검사를 반드시 추가**한다.
 - 노드 수나 BP 수가 바뀌는 것이 의도된 변경이면 기대값을 고치고 WORKLOG에 이유를 쓴다.

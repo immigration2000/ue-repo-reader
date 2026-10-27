@@ -91,7 +91,8 @@ def main() -> int:
     fixtures = json.loads(FIXTURES.read_text(encoding="utf-8"))
     local = dict(r.split("=", 1) for r in a.repo)
     CACHE.mkdir(exist_ok=True)
-    worst = 0
+    unit = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "unit_tests.py")])
+    worst = 1 if unit.returncode else 0
     for name, fx in fixtures.items():
         if a.only and name not in a.only:
             continue

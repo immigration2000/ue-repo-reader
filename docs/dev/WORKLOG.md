@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-10-27 11:30 KST · claude · B7 B8 H1
+- 한 일:
+  - B7 구조체 값 읽기 쉽게: `Name_N_<GUID>` 멤버명 → `Name`(BP·data·map 전부), 구조체 안 object 프로퍼티를 에셋 이름으로
+    (`ObjRef` = int 하위 클래스, uasset_read의 object/class 핸들러를 감쌈, `Ctx` 생성 시 `_CUR_CTX` 설정),
+    핀 기본값 `0.000000,0.000000,80.000000` → `Vector{X=0, Y=0, Z=80}`, `(TagName="A")` → `GameplayTag{TagName=A}`.
+  - B8 길고(60자 초과) 두 곳 이상에서 쓰는 순수 식을 그래프 끝 `// where` 블록에 `$N`으로 한 번만 출력(순수 노드는 매번
+    재평가되므로 let이 아니라 where로 표기). 여러 출력 핀을 가진 순수 호출도 대상. 범례·SKILL.md 반영.
+  - H1 FText DevNotes를 FString으로 읽음, 게이트를 커스텀 버전(FNMB ≥ 260, 에디터 전용 필터 아님)으로 교체(D-005).
+  - `tests/unit_tests.py` 추가(regress가 먼저 실행): DevNotes 합성 바이트, 멤버명, 핀 구조체 표기.
+- 검증: regress 3/3 PASS + unit 3/3. H1 전후 출력 바이트 동일(노트가 전부 비어 있음). B7·B8 검사를 이전 출력에 돌리면 실패 확인.
+- 남은 일·주의: P0 끝. 다음 추천: H2·H3(맵 핀 bool·단정밀도 플로트를 버전 게이트로), H5(5.9 대비 경고), T1(digest.json 분리).
+  `$N` 별칭 기준은 `_ALIAS_MIN_LEN = 60` (bp_reader.py).
+
 ## 2026-10-27 10:40 KST · claude · B1 B2 B3 B4 B5 B6
 - 한 일 (출력 포맷 v1.4.0):
   - B1 함수 결과: `return true/false` 등 값 출력(5.8은 결과 핀 default==auto_default라 기존 필터가 숨김), 헤더에 `-> Out: T`.

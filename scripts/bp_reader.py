@@ -133,8 +133,7 @@ def _install_patches() -> None:
     def read_ftext_with_history(archive, history_type, tolerant=True):
         value, consumed = orig_hist(archive, history_type, tolerant)
         if history_type == 0 and _TEXT["base_extra"]:
-            archive.read_i32()
-            consumed += 4
+            consumed += _skip_devnotes(archive)
         return value, consumed
 
     G.read_ftext_with_history = read_ftext_with_history
@@ -151,7 +150,7 @@ def _install_patches() -> None:
             history = archive.read_u8()
             archive.seek(here)
             if history == 0:
-                archive.read_i32()
+                _skip_devnotes(archive)
         return value
 
     PT.parse_text_property = parse_text_property
@@ -169,20 +168,35 @@ def _install_patches() -> None:
     orig_linker_parse = PU.parse_uasset_with_linker
 
     def parse_uasset_with_linker(path, *args, **kwargs):
-        _TEXT["base_extra"] = _TEXT["override"] if _TEXT["override"] is not None else _saved_with_58_or_later(path)
+        _TEXT["base_extra"] = _TEXT["override"] if _TEXT["override"] is not None else _ftext_has_devnotes(path)
+        _TEXT["devnotes"] = _TEXT["devnote_errors"] = 0
         return orig_linker_parse(path, *args, **kwargs)
 
     PU.parse_uasset_with_linker = parse_uasset_with_linker
     _PATCHED = True
 
 
-def _saved_with_58_or_later(path: str) -> bool:
-    """Read only the package summary and check SavedByEngineVersion >= 5.8."""
+# FFortniteMainBranchObjectVersion (601D1886-AC64-4F84-AA16-D3DE0DEAC7D6) as stored in the summary,
+# and the version that added FText DevNotes (UE 5.8 editor saves report 268; UE 5.7 reports 225).
+_FNMB_GUID = "86181d60844f64acded316aad6c7ea0d"
+_FNMB_ADD_DEVNOTES_TO_FTEXT = 260
+_PKG_FILTER_EDITOR_ONLY = 0x80000000
+
+
+def _ftext_has_devnotes(path: str) -> bool:
+    """Base-history FTexts carry an editor-only DevNotes FString when the package was saved with
+    FFortniteMainBranchObjectVersion >= 260 and is not a cooked (editor-only-filtered) package.
+    Falls back to "saved by UE >= 5.8" when the custom version table can't be read."""
     try:
         from uasset_read.archive import FArchive
         from uasset_read.serializers.package_summary import read_package_summary
         with FArchive(path, tolerant=True) as ar:
             s = read_package_summary(ar)
+        if (getattr(s, "package_flags", 0) or 0) & _PKG_FILTER_EDITOR_ONLY:
+            return False
+        for cv in getattr(s, "custom_versions", None) or []:
+            if str(getattr(cv, "guid", "")).lower() == _FNMB_GUID:
+                return (getattr(cv, "version", 0) or 0) >= _FNMB_ADD_DEVNOTES_TO_FTEXT
         ev = getattr(s, "saved_by_engine_version", None)
         if ev is None or not getattr(ev, "major", 0):
             ev = getattr(s, "compatible_with_engine_version", None)
@@ -190,6 +204,20 @@ def _saved_with_58_or_later(path: str) -> bool:
         return (major, minor) >= (5, 8)
     except Exception:
         return False
+
+
+def _skip_devnotes(archive) -> int:
+    """Consume the DevNotes FString (int32 length; >0 = that many ANSI bytes, <0 = UTF-16 code units).
+    Returns the number of bytes consumed. Non-empty notes are counted so the digest can mention them."""
+    n = archive.read_i32()
+    size = n if n > 0 else (-2 * n if n < 0 else 0)
+    if size > 1 << 20:  # not a plausible note: keep the old 4-byte behaviour rather than run off the data
+        _TEXT["devnote_errors"] = _TEXT.get("devnote_errors", 0) + 1
+        return 4
+    if size:
+        archive.read_bytes(size)
+        _TEXT["devnotes"] = _TEXT.get("devnotes", 0) + 1
+    return 4 + size
 
 
 # =========================================================================== parsing
@@ -1441,6 +1469,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     if not Path(path).is_file():
         raise FileNotFoundError(path)
     result, (ok_nodes, total_nodes) = _parse(path)
+    devnotes, devnote_errors = _TEXT.get("devnotes", 0), _TEXT.get("devnote_errors", 0)
     ctx = Ctx(result)
     asset_name = Path(path).stem
     bp_obj, bp_cls = _find_blueprint_object(ctx, asset_name)
@@ -1522,7 +1551,9 @@ def read_blueprint(path: str, game_path: str) -> dict:
 
     md = [f"# {asset_name}", "",
           f"`{game_path}` · {kind} · parent **{parent}**" + (f" · implements {', '.join(interfaces)}" if interfaces else ""),
-          f"saved with UE {saved} · graph nodes decoded: {ok_nodes}/{total_nodes}", ""]
+          f"saved with UE {saved} · graph nodes decoded: {ok_nodes}/{total_nodes}"
+          + (f" · {devnotes} text dev notes (editor-only) not shown" if devnotes else "")
+          + (f" · ⚠ {devnote_errors} implausible FText dev-note fields" if devnote_errors else ""), ""]
 
     comp = _components(ctx, bp_props)
     if comp:
