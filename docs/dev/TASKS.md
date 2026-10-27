@@ -69,3 +69,9 @@
 | R5 | todo | - | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
 | R6 | todo | - | MCP Registry 등록(stdio 패키지) | S |
 | V1 | todo | - | 사람 PC에서 UE Shed / UAsset Translator와 실측 비교 (이 세션에선 실행 불가) | S |
+
+## 분석·리뷰
+
+| ID | 상태 | 담당 | 내용 | 규모 |
+|---|---|---|---|---|
+| A1 | doing | codex | 현재 코드 구조·실행 흐름·회귀 상태와 정확성/운영 위험 분석 | S |
