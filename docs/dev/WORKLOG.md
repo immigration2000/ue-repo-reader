@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-10-27 13:50 KST · codex · H7 V2
+- 한 일: tests/windows_smoke.py로 실제 Windows PowerShell 5.1.19041.6456에서 가이드 블록 7개 구문 검사 및
+  진단→Python 선택→Git 설정→스킬 클론→eg 고정 커밋 분석을 실행. 작업 경로·Git 전역 설정/검색 상한은 임시 경로에 격리.
+  실제 검증에서 발견한 가이드 문제 수정: 없는 python/py 버전 명령은 건너뛰고, 대괄호 경로의 결과 확인은 -LiteralPath 사용.
+  H7의 남은 실제 5.1 검증(V2)을 done으로 전환. 검증 방법/범위는 tests/README에 기록.
+- 검증: eg 49 BP·1779/1779·실패 0, 한글/공백/[ ]/쉼표 출력 경로에서 가이드의 Coverage 표시 확인.
+  Store 스텁(exit 9009) 거부·py -3 대체 선택·Python 없음 거부, native stderr 출력과 종료 코드 7 보존 확인.
+  로컬 실제 Git-LFS 포인터 2개(.uasset/.umap)를 특수문자 경로의 git lfs pull 대체 경로로 받아 원본 바이트 대조: 실패 0.
+  사용자 Git 전역 설정 해시 전후 동일. 동일 5.1/cp949 환경 전체 regress: 단위 26/26 + 외부 에셋 6/6 + 프로젝트 3/3 PASS.
+  로그/결과는 tests/.cache/windows-smoke/(gitignore). 기존 symlink 실생성 하위 검사만 권한 부족 skip. git diff --check PASS.
+- 남은 일·주의: 이미 설치된 Python/Git/LFS를 사용해 winget/UAC/Store UI는 실행하지 않음. 사용자 스킬 폴더나 전역 설정도
+  변경하지 않음. H6/H7 완료 후 다음 후보 A5/A6 또는 T3. 프로덕션 파서·출력 포맷 변화 없음.
+
 ## 2026-10-27 13:50 KST · codex · H6
 - 한 일: UE Shed 73f7c701 고정 커밋의 BP_Keys 4개(4.27/5.6/5.7/5.8, 각 9노드)와 StringTable 2개(4.27/5.3)를
   에디터 정답 JSON과 대조하는 asset_regress 추가. 노드·핀 위치/GUID·텍스트와 네임스페이스/키/문자열을 검사.

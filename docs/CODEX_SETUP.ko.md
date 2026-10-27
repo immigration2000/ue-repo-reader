@@ -28,8 +28,8 @@
 git --version
 git lfs version
 Get-Command python, py -ErrorAction SilentlyContinue | Select-Object Name, Source
-python --version
-py -3 --version
+if (Get-Command python -ErrorAction SilentlyContinue) { python --version }
+if (Get-Command py -ErrorAction SilentlyContinue) { py -3 --version }
 ```
 
 판단 기준:
@@ -104,7 +104,7 @@ New-Item -ItemType Directory -Force $work | Out-Null
 $env:PYTHONIOENCODING = "utf-8:replace"   # 한국어 Windows(cp949) 콘솔에서도 로그가 깨지지 않게
 Invoke-UePython "$skill\scripts\ue_repo_digest.py" https://github.com/immigration2000/ExtractionGame_Fin --workdir "$work\repos\ExtractionGame_Fin" --out "$work\ExtractionGame_Fin_digest"
 "exit code: $LASTEXITCODE"
-Select-String -Path "$work\ExtractionGame_Fin_digest\INDEX.md" -Pattern "Coverage:", "decoded cleanly" | ForEach-Object Line
+Select-String -LiteralPath "$work\ExtractionGame_Fin_digest\INDEX.md" -Pattern "Coverage:", "decoded cleanly" | ForEach-Object Line
 ```
 
 성공 기준:
