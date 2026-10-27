@@ -1,0 +1,23 @@
+{
+  "eg": {
+    "url": "https://github.com/immigration2000/ExtractionGame_Fin",
+    "sha": "f7335adbb7a896457127303fe4eb30a5292ead8f",
+    "note": "UE 5.8.2/5.8.3 with 5.3/5.6 packs; user's main project",
+    "expect": {"blueprints": 49, "nodes": 1779},
+    "checks": []
+  },
+  "ar": {
+    "url": "https://github.com/tomlooman/ActionRoguelike",
+    "sha": "31bd38491d9dcec99460d85f3084c79441c5ce8b",
+    "note": "UE 5.6 project with assets saved by 4.25-5.6",
+    "expect": {"blueprints": 69, "nodes": 1271},
+    "checks": []
+  },
+  "ves": {
+    "url": "https://github.com/MarcelKrawczyk/UE5-character-input-framework",
+    "sha": "bc6badd01dea44ce8f9d1b38b85fdd12fcfd291d",
+    "note": "UE 5.7.2, World Partition external actors",
+    "expect": {"blueprints": 2, "nodes": 7},
+    "checks": []
+  }
+}

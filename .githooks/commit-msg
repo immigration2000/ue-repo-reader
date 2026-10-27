@@ -1,0 +1,10 @@
+#!/bin/sh
+# Require an agent tag on the first line: [claude] / [codex] / [human]
+# Enable once per clone:  git config core.hooksPath .githooks
+first=$(head -n 1 "$1")
+case "$first" in
+  "[claude] "*|"[codex] "*|"[human] "*|"Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+echo "commit-msg: first line must start with [claude] , [codex] or [human]  (see AGENTS.md section 3)" >&2
+echo "  got: $first" >&2
+exit 1
