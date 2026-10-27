@@ -11,6 +11,18 @@
 
 ---
 
+## 2026-10-27 14:10 KST · claude · T2
+- 한 일:
+  - 클론을 부분 클론으로: `--filter=blob:limit=2m --no-checkout --depth 1` → `ls-tree`(크기 조회 없이)와
+    `rev-list --missing=print`로 빠진 큰 blob을 알아낸 뒤 필요한 경로만 `checkout --pathspec-from-file`(한 번에 일괄 fetch).
+    빠진 blob 중 `.umap`과 이름이 아트 접두사(T_, SM_, SK_, M_, MI_, S_, A_ …)가 아닌 `.uasset`만 가져옴. 나머지는 parse report에 기록.
+  - LFS를 `git lfs pull` 대신 LFS batch API로 직접 받음(`lfs_batch_download`, 8병렬, sha256 검증). 이유: git-lfs가 트리 전체를
+    훑으면서 부분 클론의 빠진 blob을 하나씩 lazy fetch함(EG에서 53팩, +500MB). 실패·남은 것은 기존 `git lfs pull`로 대체.
+    인증은 URL의 자격 증명(서버의 GITHUB_TOKEN)만 사용, `.lfsconfig`가 있으면 git-lfs에 맡김.
+- 검증: 새 클론으로 regress 3/3 PASS. EG 36s→17s, .git 603MB→137MB. AR은 LFS가 없고 작은 파일이 대부분이라 46s 그대로(큰 blob 13개만 추가 fetch).
+- 남은 일·주의: git 2.43에는 `GIT_NO_LAZY_FETCH`가 없어 직접 다운로드로 우회. 기존 클론 재사용 + `--ref` 경로는 여전히
+  `git checkout ref`(빠진 blob lazy fetch) — 필요하면 materialize 재사용으로 바꿀 것. 비공개 저장소의 로컬 실행(자격 증명 도우미)은 git-lfs 경로로 감.
+
 ## 2026-10-27 13:10 KST · claude · F1
 - 한 일: `config/GameplayTags.md` 신규 + INDEX에 GameplayTags 절.
   - 정의: `Config/DefaultGameplayTags.ini`, `Config/Tags/*.ini`, 플러그인 Config, GameplayTagTableRow DataTable,

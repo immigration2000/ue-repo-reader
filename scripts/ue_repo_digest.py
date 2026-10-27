@@ -51,7 +51,16 @@ def looks_like_url(s: str) -> bool:
     return bool(re.match(r"^(https?://|git@|ssh://|file://)", s)) or s.endswith(".git")
 
 
-def clone(url: str, dest: Path, ref: str | None) -> dict:
+CLONE_BLOB_LIMIT_MB = 2  # blobs above this are left out of the clone (largest Blueprint seen in tests: 1.2 MB)
+# Big .uasset files left out by the filter are still fetched unless their name marks them as heavy art.
+_HEAVY_PREFIXES = ("T_", "TX_", "Tex_", "SM_", "SK_", "SKM_", "M_", "MI_", "MF_", "HDR", "S_", "SW_", "A_", "AS_",
+                   "Anim_", "MM_", "PA_")
+
+
+def clone(url: str, dest: Path, ref: str | None, asset_max_mb: float = 8.0, map_max_mb: float = 64.0) -> dict:
+    """Partial clone with a blob size filter (CLONE_BLOB_LIMIT_MB): sources, config and small assets come with the
+    clone. Bigger blobs stored directly in git are fetched on checkout only if they can matter — maps, and .uasset
+    files whose name does not mark them as heavy art (T_, SM_, SK_, M_ …). LFS objects are pulled later."""
     env = dict(os.environ, GIT_LFS_SKIP_SMUDGE="1", GIT_TERMINAL_PROMPT="0")
 
     def git(*args, check=True):
@@ -60,8 +69,39 @@ def clone(url: str, dest: Path, ref: str | None) -> dict:
     def fail(msg):
         raise SystemExit(f"error: {msg}")
 
+    skipped: list[str] = []
+    blob_limit_mb = CLONE_BLOB_LIMIT_MB
+
+    def materialize(commit: str):
+        """Point HEAD at `commit` and check out only the wanted paths. Blobs above the clone's size filter are
+        missing locally; of those only maps are fetched (in one batch by checkout), the rest is skipped."""
+        git("update-ref", "--no-deref", "HEAD", commit)
+        missing = {ln[1:].strip() for ln in git("rev-list", "--objects", "--missing=print", "HEAD").stdout.splitlines()
+                   if ln.startswith("?")}
+        wanted = []
+        for entry in git("ls-tree", "-r", "-z", "HEAD").stdout.split("\0"):
+            if not entry or "\t" not in entry:
+                continue
+            meta_, path = entry.split("\t", 1)
+            parts = meta_.split()
+            if len(parts) < 3 or parts[1] != "blob":
+                continue
+            name = path.rsplit("/", 1)[-1]
+            heavy = not path.lower().endswith((".uasset", ".umap")) or (
+                path.lower().endswith(".uasset") and name.startswith(_HEAVY_PREFIXES))
+            if parts[2] in missing and heavy:
+                skipped.append(path)
+            else:
+                wanted.append(path)
+        listfile = dest / ".git" / "ue-repo-reader-paths"
+        listfile.write_text("\0".join(wanted), encoding="utf-8")
+        log(f"[fetch] checking out {len(wanted)} files; skipping {len(skipped)} files over {blob_limit_mb} MB stored in git")
+        if wanted:
+            git("checkout", "-q", "HEAD", f"--pathspec-from-file={listfile}", "--pathspec-file-nul")
+
     full_sha = bool(ref and re.fullmatch(r"[0-9a-fA-F]{40}", ref))
     short_hex = bool(ref and not full_sha and re.fullmatch(r"[0-9a-fA-F]{4,39}", ref))
+    partial = [f"--filter=blob:limit={blob_limit_mb}m", "--no-checkout", "--no-tags"]
     if dest.exists() and (dest / ".git").exists():
         log(f"[fetch] reusing existing clone at {dest}")
         if ref:  # make sure the reused clone is at the requested ref
@@ -71,31 +111,40 @@ def clone(url: str, dest: Path, ref: str | None) -> dict:
                 git("checkout", "-q", "FETCH_HEAD")
     else:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        log(f"[fetch] cloning {url} ...")
+        log(f"[fetch] cloning {url} (partial: trees first, then only the files that are read) ...")
         if full_sha:
             # fetch exactly that commit; no need to download the default branch first
             dest.mkdir(parents=True, exist_ok=True)
             git("init", "-q")
             git("remote", "add", "origin", url)
-            if git("fetch", "-q", "--depth", "1", "origin", ref, check=False).returncode != 0:
+            git("config", "remote.origin.promisor", "true")
+            git("config", "remote.origin.partialclonefilter", f"blob:limit={blob_limit_mb}m")
+            if git("fetch", "-q", "--depth", "1", f"--filter=blob:limit={blob_limit_mb}m", "origin", ref,
+                   check=False).returncode != 0:
                 fail(f"commit {ref} not found in {url}")
-            git("checkout", "-q", "FETCH_HEAD")
+            materialize(git("rev-parse", "FETCH_HEAD").stdout.strip())
         elif ref:
-            r = run(["git", "clone", "--depth", "1", "--no-tags", "--branch", ref, url, str(dest)], env=env, check=False)
-            if r.returncode != 0:
+            r = run(["git", "clone", "--depth", "1", *partial, "--branch", ref, url, str(dest)], env=env, check=False)
+            if r.returncode == 0:
+                materialize(git("rev-parse", "HEAD").stdout.strip())
+            else:
                 if not short_hex:
                     fail(f"branch or tag {ref!r} not found in {url}: {r.stderr.strip()[-300:]}")
                 # abbreviated SHA: servers refuse to fetch those, so take the history without file contents
                 shutil.rmtree(dest, ignore_errors=True)
                 log(f"[fetch] {ref} looks like a short commit SHA; fetching history to resolve it")
-                run(["git", "clone", "--filter=blob:none", "--no-checkout", "--no-tags", url, str(dest)], env=env)
+                run(["git", "clone", *partial, url, str(dest)], env=env)
                 r = git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}", check=False)
                 if r.returncode != 0 or not r.stdout.strip():
                     fail(f"commit {ref!r} not found in {url} (use the full 40-character SHA)")
-                git("checkout", "-q", r.stdout.strip())
+                materialize(r.stdout.strip())
         else:
-            run(["git", "clone", "--depth", "1", "--no-tags", url, str(dest)], env=env)
+            run(["git", "clone", "--depth", "1", *partial, url, str(dest)], env=env)
+            materialize(git("rev-parse", "HEAD").stdout.strip())
     info = {"url": url, "ref": ref}
+    if skipped:
+        info["skipped_large_files"] = {"count": len(skipped), "limit_mb": blob_limit_mb, "assets": sorted(
+            pth for pth in skipped if pth.lower().endswith(".uasset"))[:200]}
     try:
         info["commit"] = run(["git", "-C", str(dest), "rev-parse", "HEAD"]).stdout.strip()
         info["branch"] = run(["git", "-C", str(dest), "rev-parse", "--abbrev-ref", "HEAD"]).stdout.strip()
@@ -116,6 +165,77 @@ def lfs_pointer_size(p: Path) -> int | None:
         return None
     m = re.search(rb"size (\d+)", data)
     return int(m.group(1)) if m else 0
+
+
+def _lfs_endpoint(repo: Path) -> tuple[str, dict]:
+    """(batch API URL, headers) for the repo's origin. Basic auth is taken from credentials in the URL
+    (how the MCP server passes GITHUB_TOKEN); repos with a custom lfs.url are left to git-lfs."""
+    import base64
+    from urllib.parse import urlsplit, urlunsplit
+    if (repo / ".lfsconfig").is_file():
+        raise RuntimeError("custom .lfsconfig")
+    url = run(["git", "-C", str(repo), "remote", "get-url", "origin"]).stdout.strip()
+    u = urlsplit(url)
+    if u.scheme != "https":
+        raise RuntimeError("origin is not https")
+    headers = {"Accept": "application/vnd.git-lfs+json", "Content-Type": "application/vnd.git-lfs+json"}
+    if u.username or u.password:
+        cred = f"{u.username or ''}:{u.password or ''}".encode()
+        headers["Authorization"] = "Basic " + base64.b64encode(cred).decode()
+    host = u.hostname + (f":{u.port}" if u.port else "")
+    path = u.path.rstrip("/")
+    if not path.endswith(".git"):
+        path += ".git"
+    return urlunsplit(("https", host, path + "/info/lfs/objects/batch", "", "")), headers
+
+
+def lfs_batch_download(repo: Path, rel_paths: list[str]) -> int:
+    """Download LFS objects through the Git LFS batch API and replace the pointer files.
+    Unlike `git lfs pull` this never scans the whole tree (which, in a partial clone, makes git fetch every
+    skipped blob). Returns how many files were replaced; anything left is handled by git lfs pull."""
+    import hashlib
+    import urllib.request
+    from concurrent.futures import ThreadPoolExecutor
+    endpoint, headers = _lfs_endpoint(repo)
+    objs = {}
+    for rp in rel_paths:
+        data = (repo / rp).read_bytes()
+        m_oid = re.search(rb"oid sha256:([0-9a-f]{64})", data)
+        m_size = re.search(rb"size (\d+)", data)
+        if m_oid and m_size:
+            objs.setdefault(m_oid.group(1).decode(), (int(m_size.group(1)), []))[1].append(rp)
+    targets = {}
+    items = list(objs.items())
+    for i in range(0, len(items), 100):
+        body = json.dumps({"operation": "download", "transfers": ["basic"],
+                           "objects": [{"oid": oid, "size": sz} for oid, (sz, _) in items[i:i + 100]]}).encode()
+        req = urllib.request.Request(endpoint, data=body, headers=headers, method="POST")
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            for o in json.loads(resp.read().decode("utf-8")).get("objects", []):
+                dl = (o.get("actions") or {}).get("download")
+                if dl and dl.get("href"):
+                    targets[o["oid"]] = dl
+
+    def fetch(oid):
+        dl = targets[oid]
+        req = urllib.request.Request(dl["href"], headers=dl.get("header") or {})
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            blob = resp.read()
+        if hashlib.sha256(blob).hexdigest() != oid:
+            return 0
+        for rp in objs[oid][1]:
+            (repo / rp).write_bytes(blob)
+        return len(objs[oid][1])
+
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        return sum(ex.map(lambda o: _safe(fetch, o), list(targets)))
+
+
+def _safe(fn, *args):
+    try:
+        return fn(*args)
+    except Exception:  # noqa: BLE001 - a failed object stays a pointer and goes to git lfs pull
+        return 0
 
 
 def pull_lfs(repo: Path, paths: list[Path], max_mb: float, map_max_mb: float = 64.0) -> dict:
@@ -142,6 +262,17 @@ def pull_lfs(repo: Path, paths: list[Path], max_mb: float, map_max_mb: float = 6
         report["failed"] = len(wanted)
         return report
     log(f"[lfs] downloading {len(wanted)} .uasset/.umap files ({report['bytes'] / 1e6:.1f} MB) ...")
+    try:
+        done = lfs_batch_download(repo, wanted)
+    except Exception as e:  # noqa: BLE001 - fall back to git-lfs below
+        log(f"[lfs] direct download unavailable ({type(e).__name__}: {str(e)[:120]}); using git lfs pull")
+        done = 0
+    wanted = [w for w in wanted if lfs_pointer_size(repo / w) is not None]  # still pointers
+    if not wanted:
+        report["failed"] = 0
+        return report
+    if done:
+        log(f"[lfs] {done} downloaded directly; {len(wanted)} left for git lfs pull")
     batch, length = [], 0
     batches = []
     for w in wanted:
@@ -839,6 +970,13 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
                   f"skipped {lfs['skipped_large']} large/non-uasset files" + (f"; ⚠ {lfs['failed']} could not be downloaded" if lfs["failed"] else ""))
         if lfs.get("error"):
             md.append(f"  - LFS error: `{lfs['error'][:300]}`")
+    big = meta.get("skipped_large_files")
+    if big:
+        assets_big = big.get("assets") or []
+        md.append(f"- not downloaded (stored in git, over {big.get('limit_mb', '?')} MB and named like art — T_, SM_, SK_, M_ …): "
+                  f"{big['count']} files" + (f" — including {len(assets_big)} .uasset: "
+                  + ", ".join(f"`{x}`" for x in assets_big[:8]) + (" …" if len(assets_big) > 8 else "")
+                  if assets_big else ""))
     partial = [(gp, r["summary"]) for gp, r in bps.items() if r["summary"]["nodes_ok"] < r["summary"]["nodes_total"]]
     if partial:
         md.append(f"- partially decoded Blueprints ({len(partial)}):")
@@ -895,7 +1033,7 @@ def main(argv=None):
     if looks_like_url(a.source):
         name = re.sub(r"\.git$", "", a.source.rstrip("/").split("/")[-1].split(":")[-1]) or "repo"
         repo = Path(a.workdir or Path.cwd() / ".ue-repo-reader" / name)
-        meta.update(clone(a.source, repo, a.ref))
+        meta.update(clone(a.source, repo, a.ref, a.lfs_max_mb, a.lfs_map_max_mb))
     else:
         repo = Path(a.source).resolve()
         if not repo.is_dir():
