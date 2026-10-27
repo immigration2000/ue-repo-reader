@@ -28,6 +28,7 @@ from server_tests import (test_server_deadline_without_output, test_server_deadl
                           test_server_cache_key_collisions_and_version, test_server_cache_requires_completion_and_identity,
                           test_server_cache_reuse_refresh_and_deduplication, test_server_job_publishes_only_current_success)
 from skill_install_tests import (test_skill_install_layouts_and_execution, test_skill_install_preserves_existing_paths)
+from clone_tests import test_partial_clone_reuse_keeps_heavy_blobs_missing
 
 
 class _Ar:

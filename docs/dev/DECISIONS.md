@@ -91,3 +91,10 @@
 - 영향: 새 의존성·출력 포맷 변화 없음. 기존 Git 클론 설치/업데이트 유지. 복사본은 자동 갱신되지 않으며
   재설치 전 기존 폴더를 옮겨야 한다. 설치기는 기존 폴더·탐색 경로 링크/정션을 교체하지 않고 사용자 설정도 수정하지 않는다.
   chatgpt-plugin/skills의 MCP 전용 지침은 별도 배포이며 로컬 설치에 섞지 않는다. 경로 공식 출처는 README에 기록.
+
+## D-013 기존 클론도 선택 materialize로 전환 (2026-10-27, codex)
+- 결정: 재사용에서도 checkout ref 대신 commit 해석→필터 fetch→필요 blob 일괄 fetch→변경 경로만 checkout.
+  이전 index의 삭제 경로를 정리하고 .git/ue-repo-reader-paths로 부분 index의 의도된 생략을 구분한다.
+- 이유: 전체 checkout은 처음 건너뛴 큰 아트 blob을 다시 받고, 경로만 checkout하면 삭제된 파일이 분석에 남는다(X4).
+- 영향: 로컬/스테이징 변경·미추적 충돌은 보존하고 실패, 링크된 Git worktree는 캐시로 거부. ref 없음은 현재 HEAD 유지.
+  Git stdin은 UTF-8 바이트로 전달해 Windows CRLF가 fetch refspec을 깨지 않게 한다. 새 의존성/출력 포맷 변경 없음.

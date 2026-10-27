@@ -70,6 +70,10 @@ python scripts/ue_repo_digest.py D:/Work/MySoulsLike              # 로컬 체�
 python scripts/ue_repo_digest.py <url> --ref dev --project Chapter03/Game   # 브랜치 / 멀티 프로젝트
 ```
 
+`--workdir`의 기존 클론도 같은 선택 다운로드 규칙을 적용합니다. 재사용 시 필요한 변경 파일만 체크아웃하며
+목표 커밋에서 삭제된 추적 파일은 정리합니다. 로컬·스테이징 변경이나 덮어쓸 미추적 파일이 있으면 거부하므로
+분석 전용의 깨끗한 일반 클론을 사용하세요(링크된 Git worktree는 지원하지 않음). `--ref`가 없으면 기존 HEAD를 재사용합니다.
+
 `--out`은 요약본 전용 폴더를 지정하세요. 새 폴더·빈 폴더 또는 기존 ue-repo-reader 요약본만 사용할 수 있습니다.
 입력 저장소 자체·그 상위 경로·심볼릭 링크/정션은 거부합니다. 기존 요약본은 `digest.json`의 도구 식별자와
 최상위 파일/폴더 구성을 확인한 뒤 교체하며, `blueprints/`, `data/`, `maps/`, `cpp/`, `config/`는 생성 결과 전용입니다.

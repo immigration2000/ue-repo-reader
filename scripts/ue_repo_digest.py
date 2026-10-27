@@ -64,8 +64,18 @@ def clone(url: str, dest: Path, ref: str | None, asset_max_mb: float = 8.0, map_
     files whose name does not mark them as heavy art (T_, SM_, SK_, M_ …). LFS objects are pulled later."""
     env = dict(os.environ, GIT_LFS_SKIP_SMUDGE="1", GIT_TERMINAL_PROMPT="0")
 
-    def git(*args, check=True):
-        return run(["git", "-C", str(dest), *args], env=env, check=check)
+    def git(*args, check=True, input=None):
+        if input is None:
+            return run(["git", "-C", str(dest), *args], env=env, check=check)
+        # Binary stdin preserves NUL path records and LF refspecs on Windows;
+        # TextIOWrapper would turn LF into CRLF and corrupt fetch --stdin.
+        result = subprocess.run(["git", "-C", str(dest), *args], env=env,
+                                input=input.encode("utf-8"), capture_output=True)
+        result.stdout = result.stdout.decode("utf-8", errors="replace")
+        result.stderr = result.stderr.decode("utf-8", errors="replace")
+        if check:
+            result.check_returncode()
+        return result
 
     def fail(msg):
         raise SystemExit(f"error: {msg}")
@@ -73,43 +83,91 @@ def clone(url: str, dest: Path, ref: str | None, asset_max_mb: float = 8.0, map_
     skipped: list[str] = []
     blob_limit_mb = CLONE_BLOB_LIMIT_MB
 
+    def tree(commit: str) -> dict:
+        entries = {}
+        for entry in git("ls-tree", "-r", "-z", commit).stdout.split("\0"):
+            meta, sep, path = entry.partition("\t")
+            parts = meta.split()
+            if sep and len(parts) == 3 and parts[1] == "blob":
+                entries[path] = (parts[0], parts[2])
+        return entries
+
+    reused = dest.exists() and (dest / ".git").exists()
+
     def materialize(commit: str):
         """Point HEAD at `commit` and check out only the wanted paths. Blobs above the clone's size filter are
         missing locally; of those only maps are fetched (in one batch by checkout), the rest is skipped."""
-        git("update-ref", "--no-deref", "HEAD", commit)
-        missing = {ln[1:].strip() for ln in git("rev-list", "--objects", "--missing=print", "HEAD").stdout.splitlines()
+        missing = {ln[1:].strip() for ln in git("rev-list", "--objects", "--missing=print", commit).stdout.splitlines()
                    if ln.startswith("?")}
-        wanted = []
-        for entry in git("ls-tree", "-r", "-z", "HEAD").stdout.split("\0"):
-            if not entry or "\t" not in entry:
-                continue
-            meta_, path = entry.split("\t", 1)
-            parts = meta_.split()
-            if len(parts) < 3 or parts[1] != "blob":
-                continue
+        target = tree(commit)
+        wanted = {}
+        for path, item in target.items():
             name = path.rsplit("/", 1)[-1]
             heavy = not path.lower().endswith((".uasset", ".umap")) or (
                 path.lower().endswith(".uasset") and name.startswith(_HEAVY_PREFIXES))
-            if parts[2] in missing and heavy:
+            if item[1] in missing and heavy:
                 skipped.append(path)
             else:
-                wanted.append(path)
+                wanted[path] = item
         listfile = dest / ".git" / "ue-repo-reader-paths"
-        listfile.write_text("\0".join(wanted), encoding="utf-8")
+        indexed = {}
+        for entry in git("ls-files", "--stage", "-z").stdout.split("\0"):
+            meta, sep, path = entry.partition("\t")
+            if sep:
+                mode, oid, stage = meta.split()
+                if stage != "0":
+                    fail("clone has unresolved index entries; use a clean --workdir")
+                indexed[path] = (mode, oid)
+        if reused:
+            previous = tree("HEAD")
+            recorded = set(filter(None, listfile.read_text(encoding="utf-8").split("\0"))) if listfile.is_file() else set(previous)
+            if (set(indexed) not in (set(previous), recorded) or
+                    any(previous.get(path) != item for path, item in indexed.items()) or
+                    git("diff", "--quiet", "--ignore-submodules", "--no-ext-diff", "--no-textconv", check=False).returncode != 0):
+                fail("clone has local or staged changes; use a clean --workdir")
+        stale = set(indexed) - set(wanted)
+        changed = [path for path, item in wanted.items() if indexed.get(path) != item]
+        base = dest.resolve()
+        # Preflight before touching HEAD, index or files. Preserve untracked files
+        # that would otherwise be overwritten by path checkout.
+        for path in stale | set(changed):
+            location = dest / path
+            if base not in location.resolve().parents:
+                fail(f"clone path escapes --workdir: {path}")
+            if path not in indexed and os.path.lexists(location):
+                fail(f"untracked file would be overwritten: {path}; use a clean --workdir")
+        needed = sorted({oid for _, oid in wanted.values() if oid in missing})
+        if needed:
+            # Fetch only selected missing blobs in one request. A path checkout
+            # from a new commit need not auto-fetch them on every Git version.
+            git("fetch", "-q", "--no-tags", "--filter=blob:none", "origin", "--stdin", input="\n".join(needed) + "\n")
+        if stale:
+            git("update-index", "--force-remove", "-z", "--stdin", input="\0".join(sorted(stale)) + "\0")
+            for path in stale:
+                (dest / path).unlink()
         log(f"[fetch] checking out {len(wanted)} files; skipping {len(skipped)} files over {blob_limit_mb} MB stored in git")
-        if wanted:
-            git("checkout", "-q", "HEAD", f"--pathspec-from-file={listfile}", "--pathspec-file-nul")
+        if changed:
+            paths = dest / ".git" / "ue-repo-reader-checkout-paths"
+            paths.write_text("\0".join(changed), encoding="utf-8")
+            git("--literal-pathspecs", "checkout", "-q", commit,
+                f"--pathspec-from-file={paths}", "--pathspec-file-nul")
+        git("update-ref", "--no-deref", "HEAD", commit)
+        listfile.write_text("\0".join(wanted), encoding="utf-8")
 
     full_sha = bool(ref and re.fullmatch(r"[0-9a-fA-F]{40}", ref))
     short_hex = bool(ref and not full_sha and re.fullmatch(r"[0-9a-fA-F]{4,39}", ref))
     partial = [f"--filter=blob:limit={blob_limit_mb}m", "--no-checkout", "--no-tags"]
-    if dest.exists() and (dest / ".git").exists():
+    if reused:
         log(f"[fetch] reusing existing clone at {dest}")
-        if ref:  # make sure the reused clone is at the requested ref
-            if git("checkout", "-q", ref, check=False).returncode != 0:
-                if git("fetch", "-q", "--depth", "1", "origin", ref, check=False).returncode != 0:
-                    fail(f"ref {ref!r} not found in {url}" + (" (use the full 40-character SHA)" if short_hex else ""))
-                git("checkout", "-q", "FETCH_HEAD")
+        if not (dest / ".git").is_dir():
+            fail("--workdir must be a regular clone, not a linked Git worktree")
+        resolved = git("rev-parse", "--verify", "--quiet", "--end-of-options", f"{ref or 'HEAD'}^{{commit}}", check=False)
+        if resolved.returncode != 0:
+            if git("fetch", "-q", "--depth", "1", f"--filter=blob:limit={blob_limit_mb}m", "origin", ref,
+                   check=False).returncode != 0:
+                fail(f"ref {ref!r} not found in {url}" + (" (use the full 40-character SHA)" if short_hex else ""))
+            resolved = git("rev-parse", "FETCH_HEAD")
+        materialize(resolved.stdout.strip())
     else:
         dest.parent.mkdir(parents=True, exist_ok=True)
         log(f"[fetch] cloning {re.sub(r'//[^/@]*@', '//', url)} (partial: trees first, then only the files that are read) ...")

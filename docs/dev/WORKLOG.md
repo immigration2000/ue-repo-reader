@@ -11,6 +11,17 @@
 
 ---
 
+## 2026-10-27 17:22 KST · codex · X4
+- 한 일: 기존 클론도 ref를 먼저 해석/필터 fetch한 뒤 공통 materialize 사용. 변경된 필요 파일만 checkout하고
+  빠진 필요 blob은 SHA 목록으로 일괄 fetch; 대형 아트 blob은 생략. 삭제된 추적 파일은 index/작업 트리에서 정리.
+  로컬·스테이징 변경/미추적 충돌은 변경 전에 거부, 일반 clone만 지원. UTF-8 raw stdin으로 Windows LF/NUL 보존.
+  README에 재사용/무 ref/변경 보존 규칙 추가. 정상 digest 포맷/수량 기대값은 그대로.
+- 검증: 단위 37/37 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. 로컬 실제 부분 클론 두 커밋에서 대형 텍스처 2개가
+  object DB에 없는 채 유지, 대형 BP만 취득, 태그/짧은 SHA/무 ref/이전 커밋 복귀, 파일 삭제/수정 보존/mtime 확인.
+  실제 PowerShell 5.1 설치 가이드·복사 설치본 eg 49 BP·1779/1779, LFS 2개 경로 PASS; 사용자 Git 설정 동일.
+- 남은 일·주의: X4 done, R5 진행 중. 재사용 클론의 HEAD는 요청 커밋으로 detach. 기존 작업 내용이 있으면 새 --workdir 사용.
+  파서나 출력 VERSION 변화 없음. 후속 R5 완료 시 통합 회귀 후 함께 main에 반영 예정.
+
 ## 2026-10-27 14:49 KST · codex · R3
 - 한 일: scripts/install_skill.py 추가. --client codex/claude/copilot + --user/--project를 명시하면 루트 SKILL.md와
   Python scripts만 도구별 표준 탐색 폴더에 복사(원본 LICENSE/NOTICE가 있으면 동반). 프로젝트 .agents/.claude/.github,
