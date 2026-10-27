@@ -12,6 +12,8 @@
 ---
 
 ## 2026-10-27 14:10 KST · claude · T2
+- 추가: MCP 서버도 자체 git fetch 대신 digest 스크립트의 부분 클론을 씀(`--ref <commit> --workdir`). 로그·digest.json의 URL에서 자격 증명 제거.
+  서버 E2E(mcp_client_test) 통과, 서버 작업 폴더 .git 137MB.
 - 한 일:
   - 클론을 부분 클론으로: `--filter=blob:limit=2m --no-checkout --depth 1` → `ls-tree`(크기 조회 없이)와
     `rev-list --missing=print`로 빠진 큰 blob을 알아낸 뒤 필요한 경로만 `checkout --pathspec-from-file`(한 번에 일괄 fetch).

@@ -168,13 +168,11 @@ def run_job(job: Job) -> None:
             out_dir = job.dir / "digest"
             if job.dir.exists():
                 shutil.rmtree(job.dir, ignore_errors=True)
-            repo_dir.mkdir(parents=True)
+            job.dir.mkdir(parents=True)
             job.log.append(f"cloning {job.repo.public_url} @ {job.commit[:10]}")
-            git("init", "-q", cwd=repo_dir)
-            git("remote", "add", "origin", job.repo.clone_url, cwd=repo_dir)
-            git("fetch", "-q", "--depth", "1", "origin", job.commit, cwd=repo_dir, timeout=1500)
-            git("checkout", "-q", "FETCH_HEAD", cwd=repo_dir, timeout=600)
-            cmd = [sys.executable, str(DIGEST_SCRIPT), str(repo_dir), "--out", str(out_dir),
+            # the digest script does a partial clone of exactly this commit (big art blobs are never downloaded)
+            cmd = [sys.executable, str(DIGEST_SCRIPT), job.repo.clone_url, "--ref", job.commit,
+                   "--workdir", str(repo_dir), "--out", str(out_dir),
                    "--source-label", f"{job.repo.public_url} ({job.repo.ref or 'default branch'})",
                    "--workers", str(WORKERS)]
             if job.project:

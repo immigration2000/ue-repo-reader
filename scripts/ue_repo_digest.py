@@ -111,7 +111,7 @@ def clone(url: str, dest: Path, ref: str | None, asset_max_mb: float = 8.0, map_
                 git("checkout", "-q", "FETCH_HEAD")
     else:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        log(f"[fetch] cloning {url} (partial: trees first, then only the files that are read) ...")
+        log(f"[fetch] cloning {re.sub(r'//[^/@]*@', '//', url)} (partial: trees first, then only the files that are read) ...")
         if full_sha:
             # fetch exactly that commit; no need to download the default branch first
             dest.mkdir(parents=True, exist_ok=True)
@@ -141,7 +141,7 @@ def clone(url: str, dest: Path, ref: str | None, asset_max_mb: float = 8.0, map_
         else:
             run(["git", "clone", "--depth", "1", *partial, url, str(dest)], env=env)
             materialize(git("rev-parse", "HEAD").stdout.strip())
-    info = {"url": url, "ref": ref}
+    info = {"url": re.sub(r"//[^/@]*@", "//", url), "ref": ref}  # never keep credentials from the URL
     if skipped:
         info["skipped_large_files"] = {"count": len(skipped), "limit_mb": blob_limit_mb, "assets": sorted(
             pth for pth in skipped if pth.lower().endswith(".uasset"))[:200]}
