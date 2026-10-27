@@ -500,6 +500,49 @@ def split_large_markdown(out: Path, limit: int = MD_PART_CHARS) -> int:
     return n
 
 
+def input_check(bps: dict, datas: dict) -> list[str]:
+    """Enhanced Input cross-check: actions a Blueprint handles but no mapping context in the repo maps
+    (they can never fire unless C++ adds a mapping), and mapped actions no Blueprint handles."""
+    imcs = {gp: s["summary"].get("mapped_actions") or [] for gp, s in datas.items()
+            if s["summary"].get("class") == "InputMappingContext"}
+    if not imcs:
+        return []
+    mapped = {a for acts in imcs.values() for a in acts}
+    handled = defaultdict(set)
+    for gp, r in bps.items():
+        for e in r["summary"].get("entries") or []:
+            m = re.fullmatch(r"input (\S+)", e)
+            if m and not e.startswith(("input action ", "input key ", "input axis ")):
+                handled[m.group(1)].add(gp.rsplit("/", 1)[-1])
+    unmapped = sorted(a for a in handled if a not in mapped)
+    unhandled = sorted(a for a in mapped if a not in handled)
+    md = ["## Input check (Enhanced Input)", "",
+          f"{len(imcs)} input mapping contexts map {len(mapped)} actions; Blueprints handle {len(handled)} actions."]
+    if unmapped:
+        md.append("- ⚠ handled in Blueprints but **not mapped in any mapping context in this repo** (never fires unless "
+                  "C++ or a runtime-added context maps it):")
+        md += [f"  - `{a}` ← {', '.join(f'`{b}`' for b in sorted(handled[a]))}" for a in unmapped]
+    if unhandled:
+        # an action assigned to a property (e.g. a C++ character's `MoveAction = IA_Move` default) is bound in C++
+        assigned = defaultdict(set)
+        for gp, r in list(bps.items()) + [(g, d) for g, d in datas.items()
+                                          if d["summary"].get("class") not in ("InputMappingContext", "InputAction")]:
+            for a in unhandled:
+                if re.search(rf"= {re.escape(a)}\b", r.get("markdown", "")):
+                    assigned[a].add(gp.rsplit("/", 1)[-1])
+        cpp_bound = [a for a in unhandled if a in assigned]
+        orphan = [a for a in unhandled if a not in assigned]
+        if cpp_bound:
+            md.append("- mapped, no Blueprint input event, but assigned to a property (likely bound in C++): "
+                      + ", ".join(f"`{a}` (in {', '.join(sorted(assigned[a]))})" for a in cpp_bound))
+        if orphan:
+            md.append("- mapped but not handled or referenced by any Blueprint (check C++ sources): "
+                      + ", ".join(f"`{a}`" for a in orphan))
+    if not unmapped and not unhandled:
+        md.append("- every mapped action has a Blueprint handler and every handled action is mapped")
+    return md + [""]
+
+
 def asset_kind(name: str) -> str:
     for p, k in _PREFIX_KINDS:
         if name.startswith(p):
@@ -684,6 +727,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
             doc = "data" + gp + ".md"
             md.append(f"| `{gp}` | {s['class']} | {headline} | {used} | [md](<{doc}>) |")
         md.append("")
+
+    md += input_check(bps, datas)
 
     # parse report
     md += ["## Parse report", ""]

@@ -520,20 +520,42 @@ def _render_state_tree(items):
     return lines
 
 
+_INPUT_NOISE = {"bFinalValue", "ActuationThreshold", "bShouldAlwaysTick", "LastValue", "HeldDuration",
+                "TriggerTime"}
+
+
+def _input_obj(x) -> str:
+    """`Negate`, `SwizzleAxis(Order=ZYX)`, `Hold(HoldTimeThreshold=0.5)` from an expanded modifier/trigger sub-object."""
+    if not isinstance(x, dict) or not x.get("struct_type"):
+        name = _val(x)  # sub-object with only default settings → just its class
+        for pre in ("InputModifier", "InputTrigger"):
+            if name.startswith(pre) and len(name) > len(pre):
+                return name[len(pre):]
+        return name
+    name = str(x["struct_type"])
+    for pre in ("InputModifier", "InputTrigger"):
+        if name.startswith(pre) and len(name) > len(pre):
+            name = name[len(pre):]
+    args = [f"{k}={B.fmt_value(v)}" for k, v in (x.get("fields") or {}).items() if k not in _INPUT_NOISE]
+    return f"{name}({', '.join(args)})" if args else name
+
+
 def _render_mapping_context(items):
     d = dict(items)
     maps = d.get("Mappings")
     if maps is None and isinstance(d.get("DefaultKeyMappings"), dict):
         maps = d["DefaultKeyMappings"].get("fields", {}).get("Mappings")
     if not isinstance(maps, list):
-        return None
+        return None, []
     rows = ["| Action | Key | Modifiers | Triggers |", "|---|---|---|---|"]
+    actions = set()
     for m in maps:
         f = m.get("fields", {}) if isinstance(m, dict) else {}
+        actions.add(_val(f.get("Action")))
         rows.append(f"| {_val(f.get('Action'))} | {_val(f.get('Key'))} | "
-                    f"{', '.join(_val(x) for x in f.get('Modifiers') or []) or ''} | "
-                    f"{', '.join(_val(x) for x in f.get('Triggers') or []) or ''} |")
-    return rows
+                    f"{', '.join(_input_obj(x) for x in f.get('Modifiers') or []) or ''} | "
+                    f"{', '.join(_input_obj(x) for x in f.get('Triggers') or []) or ''} |")
+    return rows, sorted(a for a in actions if a and a != "None")
 
 
 _NO_EXPAND = {"EdGraph", "BTGraph", "EditorData", "Schema", "TreeAsset", "ParentNode", "AssetImportData",
@@ -698,7 +720,8 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
                     md += [f"Parent blackboard: **{B.fmt_value(parent)}**", ""]
                 headline = f"blackboard, {len(body) - 2} keys"
         elif asset_class == "InputMappingContext":
-            body = _render_mapping_context(items)
+            exp = expand_subobjects(items, ExportProps(reader, ctx), export.object_name)
+            body, extra["mapped_actions"] = _render_mapping_context(exp)
             if body:
                 md += ["## Mappings", *body, ""]
                 headline = f"input mapping context, {len(body) - 2} mappings"

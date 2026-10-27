@@ -11,6 +11,16 @@
 
 ---
 
+## 2026-10-27 12:40 KST · claude · F2
+- 한 일:
+  - IMC 표의 모디파이어·트리거를 서브오브젝트로 펼쳐 설정값 표시: `InputModifierNegate_4` → `Negate`,
+    `Negate(bX=false, bZ=false)`, `Scalar(Scalar=Vector{X=50, Y=50, Z=1})`. 데이터 요약에 `mapped_actions` 추가.
+  - INDEX에 "Input check (Enhanced Input)" 절: BP가 처리하는데 어떤 IMC에도 없는 액션(⚠), 매핑됐지만 BP 이벤트가 없는 액션을
+    "프로퍼티에 할당됨(C++ 바인딩 추정)"과 "어디서도 참조 안 됨(C++ 확인 필요)"으로 구분.
+  - 사용자 프로젝트에서 실제로 `IA_EnterBlackSite ← BP_NullPointPC` 미매핑 검출, `IA_MouseLook`은 IMC_MouseLook에만 있고 미사용.
+- 검증: regress 3/3 PASS + unit 6/6, F2 검사 3개 추가.
+- 남은 일·주의: InputAction 에셋 자체의 트리거·모디파이어(IA 단위 설정)는 아직 표시 안 함. 다음 추천 F1(GameplayTags), T2(부분 클론).
+
 ## 2026-10-27 12:10 KST · claude · H2 H3 H5 T1
 - 한 일 (VERSION 1.5.0 — B7·B8·H5·T1로 출력 표기가 바뀐 것을 묶어 올림):
   - H2 맵 핀 세 번째 bool(`bTerminalIsUObjectWrapper`)을 `FReleaseObjectVersion >= 31`일 때만 읽음.

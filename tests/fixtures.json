@@ -73,6 +73,24 @@
           "return (AStartLocal={X=$1.AStart1, Y=$2.AStart1}",
           "//   $1 = SnapDragAxis(MouseLocal=InMouseGridLocal.X"
         ]
+      },
+      {
+        "bug": "F2",
+        "file": "INDEX.md",
+        "must_contain": [
+          "`IA_EnterBlackSite` ← `BP_NullPointPC`",
+          "## Input check (Enhanced Input)"
+        ]
+      },
+      {
+        "bug": "F2",
+        "file": "data/Game/Input/IMC_Default.md",
+        "must_contain": [
+          "| IA_Move | S | SwizzleAxis, Negate |"
+        ],
+        "must_not_contain": [
+          "InputModifier"
+        ]
       }
     ]
   },
@@ -109,6 +127,14 @@
         ],
         "must_not_contain": [
           "(TagName=\""
+        ]
+      },
+      {
+        "bug": "F2",
+        "file": "INDEX.md",
+        "must_contain": [
+          "`IA_Move` (in PlayerConfigData)",
+          "`IA_PauseMenu`"
         ]
       }
     ]

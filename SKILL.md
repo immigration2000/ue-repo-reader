@@ -32,7 +32,8 @@ A local path works too (e.g. the user's own checkout) — then nothing is cloned
 
 1. `<out>/INDEX.md` — read all of it first. It has the project summary (modules, plugins, default map and
    game mode), the Blueprint catalog with parents and entry points, the C++ ↔ Blueprint map, the
-   non-Blueprint logic/data assets, and the parse report. It also explains the pseudo-code notation.
+   non-Blueprint logic/data assets, the Enhanced Input check (actions handled but never mapped, or mapped
+   but never handled), and the parse report. It also explains the pseudo-code notation.
 2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, variables, class defaults,
    event dispatchers, and every graph rendered as execution-flow pseudo-code (anim graphs as pose trees,
    state machines as `A → B when <rule>`, `when auto (...)` = automatic transition; functions show
