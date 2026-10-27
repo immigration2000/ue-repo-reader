@@ -14,14 +14,14 @@
 | B4 | done | claude | 연결 안 된 필수 입력이 안 보임: `Possess()` → `Possess(InPawn=∅)` (BP_NullPointPC) | S |
 | B5 | done | claude | `--ref`에 짧은 SHA를 주면 CalledProcessError로 종료 | S |
 | B6 | done | claude | 색인 잡음: Used by 자기 참조, `/Script/CoreUObject.Vector_1476395008` 같은 분류 라벨, Niagara 라벨 분리 | S |
-| B7 | todo | - | 구조체 기본값 원시 출력(GUID 붙은 멤버명, `=-143` 객체 인덱스, 벡터 문자열) | S–M |
-| B8 | todo | - | 순수 노드 반복 인라인(SnapDragAxis 8회) → `let` 한 번 | S |
+| B7 | doing | claude | 구조체 기본값 원시 출력(GUID 붙은 멤버명, `=-143` 객체 인덱스, 벡터 문자열) | S–M |
+| B8 | doing | claude | 순수 노드 반복 인라인(SnapDragAxis 8회) → `let` 한 번 | S |
 
 ## P1 — 5.8 포맷 견고화, 토큰, 실행 시간
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| H1 | todo | - | FText 5.8 추가 필드를 DevNotes FString으로 읽기, 게이트 `FFortniteMainBranchObjectVersion >= 260 && !PKG_FilterEditorOnly`, 0이 아니면 경고 | S |
+| H1 | doing | claude | FText 5.8 추가 필드를 DevNotes FString으로 읽기, 게이트 `FFortniteMainBranchObjectVersion >= 260 && !PKG_FilterEditorOnly`, 0이 아니면 경고 | S |
 | H2 | todo | - | 맵 핀 세 번째 bool을 `FReleaseObjectVersion >= 31`일 때만 | S |
 | H3 | todo | - | 단정밀도 플로트 플래그를 `FUE5ReleaseStreamObjectVersion >= 36` 게이트로 | S |
 | H5 | todo | - | 모르는 `FileVersionUE5`(>1018)·커스텀 버전이면 경고 후 부분 출력 (5.9 대비) | S |
