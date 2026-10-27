@@ -11,6 +11,13 @@
 
 ---
 
+## 2026-10-27 13:27 KST · codex · A3 A4 (통합 검증)
+- 한 일: 원격 main의 H7(UTF-8/LFS/설치 가이드) 변경 위로 A3/A4를 rebase. WORKLOG와 단위 테스트 충돌에서 양쪽 변경을 보존.
+- 검증: PYTHONIOENCODING=cp949 환경에서 최종 단위 23/23 PASS + regress 3/3 PASS(eg 13s, ar 14s, ves 13s).
+  A3 병렬 설치·복구 검사와 A4 실패 주입 검사, H7 LFS 패턴 검사 모두 포함. 기존 symlink 생성 하위 검사만 권한 부족 skip.
+  git diff --check PASS. 코드/픽스처의 추가 변경 없이 main에 fast-forward 후 push.
+- 남은 일·주의: A3/A4와 H7은 done. H6 또는 A5/A6 진행 권장. 예전 서버 캐시는 refresh=true로 재생성.
+
 ## 2026-10-27 13:30 KST · claude · H7
 - 한 일:
   - `tests/regress.py`·`tests/unit_tests.py`가 시작할 때 stdout/stderr를 UTF-8(errors=replace)로 재설정, 자식 프로세스에
