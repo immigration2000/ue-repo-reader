@@ -31,7 +31,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.4.0"
+VERSION = "1.5.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -455,6 +455,51 @@ _PREFIX_KINDS = [
 ]
 
 
+MD_PART_CHARS = 60_000  # ~17k tokens: stays under common tool-output limits (e.g. 25k tokens per read)
+
+
+def split_md_text(text: str, limit: int = MD_PART_CHARS) -> list[str]:
+    """Split Markdown at line boundaries (preferring a heading) into chunks of at most `limit` characters.
+    A code fence open at a cut is closed in that part and reopened in the next, so every part renders."""
+    if len(text) <= limit:
+        return [text]
+    parts, cur, size, fence = [], [], 0, None
+    budget = limit - 200
+    for line in text.splitlines(keepends=True):
+        if size + len(line) > budget and cur:
+            if fence:
+                cur.append("```\n")
+            parts.append("".join(cur))
+            cur, size = ([fence + "\n"] if fence else []), 0
+        cur.append(line)
+        size += len(line)
+        st = line.strip()
+        if st.startswith("```"):
+            fence = None if fence else (st if len(st) > 3 else "```")
+    if cur:
+        parts.append("".join(cur))
+    return parts
+
+
+def split_large_markdown(out: Path, limit: int = MD_PART_CHARS) -> int:
+    """Any digest file above `limit` becomes X.md (part 1) + X.part2.md … with a pointer at each cut."""
+    n = 0
+    for f in sorted(out.rglob("*.md")):
+        if ".part" in f.stem:
+            continue
+        text = f.read_text(encoding="utf-8")
+        parts = split_md_text(text, limit)
+        if len(parts) == 1:
+            continue
+        n += 1
+        names = [f.name] + [f"{f.stem}.part{i}.md" for i in range(2, len(parts) + 1)]
+        for i, (name, body) in enumerate(zip(names, parts)):
+            head = f"_(part {i + 1} of {len(parts)} of `{f.name}`)_\n\n" if i else ""
+            tail = f"\n\n_→ continued in [{names[i + 1]}](<{names[i + 1]}>)_\n" if i + 1 < len(parts) else ""
+            (f.parent / name).write_text(head + body + tail, encoding="utf-8")
+    return n
+
+
 def asset_kind(name: str) -> str:
     for p, k in _PREFIX_KINDS:
         if name.startswith(p):
@@ -502,6 +547,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, DataAssets) are",
            "  rendered under `data/` — see the Data assets table below.",
            "- C++ is summarized in `cpp/CLASSES.md`; read the real sources in the repo for implementation details.",
+           "- Files longer than ~60k characters are split: `X.md` ends with a link to `X.part2.md`.",
+           "- `digest.json` is the same information for scripts — don't read it to understand the project.",
            "- This is a static read of saved assets: it cannot show runtime values, and names are the internal",
            "  node/function names (e.g. `K2_GetActorLocation`), not always the editor display titles.",
            ""]
@@ -886,7 +933,12 @@ def main(argv=None):
               "data_assets": {gp: r["summary"] for gp, r in datas.items()}, "data_failures": data_failures,
               "maps_detail": {gp: r["summary"] for gp, r in level_results.items()}, "map_failures": map_failures,
               "maps": sorted(maps), "cpp": cpp}
-    (out / "digest.json").write_text(json.dumps(digest, indent=1, ensure_ascii=False, default=list), encoding="utf-8")
+    # compact: this file is for scripts, not for reading (it repeats what the Markdown says)
+    (out / "digest.json").write_text(json.dumps(digest, ensure_ascii=False, default=list, separators=(",", ":")),
+                                     encoding="utf-8")
+    n_split = split_large_markdown(out)
+    if n_split:
+        log(f"[out] split {n_split} large Markdown files into parts of <= {MD_PART_CHARS} characters")
     log(f"[done] {out / 'INDEX.md'}")
     print(str(out / "INDEX.md"))
     return 0

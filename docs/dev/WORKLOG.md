@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-10-27 12:10 KST · claude · H2 H3 H5 T1
+- 한 일 (VERSION 1.5.0 — B7·B8·H5·T1로 출력 표기가 바뀐 것을 묶어 올림):
+  - H2 맵 핀 세 번째 bool(`bTerminalIsUObjectWrapper`)을 `FReleaseObjectVersion >= 31`일 때만 읽음.
+  - H3 핀 필드 조합을 커스텀 버전으로 먼저 결정(단정밀도 플래그 `FUE5ReleaseStreamObjectVersion >= 36`,
+    UObject 래퍼 `FReleaseObjectVersion >= 31`, SourceIndex는 게이트 불명이라 둘 다 시도). 기존 탐색은 대체 경로로 유지.
+    요약 정보 읽기는 `_custom_versions()`(경로별 캐시)로 통합.
+  - H5 `FileVersionUE5 > 1018` 또는 알려진 커스텀 버전(FNMB 268, Release 44, UE5RS 68)보다 새 패키지면 BP·data·map 헤더와
+    parse report에 경고. 값은 `bp_reader._KNOWN_*` — **새 엔진 버전을 검증하면 여기를 올릴 것**.
+  - T1 `digest.json` 압축(공백 제거, AR 124KB→97KB) + "읽지 말 것" 안내(INDEX 범례, SKILL.md). 60k자 넘는 Markdown은
+    `X.md` + `X.part2.md…`로 자동 분할(코드 펜스 닫고 다시 염, 끝에 이어보기 링크). 서버는 원래 .md만 나열.
+  - 단위 테스트 추가: newer_format_note, combo_order, split_md.
+- 검증: regress 3/3 PASS + unit 6/6. H2·H3·H5 전후 출력 동일(경고 오탐 0). 분할은 낮은 한도(10k)로 실제 요약본에 돌려 확인.
+- 남은 일·주의: 다음 추천 T2(부분 클론, 콜드 실행의 85~90%가 클론) → T3(blob SHA 캐시). 기능은 F1(GameplayTags)·F2(입력 교차 검사)가 싸고 효과 큼.
+  H6·H7(Windows 실기)은 사람 PC가 필요할 수 있음.
+
 ## 2026-10-27 11:30 KST · claude · B7 B8 H1
 - 한 일:
   - B7 구조체 값 읽기 쉽게: `Name_N_<GUID>` 멤버명 → `Name`(BP·data·map 전부), 구조체 안 object 프로퍼티를 에셋 이름으로

@@ -67,6 +67,17 @@ def test_combo_order():
     assert first[1] == 1 and first[2] == 1, first
 
 
+def test_split_md():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import ue_repo_digest as D
+    text = "# T\n\n```text\n" + "".join(f"line {i}\n" for i in range(3000)) + "```\n\n## After\nend\n"
+    parts = D.split_md_text(text, 5000)
+    assert len(parts) > 1 and all(len(p) <= 5000 for p in parts), [len(p) for p in parts]
+    assert all(p.count("```") % 2 == 0 for p in parts), "every part must have balanced fences"
+    joined = "".join(parts).replace("```\n```text\n", "")
+    assert all(f"line {i}\n" in joined for i in (0, 1500, 2999)) and joined.endswith("end\n")
+
+
 def main() -> int:
     failed = 0
     for name, fn in sorted(globals().items()):
