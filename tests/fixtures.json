@@ -91,6 +91,13 @@
         "must_not_contain": [
           "InputModifier"
         ]
+      },
+      {
+        "bug": "F3",
+        "file": "blueprints/Game/DeltaForce/Blueprints/UI/Grid/WBP_GridSlot.md",
+        "must_contain": [
+          "| GridDimensions | IntPoint | Gird | InstanceEditable ExposeOnSpawn |"
+        ]
       }
     ]
   },
@@ -151,6 +158,20 @@
         "file": "INDEX.md",
         "must_contain": [
           "22 tags defined, 12 used"
+        ]
+      },
+      {
+        "bug": "F3",
+        "file": "blueprints/Game/ActionRoguelike/LeverBP.md",
+        "must_contain": [
+          "| bHandleDown | bool | Default | Replicated SaveGame RepNotify=OnRep_bHandleDown |"
+        ]
+      },
+      {
+        "bug": "F3",
+        "file": "blueprints/Game/ActionRoguelike/BonfireBP.md",
+        "must_contain": [
+          "-> (OutActionComp: RogueActionComponent*, ReturnValue: bool)  [pure, const]"
         ]
       }
     ]

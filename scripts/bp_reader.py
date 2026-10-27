@@ -1055,7 +1055,14 @@ class GraphRenderer:
         p = self.props(n)
         nd = n.node_data if isinstance(n.node_data, dict) else {}
         if cls == "K2Node_FunctionEntry":
-            return f"function {self.name}({self.params_sig(n)}){self.returns_sig()}"
+            ff = p.get("ExtraFlags") or 0
+            tags = []
+            if isinstance(ff, int) and ff:
+                for bit, label in _FUNC_FLAG_LABELS:
+                    if ff & bit:
+                        tags.append(label)
+            tag = f"  [{', '.join(tags)}]" if tags else ""
+            return f"function {self.name}({self.params_sig(n)}){self.returns_sig()}{tag}"
         if cls == "K2Node_CustomEvent":
             name = p.get("CustomFunctionName") or nd.get("custom_function_name") or "?"
             flags = []
@@ -1458,8 +1465,48 @@ def _components(ctx: Ctx, bp_props) -> list[str]:
     return lines
 
 
-def _variables(ctx: Ctx, bp_props, cdo_props):
-    rows, names = [], set()
+# EFunctionFlags shown on function headers (public / callable / event bits are the default and omitted)
+_FUNC_FLAG_LABELS = [(0x10000000, "pure"), (0x40000000, "const"), (0x00002000, "static"),
+                     (0x00040000, "private"), (0x00080000, "protected"),
+                     (0x00200000, "RunOnServer"), (0x01000000, "RunOnOwningClient"), (0x00004000, "Multicast"),
+                     (0x00000080, "Reliable")]
+# EPropertyFlags shown in the variable table (besides InstanceEditable / ReadOnly / Replicated)
+_VAR_FLAG_LABELS = [(0x00002000, "Transient"), (0x00004000, "Config"), (0x01000000, "SaveGame"),
+                    (0x200000000, "ExposeToCinematics")]
+_VAR_META_FLAGS = {"exposeonspawn": "ExposeOnSpawn", "blueprintprivate": "Private"}
+
+
+def _variable_metadata(path: str, result, ctx: Ctx, asset_name: str) -> dict:
+    """{VarName: {meta key (lower): value}} — uasset_read leaves BPVariableDescription.MetaDataArray opaque,
+    so the Blueprint export is re-read with data_reader's tagged-property reader."""
+    try:
+        import data_reader as D
+        exp = next((e for e in result.export_map or [] if e.object_name == asset_name), None)
+        if exp is None:
+            return {}
+        reader = D.TaggedReader(path, result, ctx)
+        try:
+            items, _ = reader.export_stream(exp)
+        finally:
+            reader.close()
+        out = {}
+        for v in dict(items).get("NewVariables") or []:
+            f = _fields(v)
+            meta = {}
+            for e in f.get("MetaDataArray") or []:
+                ef = _fields(e)
+                if ef.get("DataKey"):
+                    meta[str(ef["DataKey"]).lower()] = ef.get("DataValue")
+            if f.get("VarName"):
+                out[f["VarName"]] = meta
+        return out
+    except Exception:  # noqa: BLE001 - metadata is a nice-to-have
+        return {}
+
+
+def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
+    var_meta = var_meta or {}
+    rows, names, tips = [], set(), {}
     for v in bp_props.get("NewVariables") or []:
         f = _fields(v)
         name = f.get("VarName")
@@ -1477,16 +1524,33 @@ def _variables(ctx: Ctx, bp_props, cdo_props):
                 tags.append("ReadOnly")
             if flags & 0x20:
                 tags.append("Replicated")
+            for bit, label in _VAR_FLAG_LABELS:
+                if flags & bit:
+                    tags.append(label)
         rn = f.get("RepNotifyFunc")
         if rn and rn != "None":
             tags.append(f"RepNotify={rn}")
+        rc = fmt_value(f.get("ReplicationCondition")) if f.get("ReplicationCondition") is not None else ""
+        if rc and rc not in ("COND_None", "None"):
+            tags.append(f"Condition={rc.replace('COND_', '')}")
+        meta = var_meta.get(name, {})
+        for key, label in _VAR_META_FLAGS.items():
+            if str(meta.get(key, "")).lower() == "true":
+                tags.append(label)
+        tip = str(meta.get("tooltip") or "").replace("\n", " ").replace("|", "/").strip()
+        if tip:
+            tips[name] = tip
         cat = f.get("Category")
         cat_s = getattr(cat, "source_string", None) if cat is not None else None
         default = cdo_props.get(name)
         dflt = fmt_value(default) if default is not None else (f.get("DefaultValue") or "")
-        rows.append(f"| {name} | {tstr} | {cat_s or ''} | {' '.join(tags)} | {str(dflt).replace('|', '/')} |")
-    table = ["| Name | Type | Category | Flags | Default |", "|---|---|---|---|---|"] + rows if rows else []
-    return table, names
+        rows.append((name, f"| {name} | {tstr} | {cat_s or ''} | {' '.join(tags)} | {str(dflt).replace('|', '/')} |"))
+    if not rows:
+        return [], names
+    if tips:
+        return (["| Name | Type | Category | Flags | Default | Tooltip |", "|---|---|---|---|---|---|"]
+                + [r + f" {tips.get(n, '')[:160]} |" for n, r in rows]), names
+    return ["| Name | Type | Category | Flags | Default |", "|---|---|---|---|---|"] + [r for _, r in rows], names
 
 
 def _widget_tree(ctx: Ctx, bp_props) -> list[str]:
@@ -1655,7 +1719,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
                 bp_props["NewVariables"] = nv2
         except Exception:
             pass
-    var_table, var_names = _variables(ctx, bp_props, cdo_props)
+    var_table, var_names = _variables(ctx, bp_props, cdo_props, _variable_metadata(path, result, ctx, asset_name))
     if not var_table:
         inferred = {}
         for gr in renderers.values():

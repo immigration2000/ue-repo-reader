@@ -11,6 +11,14 @@
 
 ---
 
+## 2026-10-27 14:50 KST · claude · F3
+- 한 일: 함수 헤더에 `[pure, const, static, private, protected, RunOnServer, RunOnOwningClient, Multicast, Reliable]`
+  (FunctionEntry `ExtraFlags`). 변수 표 Flags에 Transient·Config·SaveGame·ExposeToCinematics(PropertyFlags),
+  `Condition=OwnerOnly` 등(ReplicationCondition), ExposeOnSpawn·Private(메타데이터), 툴팁이 있으면 Tooltip 열.
+  메타데이터는 uasset_read가 opaque로 남기므로 `data_reader.TaggedReader`로 BP export를 다시 읽어 얻음(`_variable_metadata`).
+- 검증: regress 3/3 PASS + unit, F3 검사 3개 추가. 플래그 분포: pure 9, const 8, pure+static 6, pure+const 6.
+- 남은 일·주의: 함수 MetaData(툴팁·카테고리·CallInEditor)는 아직 미표시. 다음 추천 T3(blob SHA 캐시) 또는 F6(위젯 슬롯·바인딩), F4(BP 클래스 DataAsset).
+
 ## 2026-10-27 14:10 KST · claude · T2
 - 추가: MCP 서버도 자체 git fetch 대신 digest 스크립트의 부분 클론을 씀(`--ref <commit> --workdir`). 로그·digest.json의 URL에서 자격 증명 제거.
   서버 E2E(mcp_client_test) 통과, 서버 작업 폴더 .git 137MB.

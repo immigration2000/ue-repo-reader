@@ -799,6 +799,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  `blueprints/` that mirrors its content path. Graphs are rendered as pseudo-code of the execution flow:",
            "  - `event X(...)`, `custom event`, `input IA_X`, `on Comp.Delegate(...)`, `function F(...) -> Out: T` — entry points",
            "  - `return <value>` / `return (A=.., B=..)` — a function's output values at that exit",
+           "  - `[pure, const, private, RunOnServer, Reliable …]` after a function header — its flags; the Variables",
+           "    table's Flags column lists InstanceEditable, ExposeOnSpawn, Private, Replicated, Condition=…, SaveGame …",
            "  - one statement per executed node; data inputs are inlined as expressions (`Target.Func(Arg=value)`)",
            "  - `#N = Func(...)` — an impure node whose output is used later as `#N` / `#N.PinName`",
            "  - `$N` — a long pure expression used in several places, spelled out once in the graph's `// where` block",
