@@ -64,7 +64,7 @@
 |---|---|---|---|---|
 | R1 | done | codex | 문서 정정: HF Docker 신규 생성은 PRO, 서버는 선택 사항, 개발자 모드는 Plugins 안, GPT 경로 미사용 | S |
 | R2 | todo | - | Codex Cloud 레시피(환경 + AGENTS.md) 시험 | S |
-| R3 | todo | - | 스킬 폴더 표준화(.agents/.claude/.github skills) | S |
+| R3 | doing | codex | 스킬 폴더 표준화(.agents/.claude/.github skills) | S |
 | R4 | todo | - | Claude Code 플러그인 마켓플레이스 | S |
 | R5 | todo | - | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
 | R6 | todo | - | MCP Registry 등록(stdio 패키지) | S |
