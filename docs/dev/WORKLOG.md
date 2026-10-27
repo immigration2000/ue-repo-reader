@@ -11,6 +11,16 @@
 
 ---
 
+## 2026-10-27 14:01 KST · codex · A5
+- 한 일: stdout reader와 독립된 monotonic 제한시간 적용. Windows는 게이트를 Job Object에 먼저 넣은 뒤
+  분석을 시작해 자식 생성 경쟁을 없애고, POSIX는 새 세션/프로세스 그룹을 사용. 성공·실패·초과 시 트리 종료와
+  부모 wait/파이프 수거. UTF-8 고정, 40줄 로그 유지, 4096자 초과 행은 토큰이 분할 노출되지 않게 생략.
+- 검증: 신규 서버 단위 4개 포함 30/30 PASS, 외부 에셋 6/6, 프로젝트 3/3 PASS.
+  무출력·미완성 행·연속 출력·stdout 닫힘과, 부모 실행/종료 뒤 자식 stdout 상속을 실제 Windows 프로세스로 검증.
+  비정상 종료 코드 7, 한글 로그, 토큰 마스킹, done_event·슬롯 반환 확인. git diff --check PASS.
+  첫 전체 실행의 기존 parser_concurrent_install에서 WinError 5가 1회 발생; 단독 재검사와 전체 재실행은 PASS.
+- 남은 일·주의: A6/R1 계속 진행 중. POSIX 경로는 구현했으나 이번 실기는 Windows이며 외부 배포는 하지 않음.
+
 ## 2026-10-27 13:50 KST · codex · H7 V2
 - 한 일: tests/windows_smoke.py로 실제 Windows PowerShell 5.1.19041.6456에서 가이드 블록 7개 구문 검사 및
   진단→Python 선택→Git 설정→스킬 클론→eg 고정 커밋 분석을 실행. 작업 경로·Git 전역 설정/검색 상한은 임시 경로에 격리.

@@ -65,3 +65,9 @@
 - 이유: BP 수/핀 N/N만으로는 잘못된 텍스트와 데이터/맵 전체 누락을 잡을 수 없었다(H6).
 - 영향: 첫 전체 회귀는 추가로 약 210KB의 에셋/정답/라이선스를 다운로드한다. 이후 해시가 맞는 캐시를 재사용한다.
   새 의존성 없음. 출처·검토했지만 미채택한 AssetTools 자료·Windows 격리 검증 절차는 tests/README.md에 기록한다.
+
+## D-010 MCP 분석은 프로세스 트리와 독립 타이머로 관리 (2026-10-27, codex)
+- 결정: Windows는 stdlib ctypes Job Object(KILL_ON_JOB_CLOSE)와 stdin 게이트, POSIX는 새 세션/그룹을 사용.
+  stdout은 별도 스레드에서 UTF-8로 읽고, 실행/EOF 대기는 monotonic 제한시간을 공유한다.
+- 이유: readline에 시간 검사를 붙이면 무출력에서 멈추고, 부모 kill만으로는 Git/LFS/파서 자식이 남는다(A5).
+- 영향: 추가 의존성 없음. Windows Job 할당 실패 시 분석 시작 전에 오류로 종료. 4096자 초과 로그 행은 생략.

@@ -34,6 +34,8 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 
+from processes import run_process
+
 ROOT = Path(__file__).resolve().parent.parent
 DIGEST_SCRIPT = ROOT / "scripts" / "ue_repo_digest.py"
 DATA = Path(os.environ.get("UE_READER_DATA", "/tmp/ue-reader"))
@@ -108,7 +110,8 @@ def scrub(text: str) -> str:
 
 def git(*args, cwd=None, timeout=600):
     env = dict(os.environ, GIT_TERMINAL_PROMPT="0", GIT_LFS_SKIP_SMUDGE="1")
-    r = subprocess.run(["git", *args], cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
+    r = subprocess.run(["git", *args], cwd=cwd, env=env, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=timeout)
     if r.returncode != 0:
         raise RuntimeError(scrub((r.stderr or r.stdout).strip())[-600:])
     return r.stdout
@@ -177,19 +180,15 @@ def run_job(job: Job) -> None:
                    "--workers", str(WORKERS)]
             if job.project:
                 cmd += ["--project", job.project]
-            env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+            env = dict(os.environ, GIT_TERMINAL_PROMPT="0", PYTHONIOENCODING="utf-8:replace")
             env.setdefault("UE_REPO_READER_CACHE", str(DATA / "cache"))  # keep the parser pre-fetched at image build
-            proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
-            deadline = time.time() + JOB_TIMEOUT
-            for line in proc.stdout:
-                line = scrub(line.rstrip())
-                if line:
-                    job.log.append(line)
-                    del job.log[:-40]
-                if time.time() > deadline:
-                    proc.kill()
-                    raise RuntimeError(f"analysis exceeded {JOB_TIMEOUT}s")
-            if proc.wait() != 0 or not (out_dir / "INDEX.md").is_file():
+
+            def log_line(line):
+                job.log.append(scrub(line))
+                del job.log[:-40]
+
+            code = run_process(cmd, env=env, timeout=JOB_TIMEOUT, on_line=log_line)
+            if code != 0 or not (out_dir / "INDEX.md").is_file():
                 raise RuntimeError("digest failed: " + " | ".join(job.log[-5:]))
             job.status = "done"
         except Exception as e:  # noqa: BLE001

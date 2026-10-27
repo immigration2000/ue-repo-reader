@@ -23,6 +23,8 @@ from failure_tests import (test_partial_map_reporting, test_empty_and_partial_le
                           test_native_struct_not_probed_as_tags)
 from coverage_tests import (test_regress_detects_missing_assets, test_asset_oracle_rejects_wrong_text,
                            test_asset_download_hash_guard)
+from server_tests import (test_server_deadline_without_output, test_server_deadline_kills_descendants,
+                          test_server_output_and_exit_status, test_server_job_timeout_releases_slot)
 
 
 class _Ar:
