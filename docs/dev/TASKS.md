@@ -36,7 +36,7 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| F1 | todo | - | GameplayTags 레지스트리(ini/DataTable/C++)와 사용처 | S |
+| F1 | doing | claude | GameplayTags 레지스트리(ini/DataTable/C++)와 사용처 | S |
 | F2 | done | claude | 입력 교차 검사(트리거·모디파이어 값, "BP가 쓰는데 IMC에 없는 IA" 경고) | S |
 | F3 | todo | - | 변수·함수 플래그(ExposeOnSpawn, Private, SaveGame, RPC, Pure/Const …) | S |
 | F4 | todo | - | BP 클래스 DataAsset 인스턴스 저장값 | S |
