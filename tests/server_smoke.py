@@ -73,6 +73,7 @@ def main():
                    PYTHONIOENCODING="utf-8:replace")
         url = f"http://127.0.0.1:{port}"
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        index_timestamps = []
 
         async def check(restarted=False):
             async with streamable_http_client(url + "/smoke/mcp") as (read, write, _):
@@ -80,11 +81,16 @@ def main():
                     await session.initialize()
                     tools = (await session.list_tools()).tools
                     assert len(tools) == 6 and all(t.annotations.readOnlyHint for t in tools)
+                    for tool in tools:
+                        if tool.name in ("list_digest_files", "read_source_file"):
+                            assert "offset" in tool.inputSchema["properties"], "pagination missing from MCP schema"
 
                     async def call(name, **arguments):
                         result = await session.call_tool(name, arguments)
                         assert not result.isError, result
-                        return "\n".join(c.text for c in result.content if c.type == "text")
+                        text = "\n".join(c.text for c in result.content if c.type == "text")
+                        assert len(text) <= 20000, f"{name} exceeded its response budget"
+                        return text
 
                     async def analyze(refresh=False):
                         text = await call("analyze_repo", repo_url="owner/repo", ref=commit, refresh=refresh)
@@ -103,6 +109,14 @@ def main():
                     assert "INDEX.md" in await call("list_digest_files", digest_id=digest_id)
                     assert "ExtractionGame" in await call("read_digest_file", digest_id=digest_id, path="INDEX.md")
                     assert "BP_" in await call("search_digest", digest_id=digest_id, query="BeginPlay")
+                    database = work / "data/work" / digest_id / "search.sqlite"
+                    assert database.is_file()
+                    timestamp = database.stat().st_mtime_ns
+                    if restarted:
+                        assert timestamp == index_timestamps[-1], "restart rebuilt a completed search index"
+                    assert "BP_" in await call("search_digest", digest_id=digest_id, query="bEGINpLAY", max_results=10000)
+                    assert database.stat().st_mtime_ns == timestamp, "warm search rebuilt the index"
+                    assert "error:" in await call("search_digest", digest_id=digest_id, query="")
                     sources = await call("read_source_file", digest_id=digest_id, path="**/*.uproject")
                     assert ".uproject" in sources, sources
                     source = sources.splitlines()[0]
@@ -113,6 +127,8 @@ def main():
                     if not restarted:
                         assert await analyze(refresh=True) == digest_id
                         assert count.read_text(encoding="utf-8") == "11", "refresh did not run"
+                        assert "BP_" in await call("search_digest", digest_id=digest_id, query="BeginPlay")
+                        index_timestamps.append(database.stat().st_mtime_ns)
 
         for restarted in (False, True):
             with (work / f"server-{int(restarted)}.log").open("w", encoding="utf-8") as log:
@@ -132,7 +148,7 @@ def main():
                 finally:
                     proc.terminate()
                     proc.wait(timeout=10)
-        print("PASS MCP HTTP: 6 tools, real eg 49 BP / 1779 nodes, cache reuse, refresh and restart reuse")
+        print("PASS MCP HTTP: 6 tools, eg 49 BP / 1779 nodes, response limits, warm/restart index reuse and refresh")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-10-27 17:41 KST · codex · R5
+- 한 일: 도구 6개 유지. search_index.py의 SQLite FTS5 trigram 영속 인덱스 추가(완료 세대·schema·SQLite 버전 확인,
+  원자 게시/손상 재생성). 대소문자 무시 리터럴 부분 문자열·기호·한글 유지; 1~2자/FTS5 없음은 캐시 instr 검색.
+  검색어 1–256자·결과 1–100, 인덱스 파일당 2MB/총 64MB/후보 10,000파일/200,000줄·SQL 5초 제한과 커버리지 표시.
+  6도구 공통 텍스트 응답 20,000자 제한, 목록 200개 + item offset, 큰 파일은 bounded streaming + character offset.
+  glob/search는 .git/링크/정션 제외. READ_LOCK으로 열린 파일/SQLite와 refresh/prune 삭제 충돌 방지.
+  MCP 지침/스킬·CHATGPT 가이드·테스트 안내 갱신, D-014 기록. 기존 digest 캐시/출력 포맷/의존성은 유지.
+- 검증: cp949 환경 전체 regress 단위 42/42 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. 신규 R5 단위 5개.
+  리터럴·짧은 검색·한글·따옴표/기호·소스 범위·warm 무재탐색/동시 호출·세대 교체/손상 복구·FTS fallback·용량/행 상한·
+  SQL timeout, 한글/이모지 문자 페이지 무손실 연결·목록 무중복·응답 상한·대형 파일 부분 읽기·정션 차단·열린 reader/refresh 확인.
+  실제 mcp 1.30.0 Streamable HTTP: 6도구/offset 스키마/실제 eg 49 BP·1779/1779, 20k 응답, warm 및 서버 재시작 후
+  검색 DB mtime 동일 재사용, refresh 실제 재분석 PASS. Windows 5.1 설치/LFS 검증은 앞 X4에서 PASS.
+  MCP skill quick_validate, 문서 링크/fence·git diff --check PASS. 기본 회귀에는 선택 MCP SDK 불필요.
+- 남은 일·주의: X4/R5 모두 done. 첫 검색은 인덱스를 만들며, 검색 커버리지 경고가 있으면 list/read로 보완.
+  목록 offset은 항목 수, 읽기 offset은 디코딩한 문자 수. 실제 외부 서버 배포·인증/공개 설정 변경은 하지 않음.
+  기존 symlink 생성 권한 하위 검사는 skip, 실제 junction 검사는 PASS. main 통합/push 후 후속 후보 T3/T4 또는 X1/X2/X6.
+
 ## 2026-10-27 17:22 KST · codex · X4
 - 한 일: 기존 클론도 ref를 먼저 해석/필터 fetch한 뒤 공통 materialize 사용. 변경된 필요 파일만 checkout하고
   빠진 필요 blob은 SHA 목록으로 일괄 fetch; 대형 아트 blob은 생략. 삭제된 추적 파일은 index/작업 트리에서 정리.

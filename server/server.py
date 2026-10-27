@@ -24,12 +24,15 @@ import json
 import os
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import threading
 import time
 import uuid
 from dataclasses import dataclass, field
+from functools import wraps
+from itertools import islice
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -38,6 +41,7 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 
 from processes import run_process
+from search_index import MAX_INDEX_FILES, search, text_files
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -59,6 +63,7 @@ SOURCE_EXT = {".h", ".hpp", ".cpp", ".c", ".inl", ".cs", ".ini", ".uproject", ".
               ".py", ".usf", ".ush", ".hlsl", ".yml", ".yaml", ".xml", ".bat", ".sh", ".gitattributes", ".gitignore",
               ".editorconfig", ".toml", ".cfg"}
 HOSTS = {"github.com", "gitlab.com", "bitbucket.org"}
+READ_LOCK = threading.RLock()  # Windows cannot remove a cache while a reader/SQLite handle is open
 
 (DATA / "work").mkdir(parents=True, exist_ok=True)
 (DATA / "cache").mkdir(parents=True, exist_ok=True)
@@ -113,6 +118,28 @@ def scrub(text: str) -> str:
     if TOKEN:
         text = text.replace(TOKEN, "***").replace(quote(TOKEN, safe=""), "***")
     return re.sub(r"x-access-token:[^@\s]+@", "", text)
+
+
+def bounded_response(function):
+    """Enforce the same response/error budget on all six public tools."""
+    @wraps(function)
+    def call(*args, **kwargs):
+        try:
+            result = function(*args, **kwargs)
+        except (OSError, ValueError, sqlite3.Error) as exc:
+            result = f"error: {exc}"
+        result = scrub(result)
+        tail = "\n… response limit reached; narrow the query/folder or use pagination."
+        return result if len(result) <= PAGE else result[:PAGE - len(tail)] + tail
+    return call
+
+
+def cached_read(function):
+    @wraps(function)
+    def call(*args, **kwargs):
+        with READ_LOCK:
+            return function(*args, **kwargs)
+    return call
 
 
 def git(*args, cwd=None, timeout=600):
@@ -220,9 +247,10 @@ def run_job(job: Job) -> None:
         try:
             repo_dir = job.dir / "repo"
             out_dir = job.dir / "digest"
-            if job.dir.exists():
-                shutil.rmtree(job.dir, ignore_errors=True)
-            job.dir.mkdir(parents=True)
+            with READ_LOCK:
+                if job.dir.exists():
+                    shutil.rmtree(job.dir, ignore_errors=True)
+                job.dir.mkdir(parents=True)
             job.log.append(f"cloning {job.repo.public_url} @ {job.commit[:10]}")
             # the digest script does a partial clone of exactly this commit (big art blobs are never downloaded)
             cmd = [sys.executable, str(DIGEST_SCRIPT), job.repo.clone_url, "--ref", job.commit,
@@ -253,11 +281,13 @@ def run_job(job: Job) -> None:
 
 
 def prune() -> None:
-    dirs = sorted((p for p in (DATA / "work").iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)
-    active = {j.key for j in JOBS.values() if j.status in ("queued", "running")}
-    for p in dirs[KEEP:]:
-        if p.name not in active:
-            shutil.rmtree(p, ignore_errors=True)
+    with READ_LOCK:
+        dirs = sorted((p for p in (DATA / "work").iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)
+        with LOCK:
+            active = {j.key for j in JOBS.values() if j.status in ("queued", "running")}
+        for p in dirs[KEEP:]:
+            if p.name not in active:
+                shutil.rmtree(p, ignore_errors=True)
 
 
 def start_or_get(repo: RepoRef, project: str | None, refresh: bool) -> Job:
@@ -287,15 +317,15 @@ def job_report(job: Job, wait: int) -> str:
     if job.status in ("queued", "running"):
         job.done_event.wait(timeout=wait)
     if job.status == "done":
-        if not completed_cache(job.dir):
-            return f"job_id: {job.id}\nstatus: error\nDigest expired or is being refreshed — run analyze_repo again."
-        try:
-            index = (job.dir / "digest" / "INDEX.md").read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            return f"job_id: {job.id}\nstatus: error\nDigest expired or is being refreshed — run analyze_repo again."
-        head = (f"digest_id: {job.key}\nstatus: done ({job.repo.public_url} @ {job.commit[:10]})\n"
-                f"Use read_digest_file / search_digest / read_source_file with this digest_id.\n\n")
-        return head + page(index, 0, "INDEX.md")
+        with READ_LOCK:
+            if not completed_cache(job.dir):
+                return f"job_id: {job.id}\nstatus: error\nDigest expired or is being refreshed — run analyze_repo again."
+            head = (f"digest_id: {job.key}\nstatus: done ({job.repo.public_url} @ {job.commit[:10]})\n"
+                    f"Use read_digest_file / search_digest / read_source_file with this digest_id.\n\n")
+            try:
+                return head + file_page(job.dir / "digest" / "INDEX.md", 0, "INDEX.md", limit=max(0, PAGE - len(head)))
+            except (OSError, ValueError) as exc:
+                return f"job_id: {job.id}\nstatus: error\n{exc} — run analyze_repo again."
     if job.status == "error":
         return f"job_id: {job.id}\nstatus: error\n{job.error}"
     elapsed = int(time.time() - job.started)
@@ -304,13 +334,42 @@ def job_report(job: Job, wait: int) -> str:
             f"The analysis is still running. Call wait_for_analysis with job_id '{job.id}' to keep waiting.")
 
 
-def page(text: str, offset: int, label: str, limit: int = PAGE) -> str:
+def file_page(path: Path, offset: int, label: str, limit: int = PAGE) -> str:
     offset = max(0, offset)
-    chunk = text[offset:offset + limit]
+    remaining, deadline = offset, time.monotonic() + 5
+    budget = max(0, limit - 256)
+    with path.open(encoding="utf-8", errors="replace") as source:
+        while remaining:
+            if time.monotonic() > deadline:
+                raise ValueError("file offset scan exceeded 5s; use a smaller offset or a split digest file")
+            skipped = source.read(min(65536, remaining))
+            if not skipped:
+                return ""
+            remaining -= len(skipped)
+        text = source.read(budget + 1)
+    chunk = text[:budget]
     end = offset + len(chunk)
-    tail = (f"\n\n[{label}: characters {offset}-{end} of {len(text)}. More: call again with offset={end}]"
-            if end < len(text) else "")
+    tail = (f"\n\n[{label[:100]}: characters {offset}-{end}. More: call again with offset={end}]"
+            if len(text) > budget else "")
     return chunk + tail
+
+
+def item_page(items: list[str], offset: int) -> str:
+    capped = len(items) > MAX_INDEX_FILES
+    items = items[:MAX_INDEX_FILES]
+    offset = max(0, offset)
+    lines, used, end = [], 0, offset
+    for item in items[offset:offset + 200]:
+        if used + len(item) + 1 > PAGE - 256:
+            break
+        lines.append(item)
+        used += len(item) + 1
+        end += 1
+    if end < len(items):
+        lines.append(f"… more files: call again with offset={end}, or narrow the folder/glob.")
+    if capped:
+        lines.append(f"Listing limited to {MAX_INDEX_FILES} files; narrow the folder/glob.")
+    return "\n".join(lines) if lines else "(no matching files)"
 
 
 def digest_dir(digest_id: str) -> Path:
@@ -338,8 +397,10 @@ Workflow: call analyze_repo with the URL (it waits up to ~45 s; if it reports 'r
 until done). Read the returned INDEX.md fully, then read the files you need: maps/*.md (level Blueprint, placed
 actors), blueprints/*.md (components, variables, graphs as execution-flow pseudo-code), data/*.md (DataTables,
 structs, enums, behavior trees, input mappings, DataAssets), cpp/CLASSES.md, and real C++ sources through
-read_source_file. Quote Blueprint paths and pseudo-code lines, state coverage from the Parse report, and do not
-guess the content of nodes marked unreadable."""
+read_source_file. Follow returned offsets until complete: file reads use character offsets; lists/globs use item
+offsets. Search is literal, not FTS/regex syntax; report search coverage warnings and narrow truncated results.
+Quote Blueprint paths and pseudo-code lines, state coverage from the Parse report, and do not guess the content
+of nodes marked unreadable."""
 
 security = TransportSecuritySettings(
     enable_dns_rebinding_protection=bool(ALLOWED_HOSTS),
@@ -359,6 +420,7 @@ READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotent
 
 
 @mcp.tool(title="Analyze Unreal repo", annotations=READ_ONLY)
+@bounded_response
 def analyze_repo(repo_url: str, ref: str | None = None, project: str | None = None, refresh: bool = False) -> str:
     """Analyze an Unreal Engine git repository and return its digest index (INDEX.md).
 
@@ -382,6 +444,7 @@ def analyze_repo(repo_url: str, ref: str | None = None, project: str | None = No
 
 
 @mcp.tool(title="Wait for analysis", annotations=READ_ONLY)
+@bounded_response
 def wait_for_analysis(job_id: str) -> str:
     """Keep waiting (up to ~45 s per call) for an analysis started by analyze_repo; returns INDEX.md when done."""
     job = JOBS.get(job_id)
@@ -391,20 +454,23 @@ def wait_for_analysis(job_id: str) -> str:
 
 
 @mcp.tool(title="List digest files", annotations=READ_ONLY)
-def list_digest_files(digest_id: str, folder: str = "") -> str:
-    """List files in a digest (optionally under a folder such as 'blueprints/Game/UI' or 'maps')."""
+@bounded_response
+@cached_read
+def list_digest_files(digest_id: str, folder: str = "", offset: int = 0) -> str:
+    """List digest files under an optional folder. More files: pass the returned item offset (not a character offset)."""
     try:
         base = digest_dir(digest_id) / "digest"
         root = safe_path(base, folder) if folder else base
     except ValueError as e:
         return f"error: {e}"
-    files = sorted(p for p in root.rglob("*.md") if p.is_file())
-    lines = [f"{p.relative_to(base).as_posix()}  ({p.stat().st_size // 1024 + 1} KB)" for p in files[:600]]
-    more = f"\n… {len(files) - 600} more — narrow with folder=" if len(files) > 600 else ""
-    return "\n".join(lines) + more if lines else "(no files)"
+    files = sorted(islice(text_files(root, {".md"}), MAX_INDEX_FILES + 1))
+    lines = [f"{p.relative_to(base).as_posix()}  ({p.stat().st_size // 1024 + 1} KB)" for p in files]
+    return item_page(lines, offset)
 
 
 @mcp.tool(title="Read digest file", annotations=READ_ONLY)
+@bounded_response
+@cached_read
 def read_digest_file(digest_id: str, path: str, offset: int = 0) -> str:
     """Read a digest file, e.g. 'INDEX.md', 'blueprints/Game/BP_Player.md', 'maps/Game/Maps/L_Main.md'.
     Long files are paged: pass the offset given at the end of the previous page."""
@@ -415,43 +481,38 @@ def read_digest_file(digest_id: str, path: str, offset: int = 0) -> str:
         return f"error: {e}"
     if not p.is_file():
         return f"error: {path} not found — use list_digest_files or search_digest"
-    return page(p.read_text(encoding="utf-8", errors="replace"), offset, path)
+    return file_page(p, offset, path)
 
 
 @mcp.tool(title="Search digest", annotations=READ_ONLY)
+@bounded_response
+@cached_read
 def search_digest(digest_id: str, query: str, include_source: bool = False, max_results: int = 60) -> str:
-    """Case-insensitive search across the digest (Blueprints, maps, data, index). With include_source=true it
-    also searches the repo's C++/config text files. Returns file:line: text."""
+    """Case-insensitive literal substring search (1–256 characters) in a persistent index. include_source
+    adds C++/config text. Returns file:line: text; max_results is clamped to 1–100. No FTS/regex syntax."""
     try:
         d = digest_dir(digest_id)
     except ValueError as e:
         return f"error: {e}"
-    q = query.lower()
+    rows, more, warning = search(d, SOURCE_EXT, query, include_source, max(1, min(100, max_results)))
     hits = []
-    roots = [(d / "digest", "*.md", "")]
-    if include_source:
-        roots.append((d / "repo", "*", "repo:"))
-    for base, pattern, prefix in roots:
-        for p in sorted(base.rglob(pattern)):
-            if not p.is_file() or ".git" in p.parts:
-                continue
-            if prefix and (p.suffix.lower() not in SOURCE_EXT or p.stat().st_size > 2_000_000):
-                continue
-            try:
-                for i, line in enumerate(p.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
-                    if q in line.lower():
-                        hits.append(f"{prefix}{p.relative_to(base).as_posix()}:{i}: {line.strip()[:220]}")
-                        if len(hits) >= max_results:
-                            return "\n".join(hits) + "\n… more results — refine the query"
-            except OSError:
-                continue
-    return "\n".join(hits) if hits else "(no matches)"
+    for path, number, line in rows:
+        start = max(0, line.lower().find(query.lower()) - 70)
+        snippet = ("…" if start else "") + line[start:start + 220].strip()
+        hits.append(f"{path}:{number}: {snippet}")
+    if more:
+        hits.append("… more results — refine the query or increase max_results (up to 100).")
+    result = "\n".join(hits) if hits else "(no matches)"
+    return warning + "\n" + result if warning else result
 
 
 @mcp.tool(title="Read source file", annotations=READ_ONLY)
+@bounded_response
+@cached_read
 def read_source_file(digest_id: str, path: str, offset: int = 0) -> str:
     """Read a text file from the analyzed repo (C++ .h/.cpp, .Build.cs, Config/*.ini, .uproject, …).
-    A path ending in '/' or a glob such as 'Source/**/*.h' lists matching files instead."""
+    A path ending in '/' or a glob such as 'Source/**/*.h' lists matching files instead.
+    Lists use item offsets; file contents use character offsets. Follow the returned next offset."""
     try:
         base = digest_dir(digest_id) / "repo"
     except ValueError as e:
@@ -459,12 +520,15 @@ def read_source_file(digest_id: str, path: str, offset: int = 0) -> str:
     if path.endswith("/") or any(ch in path for ch in "*?["):
         pattern = path + "**/*" if path.endswith("/") else path
         try:
-            matches = [p for p in base.glob(pattern.lstrip("/")) if p.is_file() and ".git" not in p.parts
-                       and p.suffix.lower() in SOURCE_EXT]
+            pattern = pattern.replace("\\", "/")
+            if Path(pattern).is_absolute() or ".." in pattern.split("/"):
+                raise ValueError("path escapes the repository")
+            matches = sorted(islice((p for p in text_files(base, SOURCE_EXT)
+                                     if p.relative_to(base).match(pattern) or
+                                     p.relative_to(base).match(pattern.replace("**/", ""))), MAX_INDEX_FILES + 1))
         except ValueError as e:
             return f"error: {e}"
-        lines = [p.relative_to(base).as_posix() for p in sorted(matches)[:400]]
-        return "\n".join(lines) if lines else "(no matching text files)"
+        return item_page([p.relative_to(base).as_posix() for p in matches], offset)
     try:
         p = safe_path(base, path)
     except ValueError as e:
@@ -473,9 +537,9 @@ def read_source_file(digest_id: str, path: str, offset: int = 0) -> str:
         return "error: not allowed"
     if not p.is_file():
         return f"error: {path} not found"
-    if p.suffix.lower() not in SOURCE_EXT and p.name not in (".gitattributes", ".gitignore"):
+    if p.suffix.lower() not in SOURCE_EXT and p.name not in SOURCE_EXT:
         return "error: binary asset — read its rendering under blueprints/, data/ or maps/ in the digest instead"
-    return page(p.read_text(encoding="utf-8", errors="replace"), offset, path)
+    return file_page(p, offset, path)
 
 
 @mcp.custom_route("/", methods=["GET"])

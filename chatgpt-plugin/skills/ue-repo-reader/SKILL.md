@@ -34,6 +34,13 @@ external-actor failures can occur with N/N node coverage. An unreadable Level Bl
 values missing after a parse failure are not confirmed class defaults.
 
 Use `search_digest` to find where something is used (`include_source=true` also searches C++ and config).
+Search is a case-insensitive literal substring, including punctuation and short names; do not send FTS or regex syntax.
+Use 1–256 characters and at most 100 results. Repeated queries reuse a persistent index. If a search reports
+omitted files or a coverage limit, state that limit and use the list/read tools for the missing material.
+
+Tool text responses are capped at 20,000 characters. Follow returned offsets: read tools use character offsets,
+while file lists/globs use item offsets (up to 200 entries per call). Narrow the query/folder when a response is
+truncated. Large files are streamed in pages; do not treat a first page or an empty search as complete coverage.
 
 ## 3. Answer well
 

@@ -66,7 +66,7 @@
 | R2 | todo | - | Codex Cloud 레시피(환경 + AGENTS.md) 시험 | S |
 | R3 | done | codex | 스킬 폴더 표준화(.agents/.claude/.github skills) | S |
 | R4 | todo | - | Claude Code 플러그인 마켓플레이스 | S |
-| R5 | doing | codex | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
+| R5 | done | codex | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
 | R6 | todo | - | MCP Registry 등록(stdio 패키지) | S |
 | V1 | todo | - | 사람 PC에서 UE Shed / UAsset Translator와 실측 비교 (이 세션에선 실행 불가) | S |
 | V2 | done | codex | 실제 Windows PowerShell 5.1에서 격리된 설치 가이드 E2E·Python 선택·native stderr/종료 코드·특수문자 LFS 다운로드 검증 | S |

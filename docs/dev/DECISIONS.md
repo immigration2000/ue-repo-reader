@@ -98,3 +98,17 @@
 - 이유: 전체 checkout은 처음 건너뛴 큰 아트 blob을 다시 받고, 경로만 checkout하면 삭제된 파일이 분석에 남는다(X4).
 - 영향: 로컬/스테이징 변경·미추적 충돌은 보존하고 실패, 링크된 Git worktree는 캐시로 거부. ref 없음은 현재 HEAD 유지.
   Git stdin은 UTF-8 바이트로 전달해 Windows CRLF가 fetch refspec을 깨지 않게 한다. 새 의존성/출력 포맷 변경 없음.
+
+## D-014 MCP는 6도구 유지, 영속 리터럴 검색과 공통 응답 예산 적용 (2026-10-27, codex)
+- 결정: 기존 도구 이름/기본 인자를 유지하고 목록에 item offset만 추가. 모든 텍스트 응답은 20,000자 이내,
+  목록은 200개/호출·전체 10,000개, 읽기는 문자 offset과 bounded streaming을 사용한다.
+  완료된 digest 세대마다 search.sqlite를 원자 게시하고 schema/SQLite 버전/캐시 키/완료 표식 mtime으로 재사용한다.
+  FTS5 trigram으로 Python lower() 기준 리터럴 부분 문자열을 검색한다. 1~2자 또는 FTS5 없는 SQLite는 같은 캐시의 instr 사용.
+  인덱스는 파일당 2MB·전체 64MB·후보 10,000파일·200,000줄까지이며 생략/상한은 응답에 명시. 검색 SQL은 5초로 제한.
+- 이유: 매 검색마다 모든 파일을 다시 읽고, 목록/검색/오류 응답은 기존 PAGE 상한을 넘을 수 있었다(R5).
+  MATCH 표현식을 직접 노출하면 기존 부분 문자열·기호 검색의 의미가 바뀌므로 검색어를 인용한 literal phrase로 사용한다.
+  형식 사실: https://www.sqlite.org/fts5.html#the_trigram_tokenizer (코드 복사 없이 직접 구현).
+- 영향: 새 패키지 의존성·digest 포맷 변경 없음. 검색어는 1–256자, 결과는 1–100개로 제한. 큰 파일 읽기는 계속 지원.
+  read/search/list의 핸들과 refresh/prune 삭제를 짧은 READ_LOCK으로 조정해 Windows 열린 SQLite/파일 삭제 충돌 방지.
+  .git·심볼릭 링크·정션은 검색/glob 목록에서 제외. 검색 schema/범위 의미가 바뀌면 search_index.VERSION을 올린다.
+  MCP 스킬과 CHATGPT 가이드에 offset 종류·예산·검색 커버리지 한계를 반영. 공개 배포/인증 설정은 변경하지 않음.
