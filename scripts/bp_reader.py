@@ -22,7 +22,7 @@ UASSET_READ_COMMIT = "b10a83a592e43156d17b9cdc0948790b1ab486f9"  # v0.5.4.44, MI
 
 _PATCHED = False
 # Which version-gated pin fields exist in the package currently being parsed.
-_FIELDS = {"source_index": True, "single_precision": True, "uobject_wrapper": True}
+_FIELDS = {"source_index": True, "single_precision": True, "uobject_wrapper": True, "terminal_wrapper": True}
 # UE 5.8 appends an int32 to FTextHistory_Base (namespace/key/source); older engines don't.
 _TEXT = {"base_extra": False, "override": None}
 
@@ -77,7 +77,8 @@ def _install_patches() -> None:
         if key == "PinType.TerminalSubCategoryObject":
             # FEdGraphTerminalType (Map value type) also stores bTerminalIsConst, bTerminalIsWeakPointer
             # and bTerminalIsUObjectWrapper; uasset_read stops after the object reference.
-            for _ in range(3):
+            # bTerminalIsUObjectWrapper exists only from FReleaseObjectVersion 31 (PinTypeIncludesUObjectWrapperFlag).
+            for _ in range(3 if _FIELDS["terminal_wrapper"] else 2):
                 orig_i32(self, "PinType.TerminalBool")
         return value
 
@@ -183,6 +184,57 @@ _FNMB_ADD_DEVNOTES_TO_FTEXT = 260
 _PKG_FILTER_EDITOR_ONLY = 0x80000000
 
 
+_RELEASE_GUID = "22d5549cbe4f26a846072194d082b461"   # FReleaseObjectVersion
+_UE5RS_GUID = "425e9bd8464dbd24a8ac1284791764df"     # FUE5ReleaseStreamObjectVersion
+_FILE_UE5: dict = {}                                 # path -> FileVersionUE5 (filled by _custom_versions)
+_VERS_CACHE: dict = {}
+
+
+def _read_summary(path: str):
+    from uasset_read.archive import FArchive
+    from uasset_read.serializers.package_summary import read_package_summary
+    with FArchive(path, tolerant=True) as ar:
+        return read_package_summary(ar)
+
+
+def _custom_versions(path: str) -> dict:
+    """{custom version guid (as stored, lower hex): version} from the package summary; {} if unreadable."""
+    if path in _VERS_CACHE:
+        return _VERS_CACHE[path]
+    try:
+        s = _read_summary(path)
+        _FILE_UE5[path] = getattr(s, "file_version_ue5", 0) or 0
+        vers = {str(c.guid).lower(): c.version for c in (getattr(s, "custom_versions", None) or [])}
+    except Exception:
+        vers = {}
+    if len(_VERS_CACHE) > 256:
+        _VERS_CACHE.clear()
+    _VERS_CACHE[path] = vers
+    return vers
+
+
+# Newest package format this tool was checked against (UE 5.8.2-5.8.4 editor saves). Anything newer is still
+# decoded, but flagged, because a new engine can change serialization without failing loudly.
+_KNOWN_FILE_UE5_MAX = 1018
+_KNOWN_CUSTOM_MAX = {_FNMB_GUID: 268, _RELEASE_GUID: 44, _UE5RS_GUID: 68}
+_CUSTOM_NAMES = {_FNMB_GUID: "FFortniteMainBranchObjectVersion", _RELEASE_GUID: "FReleaseObjectVersion",
+                 _UE5RS_GUID: "FUE5ReleaseStreamObjectVersion"}
+
+
+def newer_format_note(path: str) -> str:
+    """Non-empty when the package uses a newer format version than this tool has been verified with."""
+    vers = _custom_versions(path)
+    newer = []
+    fv = _FILE_UE5.get(path, 0)
+    if fv > _KNOWN_FILE_UE5_MAX:
+        newer.append(f"FileVersionUE5 {fv} > {_KNOWN_FILE_UE5_MAX}")
+    for guid, top in _KNOWN_CUSTOM_MAX.items():
+        v = vers.get(guid)
+        if v is not None and v > top:
+            newer.append(f"{_CUSTOM_NAMES[guid]} {v} > {top}")
+    return ", ".join(newer)
+
+
 def _ftext_has_devnotes(path: str) -> bool:
     """Base-history FTexts carry an editor-only DevNotes FString when the package was saved with
     FFortniteMainBranchObjectVersion >= 260 and is not a cooked (editor-only-filtered) package.
@@ -246,6 +298,23 @@ def _pin_score(result):
     return ok, total
 
 
+def _combo_order(path: str, ue5: bool) -> list:
+    """Pin-field combinations, those that agree with the package's custom versions first.
+    (single precision flag: FUE5ReleaseStreamObjectVersion >= 36; UObject wrapper flag: FReleaseObjectVersion >= 31;
+    SourceIndex has no gate we can read, so both values stay possible.)"""
+    combos = _UE5_COMBOS + [c for c in _UE4_COMBOS if c not in _UE5_COMBOS] if ue5 else \
+        _UE4_COMBOS + [c for c in _UE5_COMBOS if c not in _UE4_COMBOS]
+    vers = _custom_versions(path)
+    single = vers.get(_UE5RS_GUID)
+    single = (single >= 36) if single is not None else (False if not ue5 else None)
+    wrapper = vers.get(_RELEASE_GUID)
+    wrapper = (wrapper >= 31) if wrapper is not None else None
+
+    def agrees(c):
+        return (single is None or bool(c[1]) == single) and (wrapper is None or bool(c[2]) == wrapper)
+    return [c for c in combos if agrees(c)] + [c for c in combos if not agrees(c)]
+
+
 def _parse(path: str):
     """Parse with the pin-field combination that makes the most nodes readable."""
     from uasset_read.parse_uasset import parse_uasset_with_linker
@@ -254,8 +323,13 @@ def _parse(path: str):
         _FIELDS["source_index"], _FIELDS["single_precision"], _FIELDS["uobject_wrapper"] = map(bool, combo)
         return parse_uasset_with_linker(path, force_full_parse=True, preload_all=True)
 
+    vers = _custom_versions(path)
+    ue5 = bool(_FILE_UE5.get(path))
+    order = _combo_order(path, ue5)
+    rel = vers.get(_RELEASE_GUID)
+    _FIELDS["terminal_wrapper"] = True if rel is None else rel >= 31
     try:
-        best = attempt(_UE5_COMBOS[0])
+        best = attempt(order[0])
         best_score = _pin_score(best)
         if best_score[0] < best_score[1] and best.summary.file_version_ue5 >= 1015:
             # engines newer than this tool knows may flip the FText rule; try the other setting
@@ -270,8 +344,7 @@ def _parse(path: str):
             except Exception:
                 _TEXT["override"] = None
         if best_score[0] < best_score[1]:
-            combos = _UE4_COMBOS if best.summary.file_version_ue5 == 0 else _UE5_COMBOS[1:]
-            for combo in combos:
+            for combo in order[1:]:
                 try:
                     r = attempt(combo)
                 except Exception:
@@ -282,7 +355,7 @@ def _parse(path: str):
                 if s[0] == s[1]:
                     break
     finally:
-        _FIELDS.update(source_index=True, single_precision=True, uobject_wrapper=True)
+        _FIELDS.update(source_index=True, single_precision=True, uobject_wrapper=True, terminal_wrapper=True)
         _TEXT["override"] = None
     return best, best_score
 
@@ -1470,6 +1543,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
         raise FileNotFoundError(path)
     result, (ok_nodes, total_nodes) = _parse(path)
     devnotes, devnote_errors = _TEXT.get("devnotes", 0), _TEXT.get("devnote_errors", 0)
+    newer = newer_format_note(path)
     ctx = Ctx(result)
     asset_name = Path(path).stem
     bp_obj, bp_cls = _find_blueprint_object(ctx, asset_name)
@@ -1554,6 +1628,9 @@ def read_blueprint(path: str, game_path: str) -> dict:
           f"saved with UE {saved} · graph nodes decoded: {ok_nodes}/{total_nodes}"
           + (f" · {devnotes} text dev notes (editor-only) not shown" if devnotes else "")
           + (f" · ⚠ {devnote_errors} implausible FText dev-note fields" if devnote_errors else ""), ""]
+    if newer:
+        md += [f"> ⚠ Saved with a newer package format than ue-repo-reader was verified with ({newer}). "
+               "Decoded best-effort — treat values as unconfirmed.", ""]
 
     comp = _components(ctx, bp_props)
     if comp:
@@ -1597,7 +1674,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
         md += ["## Class defaults (values stored in the CDO)", *cdo_l, ""]
 
     summary = {"path": game_path, "kind": kind, "parent": parent, "interfaces": interfaces,
-               "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved,
+               "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
                "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": []}
 
     dispatchers = []

@@ -47,6 +47,26 @@ def test_pin_struct():
     assert B._fmt_pin_struct("LinearColor", "(R=1.000000,G=0.000000,B=0.000000,A=0.500000)") == "LinearColor{R=1, G=0, B=0, A=0.5}"
 
 
+def test_newer_format_note():
+    B._VERS_CACHE["fake58"] = {B._FNMB_GUID: 268, B._RELEASE_GUID: 44}
+    B._FILE_UE5["fake58"] = 1018
+    assert B.newer_format_note("fake58") == ""
+    B._VERS_CACHE["fake59"] = {B._FNMB_GUID: 275}
+    B._FILE_UE5["fake59"] = 1019
+    note = B.newer_format_note("fake59")
+    assert "FileVersionUE5 1019 > 1018" in note and "FFortniteMainBranchObjectVersion 275 > 268" in note, note
+
+
+def test_combo_order():
+    B._VERS_CACHE["fake425"] = {B._RELEASE_GUID: 30}      # UE 4.25: no UObject wrapper flag yet
+    B._FILE_UE5["fake425"] = 0
+    first = B._combo_order("fake425", ue5=False)[0]
+    assert first[1] == 0 and first[2] == 0, first
+    B._VERS_CACHE["fake51"] = {B._RELEASE_GUID: 44, B._UE5RS_GUID: 41}
+    first = B._combo_order("fake51", ue5=True)[0]
+    assert first[1] == 1 and first[2] == 1, first
+
+
 def main() -> int:
     failed = 0
     for name, fn in sorted(globals().items()):

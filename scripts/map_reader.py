@@ -242,6 +242,10 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
     gameplay = [a for a in actors if a["class"] not in ENVIRONMENT]
     env = [a for a in actors if a["class"] in ENVIRONMENT]
     md = [f"# {stem}", "", f"`{game_path}` · **Map** · saved with UE {saved}", ""]
+    _newer = B.newer_format_note(str(path))
+    if _newer:
+        md += [f"> ⚠ Saved with a newer package format than ue-repo-reader was verified with ({_newer}). "
+               "Decoded best-effort — treat values as unconfirmed.", ""]
     md.append(f"- Game mode override: **{info['game_mode']}**" if info["game_mode"]
               else "- Game mode override: none (uses the project default from DefaultEngine.ini)")
     if info["world_partition"]:

@@ -22,9 +22,9 @@
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
 | H1 | done | claude | FText 5.8 추가 필드를 DevNotes FString으로 읽기, 게이트 `FFortniteMainBranchObjectVersion >= 260 && !PKG_FilterEditorOnly`, 0이 아니면 경고 | S |
-| H2 | doing | claude | 맵 핀 세 번째 bool을 `FReleaseObjectVersion >= 31`일 때만 | S |
-| H3 | doing | claude | 단정밀도 플로트 플래그를 `FUE5ReleaseStreamObjectVersion >= 36` 게이트로 | S |
-| H5 | doing | claude | 모르는 `FileVersionUE5`(>1018)·커스텀 버전이면 경고 후 부분 출력 (5.9 대비) | S |
+| H2 | done | claude | 맵 핀 세 번째 bool을 `FReleaseObjectVersion >= 31`일 때만 | S |
+| H3 | done | claude | 단정밀도 플로트 플래그를 `FUE5ReleaseStreamObjectVersion >= 36` 게이트로 | S |
+| H5 | done | claude | 모르는 `FileVersionUE5`(>1018)·커스텀 버전이면 경고 후 부분 출력 (5.9 대비) | S |
 | H6 | todo | - | 회귀 세트 확장(버그 재현 픽스처, UE Shed/AssetTools 픽스처 검토) | S–M |
 | H7 | todo | - | Windows 실기 점검: LFS `--include` 이스케이프, `<PY>` 자리표시자, PowerShell 5.1 stderr | S |
 | T1 | doing | claude | `digest.json`을 "전부 읽기" 대상에서 제외, 큰 DataTable 상한 | S |

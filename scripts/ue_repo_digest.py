@@ -650,6 +650,10 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append(f"- partially decoded Blueprints ({len(partial)}):")
         for gp, s in sorted(partial):
             md.append(f"  - `{gp}` {s['nodes_ok']}/{s['nodes_total']} nodes (saved with UE {s['saved_with']})")
+    newer = sorted(gp for gp, r in bps.items() if r["summary"].get("newer_format"))
+    if newer:
+        md.append(f"- ⚠ {len(newer)} Blueprints use a newer package format than this tool was verified with "
+                  f"(decoded best-effort): " + ", ".join(f"`{g}`" for g in newer[:10]) + (" …" if len(newer) > 10 else ""))
     if map_failures:
         md.append(f"- maps that could not be read ({len(map_failures)}):")
         for gp, err in sorted(map_failures.items()):
@@ -662,7 +666,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append(f"- failed Blueprints ({len(failures)}):")
         for gp, err in sorted(failures.items()):
             md.append(f"  - `{gp}` — {err[:200]}")
-    if not partial and not failures and not data_failures and not map_failures and not (lfs and lfs.get("failed")):
+    if not partial and not newer and not failures and not data_failures and not map_failures and not (lfs and lfs.get("failed")):
         md.append("- everything decoded cleanly")
     md.append("")
     (out / "INDEX.md").write_text("\n".join(md) + "\n", encoding="utf-8")
