@@ -11,6 +11,17 @@
 
 ---
 
+## 2026-10-27 14:11 KST · codex · A6
+- 한 일: 도구 VERSION·캐시 schema·호스트/소유자/저장소·전체 커밋·프로젝트 원문을 canonical JSON으로 해시.
+  SHA-256 전체 256비트를 URL-safe base64 43자로 표현해 Windows 경로 예산 유지(식별자 길이로 실제 eg 쓰기 실패도 재현/해결).
+  정상 종료와 producer 버전/커밋 확인 뒤에만 cache.json을 atomic replace로 게시. INDEX만 남은 중단 결과·예전 버전·손상 표식은
+  재사용/파일 읽기에서 거부. refresh/실행 중 중복 요청 보존, 만료된 done 작업도 오류 응답. source label은 커밋으로 고정.
+- 검증: cp949 환경 전체 regress 단위 34/34 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. 신규 캐시 검사 4개 포함.
+  격리 설치한 실제 mcp 1.30.0의 Streamable HTTP에서 도구 6개와 실제 eg 1779/1779 분석, 파일 읽기/검색/경로 이탈 거부,
+  재사용·refresh(실제 CLI 재실행)·서버 재시작 후 디스크 캐시 재사용 PASS. git diff --check PASS.
+- 남은 일·주의: 이전 digest_id는 재분석 필요. MCP의 미광고 짧은 SHA는 전체 40자를 요청하도록 바꿈(불변 캐시 식별 보장);
+  CLI의 짧은 SHA 동작은 그대로. 도구 출력 포맷/VERSION 변화 없음. R1 문서 정정은 다음 커밋.
+
 ## 2026-10-27 14:01 KST · codex · A5
 - 한 일: stdout reader와 독립된 monotonic 제한시간 적용. Windows는 게이트를 Job Object에 먼저 넣은 뒤
   분석을 시작해 자식 생성 경쟁을 없애고, POSIX는 새 세션/프로세스 그룹을 사용. 성공·실패·초과 시 트리 종료와

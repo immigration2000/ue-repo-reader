@@ -18,6 +18,9 @@ Environment (all optional):
 """
 from __future__ import annotations
 
+import base64
+import hashlib
+import json
 import os
 import re
 import shutil
@@ -37,7 +40,11 @@ from mcp.types import ToolAnnotations
 from processes import run_process
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
+from ue_repo_digest import VERSION as DIGEST_VERSION
+
 DIGEST_SCRIPT = ROOT / "scripts" / "ue_repo_digest.py"
+CACHE_SCHEMA = 1  # bump when server-side cache identity/completion semantics change
 DATA = Path(os.environ.get("UE_READER_DATA", "/tmp/ue-reader"))
 SECRET = os.environ.get("UE_READER_SECRET", "").strip("/")
 TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
@@ -123,8 +130,10 @@ def resolve_commit(repo: RepoRef) -> str:
         sha, _, name = line.partition("\t")
         if sha:
             return sha
-    if repo.ref and re.fullmatch(r"[0-9a-fA-F]{7,40}", repo.ref):
+    if repo.ref and re.fullmatch(r"[0-9a-fA-F]{40}", repo.ref):
         return repo.ref.lower()
+    if repo.ref and re.fullmatch(r"[0-9a-fA-F]{7,39}", repo.ref):
+        raise ValueError("use the full 40-character commit SHA for an unadvertised commit")
     raise RuntimeError(f"ref '{repo.ref}' not found in {repo.public_url}")
 
 
@@ -155,11 +164,53 @@ LOCK = threading.Lock()
 RUN_SLOT = threading.Semaphore(1)  # one analysis at a time keeps memory predictable
 
 
+def cache_identity(repo: RepoRef, commit: str, project: str | None) -> dict:
+    return {"schema": CACHE_SCHEMA, "tool": f"ue-repo-reader {DIGEST_VERSION}",
+            "host": repo.host, "owner": repo.owner, "repo": repo.name,
+            "commit": commit.lower(), "project": project or None}
+
+
+def identity_key(identity: dict) -> str:
+    # Hash the complete tuple, never a sanitized/truncated project path or commit.
+    # URL-safe base64 keeps all 256 bits in 43 path characters (Windows path budget).
+    # Credentials and movable branch names are excluded.
+    raw = json.dumps(identity, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
+    return base64.urlsafe_b64encode(hashlib.sha256(raw.encode("utf-8")).digest()).decode("ascii").rstrip("=")
+
+
 def digest_key(repo: RepoRef, commit: str, project: str | None) -> str:
-    base = f"{repo.host}_{repo.owner}_{repo.name}_{commit[:12]}"
-    if project:
-        base += "_" + re.sub(r"[^A-Za-z0-9_.-]", "-", project)[:40]
-    return re.sub(r"[^A-Za-z0-9_.-]", "-", base)
+    return identity_key(cache_identity(repo, commit, project))
+
+
+def completed_cache(directory: Path, expected: dict | None = None) -> bool:
+    """A successful process publishes cache.json last; partial INDEX files don't count."""
+    try:
+        identity = json.loads((directory / "cache.json").read_text(encoding="utf-8"))
+        if not isinstance(identity, dict) or (expected is not None and identity != expected):
+            return False
+        if identity.get("schema") != CACHE_SCHEMA or identity.get("tool") != f"ue-repo-reader {DIGEST_VERSION}":
+            return False
+        if set(identity) != {"schema", "tool", "host", "owner", "repo", "commit", "project"}:
+            return False
+        if identity_key(identity) != directory.name:
+            return False
+        return (directory / "digest" / "INDEX.md").is_file()
+    except (OSError, ValueError, TypeError, KeyError):
+        return False
+
+
+def publish_cache(job: Job) -> None:
+    identity = cache_identity(job.repo, job.commit, job.project)
+    # The digest itself is written by the child. Do not publish a completion
+    # marker for a stale producer or a partial/malformed output.
+    manifest = json.loads((job.dir / "digest" / "digest.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or manifest.get("tool") != identity["tool"]:
+        raise RuntimeError("digest producer version does not match this server")
+    if manifest.get("source", {}).get("commit") != job.commit:
+        raise RuntimeError("digest source commit does not match this analysis")
+    marker = job.dir / "cache.json.tmp"
+    marker.write_text(json.dumps(identity, sort_keys=True, ensure_ascii=True), encoding="utf-8")
+    marker.replace(job.dir / "cache.json")
 
 
 def run_job(job: Job) -> None:
@@ -176,7 +227,7 @@ def run_job(job: Job) -> None:
             # the digest script does a partial clone of exactly this commit (big art blobs are never downloaded)
             cmd = [sys.executable, str(DIGEST_SCRIPT), job.repo.clone_url, "--ref", job.commit,
                    "--workdir", str(repo_dir), "--out", str(out_dir),
-                   "--source-label", f"{job.repo.public_url} ({job.repo.ref or 'default branch'})",
+                   "--source-label", f"{job.repo.public_url} ({job.commit})",
                    "--workers", str(WORKERS)]
             if job.project:
                 cmd += ["--project", job.project]
@@ -190,6 +241,7 @@ def run_job(job: Job) -> None:
             code = run_process(cmd, env=env, timeout=JOB_TIMEOUT, on_line=log_line)
             if code != 0 or not (out_dir / "INDEX.md").is_file():
                 raise RuntimeError("digest failed: " + " | ".join(job.log[-5:]))
+            publish_cache(job)
             job.status = "done"
         except Exception as e:  # noqa: BLE001
             job.status = "error"
@@ -213,11 +265,11 @@ def start_or_get(repo: RepoRef, project: str | None, refresh: bool) -> Job:
     key = digest_key(repo, commit, project)
     with LOCK:
         job = BY_KEY.get(key)
-        cached = (DATA / "work" / key / "digest" / "INDEX.md").is_file()
+        cached = completed_cache(DATA / "work" / key, cache_identity(repo, commit, project))
         if job and job.status in ("queued", "running"):
             return job
         if cached and not refresh:
-            if not job:
+            if not job or job.status != "done":
                 job = Job(uuid.uuid4().hex[:10], key, repo, commit, project, status="done", finished=time.time())
                 job.done_event.set()
                 JOBS[job.id] = job
@@ -235,7 +287,12 @@ def job_report(job: Job, wait: int) -> str:
     if job.status in ("queued", "running"):
         job.done_event.wait(timeout=wait)
     if job.status == "done":
-        index = (job.dir / "digest" / "INDEX.md").read_text(encoding="utf-8", errors="replace")
+        if not completed_cache(job.dir):
+            return f"job_id: {job.id}\nstatus: error\nDigest expired or is being refreshed — run analyze_repo again."
+        try:
+            index = (job.dir / "digest" / "INDEX.md").read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return f"job_id: {job.id}\nstatus: error\nDigest expired or is being refreshed — run analyze_repo again."
         head = (f"digest_id: {job.key}\nstatus: done ({job.repo.public_url} @ {job.commit[:10]})\n"
                 f"Use read_digest_file / search_digest / read_source_file with this digest_id.\n\n")
         return head + page(index, 0, "INDEX.md")
@@ -260,7 +317,7 @@ def digest_dir(digest_id: str) -> Path:
     if not re.fullmatch(r"[A-Za-z0-9_.-]+", digest_id or ""):
         raise ValueError("invalid digest_id")
     d = DATA / "work" / digest_id
-    if not (d / "digest" / "INDEX.md").is_file():
+    if not completed_cache(d):
         raise ValueError("unknown or expired digest_id — run analyze_repo again")
     os.utime(d)
     return d
@@ -306,7 +363,7 @@ def analyze_repo(repo_url: str, ref: str | None = None, project: str | None = No
     """Analyze an Unreal Engine git repository and return its digest index (INDEX.md).
 
     repo_url: https URL of the repo (GitHub/GitLab/Bitbucket) or 'owner/repo' for GitHub.
-    ref: optional branch, tag or commit (a /tree/<branch> URL also works).
+    ref: optional branch, tag or full 40-character commit SHA (a /tree/<branch> URL also works).
     project: optional .uproject name when the repo contains several projects.
     refresh: re-analyze even if this exact commit was analyzed before.
     Returns the digest_id used by the other tools, or a job_id to pass to wait_for_analysis while it runs."""

@@ -24,7 +24,9 @@ from failure_tests import (test_partial_map_reporting, test_empty_and_partial_le
 from coverage_tests import (test_regress_detects_missing_assets, test_asset_oracle_rejects_wrong_text,
                            test_asset_download_hash_guard)
 from server_tests import (test_server_deadline_without_output, test_server_deadline_kills_descendants,
-                          test_server_output_and_exit_status, test_server_job_timeout_releases_slot)
+                          test_server_output_and_exit_status, test_server_job_timeout_releases_slot,
+                          test_server_cache_key_collisions_and_version, test_server_cache_requires_completion_and_identity,
+                          test_server_cache_reuse_refresh_and_deduplication, test_server_job_publishes_only_current_success)
 
 
 class _Ar:

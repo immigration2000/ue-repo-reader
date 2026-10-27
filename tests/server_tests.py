@@ -153,3 +153,120 @@ def test_server_job_timeout_releases_slot():
         next_job = server.Job("next", "next", repo, "b" * 40, None)
         server.run_job(next_job)
         assert next_job.status == "error" and "digest failed" in next_job.error
+
+
+def test_server_cache_key_collisions_and_version():
+    with server_fixture() as server:
+        repo = server.RepoRef("github.com", "owner", "repo", "main")
+        commit = "a" * 40
+        projects = [None, "Chapter/A", "Chapter-A", "한글/A", "../A", "./A",
+                    "a" * 45 + "/One", "a" * 45 + "/Two"]
+        keys = {server.digest_key(repo, commit, project) for project in projects}
+        assert len(keys) == len(projects), "project identity collided"
+        key = server.digest_key(repo, commit, None)
+        assert key != server.digest_key(repo, "a" * 12 + "b" * 28, None), "commit truncated"
+        assert key != server.digest_key(server.RepoRef("gitlab.com", "owner", "repo", None), commit, None)
+        assert key != server.digest_key(server.RepoRef("github.com", "other", "repo", None), commit, None)
+        assert key == server.digest_key(server.RepoRef("github.com", "owner", "repo", "tag"), commit, "")
+        with patch.object(server, "DIGEST_VERSION", "next"):
+            assert key != server.digest_key(repo, commit, None), "tool version omitted"
+        with patch.object(server, "CACHE_SCHEMA", 2):
+            assert key != server.digest_key(repo, commit, None), "cache schema omitted"
+        assert "test-secret-token" not in key and len(key) < 120
+        with patch.object(server, "git", return_value=""):
+            assert server.resolve_commit(server.RepoRef("github.com", "owner", "repo", commit)) == commit
+            try:
+                server.resolve_commit(server.RepoRef("github.com", "owner", "repo", commit[:12]))
+            except ValueError as exc:
+                assert "full 40-character" in str(exc)
+            else:
+                raise AssertionError("unresolved short SHA accepted as immutable cache identity")
+
+
+def _cache_job(server, project=None):
+    repo = server.RepoRef("github.com", "owner", "repo", None)
+    commit = "a" * 40
+    job = server.Job("cache", server.digest_key(repo, commit, project), repo, commit, project)
+    (job.dir / "digest").mkdir(parents=True)
+    (job.dir / "digest/INDEX.md").write_text("# cached", encoding="utf-8")
+    (job.dir / "digest/digest.json").write_text(json.dumps({"tool": f"ue-repo-reader {server.DIGEST_VERSION}",
+                                                          "source": {"commit": commit}}), encoding="utf-8")
+    return job
+
+
+def test_server_cache_requires_completion_and_identity():
+    with server_fixture() as server:
+        job = _cache_job(server, "한글/A")
+        identity = server.cache_identity(job.repo, job.commit, job.project)
+        assert not server.completed_cache(job.dir), "partial INDEX reused"
+        server.publish_cache(job)
+        assert server.completed_cache(job.dir, identity)
+        assert server.digest_dir(job.key) == job.dir
+        marker = job.dir / "cache.json"
+        valid = marker.read_text(encoding="utf-8")
+        assert "test-secret-token" not in valid
+        for text in ("{", "[]", "null", json.dumps(dict(identity, tool="ue-repo-reader old")),
+                     json.dumps(dict(identity, project="한글-A")), json.dumps(dict(identity, schema=0)),
+                     json.dumps(dict(identity, commit="b" * 40))):
+            marker.write_text(text, encoding="utf-8")
+            assert not server.completed_cache(job.dir, identity), text
+            try:
+                server.digest_dir(job.key)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError("stale/partial digest_id served")
+        marker.write_text(valid, encoding="utf-8")
+        with patch.object(server, "DIGEST_VERSION", "next"):
+            assert not server.completed_cache(job.dir), "old producer cache accepted"
+        (job.dir / "digest/INDEX.md").unlink()
+        assert not server.completed_cache(job.dir)
+        job.status = "done"
+        assert "status: error" in server.job_report(job, 0), "expired cache reported done"
+
+
+def test_server_cache_reuse_refresh_and_deduplication():
+    with server_fixture() as server:
+        original = _cache_job(server)
+        server.publish_cache(original)
+        with patch.object(server, "resolve_commit", return_value=original.commit), \
+                patch.object(server.threading, "Thread") as worker:
+            cached = server.start_or_get(original.repo, None, False)
+            assert cached.status == "done" and cached.done_event.is_set()
+            assert server.start_or_get(original.repo, None, False) is cached
+            worker.assert_not_called()
+            refresh = server.start_or_get(original.repo, None, True)
+            assert refresh is not cached and refresh.status == "queued"
+            assert server.start_or_get(original.repo, None, True) is refresh
+            assert worker.call_count == 1, "queued refresh was duplicated"
+            # A completed failed job must not hide a good on-disk result.
+            refresh.status = "error"
+            recovered = server.start_or_get(original.repo, None, False)
+            assert recovered.status == "done" and recovered is not refresh
+            (original.dir / "cache.json").unlink()
+            restart = server.start_or_get(original.repo, None, False)
+            assert restart.status == "queued" and worker.call_count == 2
+
+
+def test_server_job_publishes_only_current_success():
+    with server_fixture() as server:
+        script = Path(server.DATA) / "fake_digest.py"
+        server.DIGEST_SCRIPT, server.JOB_TIMEOUT = script, 5
+        repo = server.RepoRef("github.com", "owner", "repo", None)
+        commit = "a" * 40
+        for version, source_commit, exit_code, expected in (
+                (server.DIGEST_VERSION, commit, 0, "done"), ("old", commit, 0, "error"),
+                (server.DIGEST_VERSION, "b" * 40, 0, "error"), (server.DIGEST_VERSION, commit, 7, "error")):
+            payload = {"tool": f"ue-repo-reader {version}", "source": {"commit": source_commit}}
+            script.write_text("import sys,json; from pathlib import Path; "
+                              "out=Path(sys.argv[sys.argv.index('--out')+1]); out.mkdir(); "
+                              "(out/'INDEX.md').write_text('# result',encoding='utf-8'); "
+                              f"(out/'digest.json').write_text({json.dumps(payload)!r},encoding='utf-8'); "
+                              f"print('line\\n'*60); sys.exit({exit_code})", encoding="utf-8")
+            key = server.digest_key(repo, commit, None)
+            job = server.Job("run", key, repo, commit, None)
+            server.run_job(job)
+            assert job.status == expected, job.error
+            assert job.done_event.is_set() and len(job.log) == 40
+            assert server.completed_cache(job.dir) == (expected == "done")
+            assert (job.dir / "cache.json").exists() == (expected == "done")

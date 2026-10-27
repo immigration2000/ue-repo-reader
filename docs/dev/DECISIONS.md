@@ -71,3 +71,13 @@
   stdout은 별도 스레드에서 UTF-8로 읽고, 실행/EOF 대기는 monotonic 제한시간을 공유한다.
 - 이유: readline에 시간 검사를 붙이면 무출력에서 멈추고, 부모 kill만으로는 Git/LFS/파서 자식이 남는다(A5).
 - 영향: 추가 의존성 없음. Windows Job 할당 실패 시 분석 시작 전에 오류로 종료. 4096자 초과 로그 행은 생략.
+
+## D-011 MCP 캐시는 버전 포함 전체 식별자 + 완료 표식으로 게시 (2026-10-27, codex)
+- 결정: canonical JSON(schema, tool VERSION, host, owner, repo, full commit, project 원문)의 SHA-256 전체를
+  URL-safe base64 43자 digest_id로 사용. 성공/producer 버전·커밋 확인 뒤 cache.json을 원자적으로 게시하며
+  완료 표식이 없는 INDEX나 예전 버전은 사용하지 않는다. source label도 브랜치 대신 커밋으로 고정.
+- 이유: 프로젝트 경로 치환/40자 잘라내기와 커밋 12자 절단은 충돌하며 출력 버전도 키에 없었다(A6).
+  이름 접두사+64자 hex는 실제 Windows eg 분석에서 MAX_PATH를 넘어 compact encoding을 선택했다.
+- 영향: 이전 digest_id는 analyze_repo로 재생성. MCP의 미광고 짧은 SHA는 전체 40자 SHA를 요구한다;
+  브랜치/태그와 CLI의 짧은 SHA 지원은 유지. 캐시 의미 변경 시 CACHE_SCHEMA, 출력 변경 시 기존 VERSION을 올린다.
+  추가 의존성·요약본 포맷 변경 없음. tests/server_smoke.py는 선택 SDK 검증이며 기본 회귀에는 SDK가 필요 없다.

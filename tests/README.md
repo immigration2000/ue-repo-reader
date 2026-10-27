@@ -14,6 +14,22 @@ Windows smoke는 이미 있는 Python/Git/git-lfs를 사용하며 소프트웨�
 서버 회귀도 단위 검사에 포함한다(`server_tests.py`). 선택 의존성 MCP SDK의 데코레이터만 대역으로 두고
 실제 작업·프로세스를 실행한다. 무출력/줄바꿈 없는 출력/연속 출력/출력 핸들 닫힘의 시간 제한,
 부모 종료 뒤 stdout을 상속한 자식의 종료, UTF-8·종료 코드·토큰 마스킹·작업 슬롯 회수를 검사한다.
+캐시 검사는 유사·긴·한글 프로젝트 경로, 전체 커밋, 버전/스키마 변경, 중단된 출력·손상된 완료 표식,
+재사용·refresh·중복 요청과 실제 자식 출력의 producer 버전/커밋 불일치를 다룬다.
+
+실제 SDK의 Streamable HTTP 검증은 선택 실행이다(서버 의존성 설치와 eg 고정 클론 필요).
+
+```powershell
+python -m pip install -r server/requirements.txt
+python tests/server_smoke.py
+# SDK를 전역에 설치하지 않으려면 별도 venv 또는 pip --target 디렉터리 사용
+python -m pip install --target tests/.cache/server-deps -r server/requirements.txt
+python tests/server_smoke.py --deps tests/.cache/server-deps
+```
+
+`server_smoke.py`는 loopback에만 서버를 열고 기존 eg를 실제 CLI로 분석한다. 원격 커밋 조회/클론만 로컬 픽스처로
+대체하며 원본 파일 읽기용 `.uproject`를 임시 repo에 복사한다. 도구 6개·1779/1779 노드·경로 이탈 거부·캐시 재사용·
+강제 재분석·서버 재시작 후 디스크 캐시 재사용을 확인한다. 임시 데이터는 `tests/.cache/` 아래에 만들고 종료 시 정리한다.
 
 ## 기본 프로젝트
 
