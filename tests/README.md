@@ -11,6 +11,11 @@ Python 3.10+와 Git이 필요하다. `python`이 WindowsApps 스텁이면 설치
 Windows smoke는 이미 있는 Python/Git/git-lfs를 사용하며 소프트웨어를 설치하지 않는다.
 생성 결과·외부 바이너리·클론·실행 로그는 모두 gitignore된 `tests/.cache/`에 둔다.
 
+스킬 설치 검사(`skill_install_tests.py`)는 세 도구의 개인/프로젝트 경로 6개에 실제 파일을 복사한다.
+한글·공백·대괄호·쉼표 경로에서 다른 작업 폴더를 cwd로 설치본의 CLI 도움말과 네 리더의 로컬 import를 실행하고,
+기존 파일 보존·존재하지 않는 프로젝트·탐색 경로의 symlink/Windows junction 거부를 확인한다.
+사용자 홈은 임시 경로로 대체하며 실제 개인 스킬 폴더·설정은 바꾸지 않는다.
+
 서버 회귀도 단위 검사에 포함한다(`server_tests.py`). 선택 의존성 MCP SDK의 데코레이터만 대역으로 두고
 실제 작업·프로세스를 실행한다. 무출력/줄바꿈 없는 출력/연속 출력/출력 핸들 닫힘의 시간 제한,
 부모 종료 뒤 stdout을 상속한 자식의 종료, UTF-8·종료 코드·토큰 마스킹·작업 슬롯 회수를 검사한다.
@@ -73,6 +78,7 @@ AssetTools 바이너리나 코드는 가져오지 않았다.
 - 사용자 경로 대신 임시 경로를 쓰고, 분석 대상은 eg의 고정 커밋으로 재현한다.
 - `GIT_CONFIG_GLOBAL`/Git 검색 상한을 격리해 사용자 Git 설정과 저장소 훅을 건드리지 않는다. 사용자 Git 설정 해시도 전후 비교한다.
 - 한글·공백·대괄호·쉼표 경로에서 가이드가 Coverage를 실제 출력하는지 확인한다.
+- 가이드의 Git 클론 설치를 확인한 뒤, 최소 파일만 복사한 `.agents/skills/ue-repo-reader` 설치본으로 실제 eg를 분석한다.
 - Store 스텁 거부, `py -3` 선택, Python 없음, native stderr와 종료 코드 7 보존을 검사한다.
 - 로컬 Git-LFS 저장소에서 실제 포인터를 만들고, 특수문자 `.uasset/.umap` 두 개를 `git lfs pull --include` 대체 경로로 받는다.
   다운로드된 바이트도 원본과 대조한다.

@@ -94,6 +94,10 @@ Test-Path "$skill\scripts\ue_repo_digest.py"
 - 두 `Test-Path`가 모두 `True`여야 한다.
 - `$skill` 폴더가 이미 있는데 git 저장소가 아니면 **지우지 말고** 사용자에게 어떻게 할지 물어본다.
 
+이 가이드는 개인용 Git 클론 설치를 사용한다. 프로젝트에만 설치하거나 Claude Code/Copilot용 폴더가 필요하면
+[README의 설치 표와 install_skill.py](../README.md#설치)를 따른다. 복사 설치본도 `SKILL.md`와 `scripts/`가 같은
+폴더에 있으며 5단계에서 `$skill`을 그 폴더로 지정해 실행할 수 있다. 복사 설치본에는 `.git`이 없어 `git pull`은 적용하지 않는다.
+
 ## 5. 동작 확인 (1~3분)
 
 실제 저장소 하나를 분석해 본다. 작업 폴더는 `C:\UEReview`를 쓴다(사용자가 다른 곳을 원하면 바꾼다).

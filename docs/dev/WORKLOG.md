@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-10-27 14:49 KST · codex · R3
+- 한 일: scripts/install_skill.py 추가. --client codex/claude/copilot + --user/--project를 명시하면 루트 SKILL.md와
+  Python scripts만 도구별 표준 탐색 폴더에 복사(원본 LICENSE/NOTICE가 있으면 동반). 프로젝트 .agents/.claude/.github,
+  개인 .agents(Codex·Copilot)/.claude(Claude Code). 기존 폴더·링크/정션은 교체하지 않음. .git/개발 규칙/캐시/MCP 패키지 제외.
+  SKILL의 실행 경로를 자신의 폴더 기준으로 명시하고 공백 경로 인용. README의 개인/프로젝트 설치·중복 방지·스냅샷/클론
+  업데이트 방법과 공식 경로 출처 정리. CODEX_SETUP의 기존 Git 클론 절차는 유지하고 복사 설치 경로 안내 추가. D-012 기록.
+- 검증: cp949 환경 전체 regress 단위 36/36 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. 새 단위 2개에서 개인/프로젝트 경로 6개,
+  한글·공백·대괄호·쉼표 경로, 다른 cwd에서 설치본 4리더 import/CLI 도움말, 기존 파일 바이트 보존·정션 거부 확인.
+  실제 PowerShell 5.1.19041.6456에서 가이드 7블록 검사와 Git 클론 설치 후 최소 복사 설치본으로 eg 49 BP·1779/1779 분석 PASS.
+  Python 선택/종료 코드 7/LFS 특수문자 2파일도 PASS, 사용자 Git 설정 해시 동일. skill-creator quick_validate PASS
+  (검증용 PyYAML은 tests/.cache/skill-validation에만 설치), 문서 로컬 링크/fence/UTF-8 및 git diff --check PASS.
+- 남은 일·주의: R3 done. 복사 설치본은 스냅샷이므로 기존 폴더를 옮긴 뒤 재설치; Git 클론은 git pull로 갱신.
+  사용자 개인 스킬 폴더·설정과 공개 배포 대상은 변경하지 않음. 도구별 앱 UI 탐색 자체는 검증하지 않았고 파일 구조·실행을 검증.
+  기존 output symlink 생성 하위 검사는 Windows 권한 부족으로 skip(실제 junction 검사는 PASS). 파서·출력 포맷/버전 변화 없음.
+
 ## 2026-10-27 14:11 KST · codex · R1
 - 한 일: README·CHATGPT.ko·HF Space README를 공식 문서(2026-10-27 확인)에 맞춰 정정.
   로컬 스킬은 서버/HF 불필요, 원격 MCP는 선택 사항으로 구분. 검증한 CODEX_SETUP으로 Windows 설치를 통합.

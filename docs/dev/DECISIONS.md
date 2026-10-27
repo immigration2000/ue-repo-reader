@@ -81,3 +81,13 @@
 - 영향: 이전 digest_id는 analyze_repo로 재생성. MCP의 미광고 짧은 SHA는 전체 40자 SHA를 요구한다;
   브랜치/태그와 CLI의 짧은 SHA 지원은 유지. 캐시 의미 변경 시 CACHE_SCHEMA, 출력 변경 시 기존 VERSION을 올린다.
   추가 의존성·요약본 포맷 변경 없음. tests/server_smoke.py는 선택 SDK 검증이며 기본 회귀에는 SDK가 필요 없다.
+
+## D-012 로컬 스킬은 단일 원본에서 표준 탐색 폴더로 복사 (2026-10-27, codex)
+- 결정: 루트 SKILL.md + scripts/를 원본으로 유지. install_skill.py가 codex/claude/copilot과 user/project를
+  명시적으로 받아 표준 경로에 독립 실행 가능한 스냅샷을 복사한다. 프로젝트는 .agents/.claude/.github,
+  개인은 .agents(Codex·Copilot)/.claude(Claude Code). LICENSE/NOTICE가 있으면 함께 보존한다.
+- 이유: 지침만 있는 별칭이나 저장소를 가리키는 링크는 Windows Git 설정/권한에 따라 깨지고 원본 밖의 설치에서
+  scripts를 찾지 못한다. 도구별 소스 복제본을 저장소 안에서 유지하면 파서·사용 지침이 서로 어긋난다(R3).
+- 영향: 새 의존성·출력 포맷 변화 없음. 기존 Git 클론 설치/업데이트 유지. 복사본은 자동 갱신되지 않으며
+  재설치 전 기존 폴더를 옮겨야 한다. 설치기는 기존 폴더·탐색 경로 링크/정션을 교체하지 않고 사용자 설정도 수정하지 않는다.
+  chatgpt-plugin/skills의 MCP 전용 지침은 별도 배포이며 로컬 설치에 섞지 않는다. 경로 공식 출처는 README에 기록.

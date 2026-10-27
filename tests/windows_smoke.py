@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 import ue_repo_digest as D
+import install_skill as I
 
 
 def quote(value) -> str:
@@ -50,6 +51,7 @@ def setup_smoke(base: Path, env: dict, logs: Path) -> dict:
     blocks = doc_blocks()
     skill, work = base / "skill", base / "공백[검증], 폴더"
     fixture = json.loads((ROOT / "tests" / "fixtures.json").read_text(encoding="utf-8"))["eg"]
+    portable = I.install("codex", base)
     install = blocks[4][0].replace('$skill = "$env:USERPROFILE\\.agents\\skills\\ue-repo-reader"', "$skill = " + quote(skill))
     assert "$env:USERPROFILE" not in install
     analyze = blocks[5][0].replace('$work = "C:\\UEReview"', "$work = " + quote(work))
@@ -76,6 +78,10 @@ if ((git config --global --get core.longpaths) -ne 'true') {{ throw 'isolated lo
 if ((git config --global --get filter.lfs.process) -ne 'git-lfs filter-process') {{ throw 'LFS config missing' }}
 {install}
 if (-not (Test-Path "$skill\\scripts\\ue_repo_digest.py")) {{ throw 'skill clone failed' }}
+# Exercise the same guide against the minimal installed snapshot, without the
+# source checkout or any repository-level instructions in that skill folder.
+$skill = {quote(portable)}
+if (-not (Test-Path "$skill\\SKILL.md")) {{ throw 'portable skill missing' }}
 # Keep native stderr at Continue as the guide instructs; preserve the actual child exit code.
 $guideOutput = @(. {{
 {analyze}
@@ -96,7 +102,7 @@ $failureExit = $LASTEXITCODE
 if ($failureExit -ne 7) {{ throw 'native failure exit code was lost' }}
 $proof = [ordered]@{{ powershell=$PSVersionTable.PSVersion.ToString(); snippets=$snippets.Count; analysis_exit=$analysisExit;
     native_failure_exit=$failureExit; coverage=$coverage; displayed_coverage=$true;
-    selected_python=($global:UePy -join ' '); commit=$digest.source.commit }}
+    selected_python=($global:UePy -join ' '); commit=$digest.source.commit; portable_skill_analyzed=$true }}
 Write-Output ('UE_SMOKE:' + ($proof | ConvertTo-Json -Compress))
 exit 0
 """

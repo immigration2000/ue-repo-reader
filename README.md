@@ -26,13 +26,34 @@ ue-repo-reader/
 
 ## 설치
 
-| 도구 | 위치 |
-|---|---|
-| Claude Code (개인) | `~/.claude/skills/ue-repo-reader/` |
-| Claude Code (프로젝트) | `<프로젝트>/.claude/skills/ue-repo-reader/` |
-| Codex · ChatGPT 데스크톱 앱 | `~/.agents/skills/ue-repo-reader/` (Windows: `%USERPROFILE%\.agents\skills\ue-repo-reader\`) |
+| 도구 | 개인 설치 | 프로젝트 설치 |
+|---|---|---|
+| Codex · ChatGPT 데스크톱 앱의 로컬 스킬 | `~/.agents/skills/ue-repo-reader/` | `<프로젝트>/.agents/skills/ue-repo-reader/` |
+| Claude Code | `~/.claude/skills/ue-repo-reader/` | `<프로젝트>/.claude/skills/ue-repo-reader/` |
+| GitHub Copilot | `~/.agents/skills/ue-repo-reader/` | `<프로젝트>/.github/skills/ue-repo-reader/` |
 
-이 폴더(`SKILL.md`, `scripts/`)를 통째로 복사하거나, 그 위치에 이 저장소를 `git clone` 하면 됩니다(업데이트는 `git pull`). 필요한 것은 **Python 3.10+, git, git-lfs**뿐이에요(Git for Windows에는 git-lfs가 포함되어 있습니다).
+저장소 루트의 `SKILL.md`와 `scripts/`가 원본입니다. 다음 명령은 필요한 파일만 표준 폴더에 복사합니다.
+
+```bash
+python scripts/install_skill.py --client codex --user
+python scripts/install_skill.py --client claude --project "D:/Work/MyGame"
+python scripts/install_skill.py --client copilot --project "D:/Work/MyGame"
+```
+
+원하는 도구·범위의 명령 하나를 선택하세요. 설치할 프로젝트 폴더는 미리 있어야 하며, 기존 스킬 폴더는 덮어쓰지 않습니다.
+복사 설치본은 스냅샷이므로 갱신하려면 기존 폴더를 다른 곳으로 옮긴 후 다시 설치합니다.
+자주 업데이트한다면 위 설치 위치에 이 저장소 전체를 `git clone`하고 `git -C "<설치 위치>" pull`로 갱신해도 됩니다.
+Windows의 `~`는 `%USERPROFILE%`입니다. Python 선택은 [Windows 설치 가이드](docs/CODEX_SETUP.ko.md)를 참고하세요.
+
+Copilot의 프로젝트 스킬은 `.agents/skills`와 `.claude/skills`에서도 탐색됩니다. Codex와 함께 쓰는 프로젝트는
+`--client codex --project "<프로젝트>"`로 한 벌만 설치하면 됩니다. 같은 범위의 여러 위치에 중복 설치하지 마세요.
+개인 스킬은 해당 컴퓨터의 로컬 도구용이며, 클라우드 실행 환경의 설치 여부는 별도로 확인합니다.
+경로 기준(2026-10-27): [OpenAI Docs](https://learn.chatgpt.com/docs/build-skills),
+[Claude Code](https://code.claude.com/docs/en/skills), [GitHub Copilot](https://docs.github.com/en/copilot/concepts/customizations/agent-skills).
+
+로컬 스킬은 `SKILL.md`와 `scripts/`가 같은 폴더에 있어야 합니다. `chatgpt-plugin/skills/`의 스킬은 원격 MCP 전용이며
+이 설치 도구로 배포하지 않습니다. MCP 설정이나 사용자 설정 파일은 변경하지 않습니다.
+필요한 것은 **Python 3.10+, git, git-lfs**뿐이에요(Git for Windows에는 git-lfs가 포함되어 있습니다).
 첫 실행 때 파서([soatori/uasset_read](https://github.com/soatori/uasset_read), 검증한 커밋으로 고정)를 `~/.cache/ue-repo-reader`에 자동으로 받습니다.
 
 ## 사용법

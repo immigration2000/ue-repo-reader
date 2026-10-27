@@ -11,8 +11,12 @@ without launching Unreal Editor or even having the engine installed.
 
 ## 1. Build the digest
 
+Resolve `<this-skill-dir>` to the directory containing this `SKILL.md`, regardless of whether it is under
+`.agents/skills/`, `.claude/skills/` or `.github/skills/`. Keep the bundled `scripts/` beside it and quote
+the script path when it contains spaces. Run from the user's work directory so clones and output stay there.
+
 ```bash
-python <this-skill-dir>/scripts/ue_repo_digest.py <git-url-or-local-path> --out <dir>
+python "<this-skill-dir>/scripts/ue_repo_digest.py" <git-url-or-local-path> --out <dir>
 ```
 
 Useful options:
