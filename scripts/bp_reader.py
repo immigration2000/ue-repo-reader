@@ -15,6 +15,9 @@ import os
 import struct
 import subprocess
 import sys
+import tempfile
+import time
+from contextlib import contextmanager
 from pathlib import Path
 
 UASSET_READ_REPO = "https://github.com/soatori/uasset_read.git"
@@ -29,6 +32,39 @@ _TEXT = {"base_extra": False, "override": None}
 
 # =========================================================================== setup
 
+@contextmanager
+def _parser_cache_lock(path: Path, timeout: float = 600):
+    """OS-owned lock: released on process exit, without stale lock-file removal races."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+b") as fh:
+        if fh.tell() == 0:
+            fh.write(b"0")
+            fh.flush()
+        deadline = time.monotonic() + timeout
+        while True:
+            fh.seek(0)
+            try:
+                if os.name == "nt":
+                    import msvcrt
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    import fcntl
+                    fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise TimeoutError(f"timed out waiting for parser cache lock: {path}")
+                time.sleep(0.05)
+        try:
+            yield
+        finally:
+            fh.seek(0)
+            if os.name == "nt":
+                msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+
 def ensure_uasset_read(cache_dir: str | None = None) -> None:
     """Import uasset_read, cloning the pinned commit into a cache dir if needed."""
     try:
@@ -37,14 +73,31 @@ def ensure_uasset_read(cache_dir: str | None = None) -> None:
     except ImportError:
         pass
     cache = Path(cache_dir or os.environ.get("UE_REPO_READER_CACHE")
-                 or Path.home() / ".cache" / "ue-repo-reader")
+                 or Path.home() / ".cache" / "ue-repo-reader").resolve()
     dest = cache / f"uasset_read-{UASSET_READ_COMMIT[:10]}"
-    if not (dest / "src" / "uasset_read").exists():
-        dest.mkdir(parents=True, exist_ok=True)
-        git = ["git", "-C", str(dest)]
-        subprocess.run(git + ["init", "-q"], check=True)
-        subprocess.run(git + ["fetch", "-q", "--depth", "1", UASSET_READ_REPO, UASSET_READ_COMMIT], check=True)
-        subprocess.run(git + ["checkout", "-q", "FETCH_HEAD"], check=True)
+
+    def ready():
+        return all((dest / "src" / "uasset_read" / name).is_file()
+                   for name in ("__init__.py", "parse_uasset.py"))
+
+    if not ready():
+        with _parser_cache_lock(cache / f".{dest.name}.lock"):
+            if not ready():
+                with tempfile.TemporaryDirectory(prefix=f".{dest.name}-", dir=cache) as tmp:
+                    staged = Path(tmp) / "parser"
+                    staged.mkdir()
+                    git = ["git", "-C", str(staged)]
+                    for args in (["init", "-q"],
+                                 ["fetch", "-q", "--depth", "1", UASSET_READ_REPO, UASSET_READ_COMMIT],
+                                 ["checkout", "-q", "FETCH_HEAD"]):
+                        subprocess.run(git + args, check=True, timeout=120, encoding="utf-8", errors="replace")
+                    if not all((staged / "src" / "uasset_read" / name).is_file()
+                               for name in ("__init__.py", "parse_uasset.py")):
+                        raise RuntimeError("downloaded parser is incomplete")
+                    # A previous interrupted install is moved under our temporary directory for cleanup.
+                    if dest.exists():
+                        dest.rename(Path(tmp) / "previous")
+                    staged.rename(dest)
     sys.path.insert(0, str(dest / "src"))
     import uasset_read  # noqa: F401
 

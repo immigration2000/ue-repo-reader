@@ -242,6 +242,82 @@ def test_lfs_include_pattern():
         assert fnmatch.fnmatchcase(p, pat), (p, pat)
 
 
+def test_parser_parent_setup():
+    for call in (lambda: D.classify_assets(["asset.uasset"], 2),
+                 lambda: D.process_blueprints([("asset.uasset", "/Game/Asset")], 2, 1)):
+        with patch.object(B, "ensure_uasset_read", side_effect=RuntimeError("setup unavailable")), \
+             patch.object(D.mp, "get_context") as context:
+            try:
+                call()
+            except RuntimeError as e:
+                assert str(e) == "setup unavailable"
+            else:
+                raise AssertionError("pool started before parser setup succeeded")
+            context.assert_not_called()
+
+
+def test_parser_concurrent_install():
+    with _output_scratch() as tmp:
+        base = Path(tmp)
+        repo = base / "fake-parser"
+        package = repo / "src" / "uasset_read"
+        package.mkdir(parents=True)
+        (package / "__init__.py").write_text('VALUE = "complete"\n', encoding="utf-8")
+        (package / "parse_uasset.py").write_text("# test parser\n", encoding="utf-8")
+        for args in (["init", "-q"], ["add", "."],
+                     ["-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"]):
+            subprocess.run(["git", "-C", str(repo), *args], check=True, capture_output=True,
+                           text=True, encoding="utf-8", errors="replace")
+        sha = subprocess.run(["git", "-C", str(repo), "rev-parse", "HEAD"], check=True, capture_output=True,
+                             text=True, encoding="utf-8").stdout.strip()
+        cache = base / "cache"
+        incomplete = cache / f"uasset_read-{sha[:10]}" / "src" / "uasset_read"
+        incomplete.mkdir(parents=True)
+        (incomplete / "partial.txt").write_text("interrupted install", encoding="utf-8")
+        script = ("import sys; sys.path.insert(0, sys.argv[1]); import bp_reader as B; "
+                  "B.UASSET_READ_REPO=sys.argv[2]; B.UASSET_READ_COMMIT=sys.argv[3]; "
+                  "B.ensure_uasset_read(sys.argv[4]); import uasset_read; import uasset_read.parse_uasset; "
+                  "assert uasset_read.VALUE == 'complete'")
+        cmd = [sys.executable, "-c", script, str(D.HERE), str(repo), sha, str(cache)]
+        children = []
+        try:
+            for _ in range(4):
+                children.append(subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                                 text=True, encoding="utf-8", errors="replace"))
+            for child in children:
+                stdout, stderr = child.communicate(timeout=30)
+                assert child.returncode == 0, stdout + stderr
+        finally:
+            for child in children:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait()
+        assert not (incomplete / "partial.txt").exists()
+        # A failed fetch must leave no published half-install and must allow a subsequent retry.
+        failed_cache = base / "retry-cache"
+        bad = subprocess.run([sys.executable, "-c", script, str(D.HERE), str(repo), "f" * 40, str(failed_cache)],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30)
+        assert bad.returncode != 0
+        assert not (failed_cache / ("uasset_read-" + "f" * 10)).exists()
+        retry = subprocess.run(cmd[:-1] + [str(failed_cache)], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace", timeout=30)
+        assert retry.returncode == 0, retry.stderr
+
+
+def test_parser_lock_timeout():
+    with _output_scratch() as tmp:
+        path = Path(tmp) / "cache.lock"
+        script = ("import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); import bp_reader as B\n"
+                  "try:\n with B._parser_cache_lock(Path(sys.argv[2]), timeout=0.1): pass\n"
+                  "except TimeoutError: pass\nelse: raise AssertionError('concurrent lock acquired')\n")
+        with B._parser_cache_lock(path):
+            child = subprocess.run([sys.executable, "-c", script, str(D.HERE), str(path)],
+                                   capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+            assert child.returncode == 0, child.stderr
+        with B._parser_cache_lock(path, timeout=0.1):
+            pass  # lock-file presence does not prevent reacquisition after the owner releases it
+
+
 def main() -> int:
     _utf8_stdio()
     failed = 0

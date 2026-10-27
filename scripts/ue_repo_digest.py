@@ -487,6 +487,10 @@ def _classify(path):
 
 
 def classify_assets(paths, workers):
+    if not paths:
+        return {}
+    import bp_reader
+    bp_reader.ensure_uasset_read()  # finish installation in the parent, before spawning any workers
     ctx = mp.get_context("spawn")
     out = {}
     with ctx.Pool(processes=workers, initializer=_worker_init) as pool:
@@ -552,6 +556,8 @@ def process_blueprints(items, workers: int, timeout: int, worker=None, label="bp
     results, failures = {}, {}
     if not items:
         return results, failures
+    import bp_reader
+    bp_reader.ensure_uasset_read()
     worker = worker or _worker
     ctx = mp.get_context("spawn")
     pool = ctx.Pool(processes=workers, initializer=_worker_init, maxtasksperchild=200)
