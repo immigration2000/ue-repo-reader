@@ -14,7 +14,7 @@
 | B4 | done | claude | 연결 안 된 필수 입력이 안 보임: `Possess()` → `Possess(InPawn=∅)` (BP_NullPointPC) | S |
 | B5 | done | claude | `--ref`에 짧은 SHA를 주면 CalledProcessError로 종료 | S |
 | B6 | done | claude | 색인 잡음: Used by 자기 참조, `/Script/CoreUObject.Vector_1476395008` 같은 분류 라벨, Niagara 라벨 분리 | S |
-| B7 | doing | claude | 구조체 기본값 원시 출력(GUID 붙은 멤버명, `=-143` 객체 인덱스, 벡터 문자열) | S–M |
+| B7 | done | claude | 구조체 기본값 원시 출력(GUID 붙은 멤버명, `=-143` 객체 인덱스, 벡터 문자열) | S–M |
 | B8 | doing | claude | 순수 노드 반복 인라인(SnapDragAxis 8회) → `let` 한 번 | S |
 
 ## P1 — 5.8 포맷 견고화, 토큰, 실행 시간

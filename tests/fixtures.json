@@ -50,6 +50,21 @@
           "/Script/[A-Za-z]+[._][A-Za-z]*_\\d{6,}",
           " \\(by name\\) "
         ]
+      },
+      {
+        "bug": "B7",
+        "file": "blueprints/Game/DeltaForce/Blueprints/UI/Grid/WBP_GridSlot.md",
+        "must_contain": [
+          "Icon=T_Icon_Collect_Craftwork_999_9GoldBar",
+          "Tint=LinearColor{R=1, G=0, B=0, A=0.5}"
+        ],
+        "must_not_contain": [
+          "=-143",
+          "0.000000"
+        ],
+        "must_not_match": [
+          "_\\d+_[0-9A-F]{32}"
+        ]
       }
     ]
   },
@@ -76,6 +91,16 @@
         "file": "blueprints/Game/ControlRig/Characters/Mannequins/Animations/Gideon/GideonManny_AnimBlueprint.md",
         "must_not_contain": [
           "when False"
+        ]
+      },
+      {
+        "bug": "B7",
+        "file": "blueprints/Game/ActionRoguelike/AI/MinionRangedBP.md",
+        "must_contain": [
+          "GameplayTag{TagName=Attribute.Health}"
+        ],
+        "must_not_contain": [
+          "(TagName=\""
         ]
       }
     ]

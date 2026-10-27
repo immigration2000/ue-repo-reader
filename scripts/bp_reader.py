@@ -9,6 +9,7 @@ Public entry points:
 """
 from __future__ import annotations
 
+import re
 import logging
 import os
 import struct
@@ -154,7 +155,16 @@ def _install_patches() -> None:
         return value
 
     PT.parse_text_property = parse_text_property
-    PP._TYPE_HANDLER_MAP = None  # rebuild the dispatch table with the patched handler
+
+    def _objref(orig):
+        def wrapped(*args, **kwargs):
+            v = orig(*args, **kwargs)
+            return ObjRef(v) if type(v) is int else v
+        return wrapped
+
+    PT.parse_object_property = _objref(PT.parse_object_property)
+    PT.parse_class_property = _objref(PT.parse_class_property)
+    PP._TYPE_HANDLER_MAP = None  # rebuild the dispatch table with the patched handlers
 
     orig_linker_parse = PU.parse_uasset_with_linker
 
@@ -267,6 +277,46 @@ def _fmt_num(v):
     return str(v)
 
 
+class ObjRef(int):
+    """A raw FPackageIndex read from an Object/Class property. Still an int everywhere, but fmt_value can
+    resolve it to an object name (uasset_read returns bare ints for object properties nested in structs)."""
+
+
+_CUR_CTX = None  # Ctx of the package being rendered (set by Ctx.__init__; one package at a time per process)
+
+_MEMBER_GUID = re.compile(r"\b([A-Za-z][A-Za-z0-9]*)_\d+_[0-9A-F]{32}\b")
+
+
+def clean_member_names(text: str) -> str:
+    """UserDefinedStruct members are stored as `Name_<n>_<32 hex GUID>`; show the name the editor shows."""
+    return _MEMBER_GUID.sub(r"\1", text)
+
+
+_PIN_STRUCT_FIELDS = {"Vector": ("X", "Y", "Z"), "Vector3f": ("X", "Y", "Z"), "Vector2D": ("X", "Y"),
+                      "Rotator": ("Pitch", "Yaw", "Roll"), "Vector4": ("X", "Y", "Z", "W"), "Quat": ("X", "Y", "Z", "W"),
+                      "IntPoint": ("X", "Y"), "IntVector": ("X", "Y", "Z")}
+_NUM = re.compile(r"-?\d+\.\d+(?:[eE][-+]?\d+)?")
+
+
+def _fmt_pin_struct(struct_name: str, dv: str) -> str:
+    """Pin default text of a struct (`0.000000,0.000000,80.000000`, `(R=1.000000,G=0,...)`, `(TagName="A.B")`)
+    rendered the same way as decoded struct values: `Vector{X=0, Y=0, Z=80}`."""
+    name = (struct_name or "").rsplit(".", 1)[-1]
+    trim = lambda t: _NUM.sub(lambda m: _fmt_num(float(m.group(0))), t)
+    parts = [x.strip() for x in dv.split(",")]
+    if all(re.fullmatch(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?", x) for x in parts) and len(parts) > 1:
+        keys = _PIN_STRUCT_FIELDS.get(name)
+        if keys and len(keys) == len(parts):
+            return f"{name}{{" + ", ".join(f"{k}={_fmt_num(float(x))}" for k, x in zip(keys, parts)) + "}"
+        return f"{name or 'Struct'}(" + ", ".join(_fmt_num(float(x)) for x in parts) + ")"
+    if dv.startswith("(") and dv.endswith(")"):
+        inner = trim(dv[1:-1])
+        inner = re.sub(r",(?=[A-Za-z_][A-Za-z0-9_]*=)", ", ", inner)
+        inner = re.sub(r'="([^",\s()]*)"', r"=\1", inner)  # (TagName="A.B") → TagName=A.B, like decoded values
+        return f"{name or 'Struct'}{{{inner}}}"
+    return trim(dv)
+
+
 def fmt_value(v, depth=0) -> str:
     """Compact, human readable rendering of a decoded property value."""
     if depth > 3:
@@ -275,6 +325,11 @@ def fmt_value(v, depth=0) -> str:
         return "None"
     if isinstance(v, bool):
         return "true" if v else "false"
+    if isinstance(v, ObjRef):
+        if int(v) == 0:
+            return "None"
+        name = _CUR_CTX.obj_name(int(v)) if _CUR_CTX is not None else ""
+        return _short(name) if name else f"<object #{int(v)}>"
     if isinstance(v, (int, float)):
         return _fmt_num(v)
     if isinstance(v, str):
@@ -328,6 +383,8 @@ class Ctx:
     """Per-package helpers: property lookup, package index resolution, names."""
 
     def __init__(self, result):
+        global _CUR_CTX
+        _CUR_CTX = self
         from uasset_read.serializers.object_resources import PackageIndex
         self.r = result
         self.PackageIndex = PackageIndex
@@ -672,6 +729,8 @@ class GraphRenderer:
                 return _fmt_num(float(dv))
             except ValueError:
                 return dv
+        if cat == "struct":
+            return _fmt_pin_struct(pin.pin_type.pin_subcategory_object_name, dv)
         return dv
 
     def _is_unchanged_default(self, p) -> bool:
@@ -1528,7 +1587,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     md.append("## Graphs")
     md += body if body else ["(no graphs)"]
     summary["calls"] = sorted(summary["calls"])
-    return {"markdown": "\n".join(md) + "\n", "summary": summary}
+    return {"markdown": clean_member_names("\n".join(md) + "\n"), "summary": summary}
 
 
 if __name__ == "__main__":

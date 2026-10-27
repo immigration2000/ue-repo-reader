@@ -291,7 +291,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
                "actor_count": len(actors), "gameplay_count": len(gameplay), "placed_classes": dict(placed),
                "level_bp_entries": (lb_summary or {}).get("entries", []),
                "level_bp_nodes": ((lb_summary or {}).get("nodes_ok", 0), (lb_summary or {}).get("nodes_total", 0))}
-    return {"markdown": "\n".join(md) + "\n", "summary": summary}
+    return {"markdown": B.clean_member_names("\n".join(md) + "\n"), "summary": summary}
 
 
 def external_actor_map(rel_path: str) -> str | None:

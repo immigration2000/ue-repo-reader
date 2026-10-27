@@ -725,7 +725,7 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
             md += ["## References (project assets used)", ", ".join(f"`{r}`" for r in refs[:60])
                    + (" …" if len(refs) > 60 else ""), ""]
         summary = {"path": game_path, "class": asset_class, "headline": headline, "references": refs, **extra}
-        return {"markdown": "\n".join(md) + "\n", "summary": summary}
+        return {"markdown": B.clean_member_names("\n".join(md) + "\n"), "summary": summary}
     finally:
         reader.close()
 
