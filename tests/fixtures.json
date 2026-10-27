@@ -114,6 +114,14 @@
           "- Pressed: animates RenderTransform, ColorAndOpacity on Image_Bottom_Interact, Image_Center_Interact, Image_Top_Interact",
           "(Visibility=HitTestInvisible, WidthOverride=130, HeightOverride=48)  [slot Padding=Margin{Left=0, Top=0, Right=0, Bottom=0}]"
         ]
+      },
+      {
+        "bug": "F7",
+        "file": "blueprints/Game/BP_NullPointGM.md",
+        "must_contain": [
+          "- **TempMatching** (5s)",
+          "  - float `NewTrack_1`: internal curve with no keys"
+        ]
       }
     ]
   },
@@ -188,6 +196,14 @@
         "file": "blueprints/Game/ActionRoguelike/BonfireBP.md",
         "must_contain": [
           "-> (OutActionComp: RogueActionComponent*, ReturnValue: bool)  [pure, const]"
+        ]
+      },
+      {
+        "bug": "F7",
+        "file": "blueprints/Game/ActionRoguelike/Audio/Blueprints/BP_MusicManager.md",
+        "must_contain": [
+          "- **CombatValues** (10s)",
+          "  - float `CombatThreatLowVol`: curve asset Curve_Music_CombatThreat_Low"
         ]
       }
     ]

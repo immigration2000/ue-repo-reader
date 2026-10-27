@@ -11,6 +11,12 @@
 
 ---
 
+## 2026-10-27 16:00 KST · claude · F7
+- 한 일: BP 문서에 `## Timelines` — TimelineTemplate(TaggedReader)에서 길이(기본 5s)·autoplay·loop·replicated·LengthMode,
+  float/vector/color/event 트랙별 외부 커브 에셋 이름 또는 내부 커브 키(최대 8개, `t→v`). 빈 내부 커브는 "no keys (evaluates to 0)".
+- 검증: regress 3/3 PASS, F7 검사 2개(EG BP_NullPointGM TempMatching, AR BP_MusicManager).
+- 남은 일·주의: 외부 커브 에셋의 키는 그 커브의 data/ 문서에 있음(링크는 안 걸었음). 다음 추천 F8(몽타주·노티파이), T3(캐시).
+
 ## 2026-10-27 15:40 KST · claude · F6
 - 한 일: 위젯 BP
   - 위젯 트리에 비기본 속성(Visibility, RenderOpacity, Width/HeightOverride, ColorAndOpacity, Brush 리소스 …, `_WIDGET_KEYS`)과

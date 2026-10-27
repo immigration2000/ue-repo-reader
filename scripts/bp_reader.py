@@ -1621,6 +1621,71 @@ def _widget_extras(path: str, result, ctx: Ctx, asset_name: str) -> list[str]:
     return lines
 
 
+def _timelines(path: str, result, ctx: Ctx) -> list[str]:
+    """Timeline components: length, play settings and tracks; internal curves with their keys."""
+    lines = []
+    try:
+        import data_reader as D
+        reader = D.TaggedReader(path, result, ctx)
+    except Exception:  # noqa: BLE001
+        return []
+    try:
+        by_name = {}
+        for i, e in enumerate(result.export_map or [], 1):
+            by_name.setdefault(e.object_name, []).append((i, e))
+
+        def stream(name, cls_pred):
+            for i, e in by_name.get(name, []):
+                if cls_pred(ctx.class_of(ctx.obj(i))):
+                    try:
+                        return dict(reader.export_stream(e)[0])
+                    except Exception:  # noqa: BLE001
+                        return {}
+            return None
+
+        def curve_desc(ref, external):
+            name = fmt_value(ref)
+            if external or not name or name == "None":
+                return f"curve asset {name}" if name and name != "None" else "no curve"
+            props = stream(name, lambda c: c.startswith("Curve"))
+            if props == {}:
+                return "internal curve with no keys (evaluates to 0)"
+            props = props or {}
+            keys = []
+            for ch, cv in props.items():
+                for k in (_fields(cv).get("Keys") or [])[:8]:
+                    kf = _fields(k)
+                    if "t" in kf:
+                        keys.append(f"{_fmt_num(kf['t'])}→{_fmt_num(kf['v'])}")
+                if keys:
+                    break
+            return "keys " + ", ".join(keys) if keys else "internal curve (no keys decoded)"
+
+        for i, e in enumerate(result.export_map or [], 1):
+            if ctx.class_of(ctx.obj(i)) != "TimelineTemplate":
+                continue
+            t = dict(reader.export_stream(e)[0])
+            name = t.get("VariableName") or e.object_name.replace("_Template", "")
+            length = t.get("TimelineLength", 5.0)
+            opts = [f"{_fmt_num(float(length))}s" if isinstance(length, (int, float)) else "length ?"]
+            for key, label in (("bAutoPlay", "autoplay"), ("bLoop", "loop"), ("bReplicated", "replicated"),
+                               ("bIgnoreTimeDilation", "ignores time dilation")):
+                if t.get(key):
+                    opts.append(label)
+            if str(fmt_value(t.get("LengthMode") or "")).endswith("LastKeyFrame"):
+                opts.append("length = last keyframe")
+            lines.append(f"- **{name}** ({', '.join(opts)})")
+            for key, kind, curve_key in (("FloatTracks", "float", "CurveFloat"), ("VectorTracks", "vector", "CurveVector"),
+                                         ("LinearColorTracks", "color", "CurveLinearColor"), ("EventTracks", "event", "CurveKeys")):
+                for tr in t.get(key) or []:
+                    f = _fields(tr)
+                    lines.append(f"  - {kind} `{f.get('TrackName') or '?'}`: "
+                                 + curve_desc(f.get(curve_key), bool(f.get("bIsExternalCurve"))))
+    finally:
+        reader.close()
+    return (["## Timelines", *lines, ""]) if lines else []
+
+
 def _widget_tree(ctx: Ctx, bp_props) -> list[str]:
     wt_obj = ctx.export_by_ref(bp_props.get("WidgetTree"), "WidgetTree")
     if wt_obj is None:
@@ -1780,6 +1845,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     if wtree:
         md += ["## Widget tree", *wtree, ""]
         md += _widget_extras(path, result, ctx, asset_name)
+    md += _timelines(path, result, ctx)
     nv = bp_props.get("NewVariables") or []
     if nv and not any(_fields(v).get("VarName") for v in nv):
         # uasset_read leaves arrays of structs opaque in some formats; re-read them with the tagged reader
