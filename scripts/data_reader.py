@@ -540,6 +540,63 @@ def _input_obj(x) -> str:
     return f"{name}({', '.join(args)})" if args else name
 
 
+def _sec(v) -> str:
+    return f"{B._fmt_num(float(v))}s" if isinstance(v, (int, float)) else "?"
+
+
+def _render_montage(items):
+    """Montage: length and blends, slot segments (which sequences play), sections and their links, notifies by time."""
+    d = dict(items)
+    head = [f"length {_sec(d.get('SequenceLength'))}"]
+    for key, label in (("BlendIn", "blend in"), ("BlendOut", "blend out")):
+        bt = B._fields(d.get(key)).get("BlendTime")
+        if bt is not None:
+            head.append(f"{label} {_sec(bt)}")
+    if d.get("bEnableAutoBlendOut") is False:
+        head.append("auto blend-out off")
+    out = ["_" + " · ".join(head) + "_", ""]
+    slots = []
+    for st in d.get("SlotAnimTracks") or []:
+        f = B._fields(st)
+        segs = B._fields(f.get("AnimTrack")).get("AnimSegments") or []
+        parts = []
+        for sg in segs:
+            g = B._fields(sg)
+            rng = f"{B._fmt_num(float(g.get('AnimStartTime', 0)))}–{B._fmt_num(float(g.get('AnimEndTime', 0)))}s"
+            rate = g.get("AnimPlayRate", 1)
+            parts.append(f"{B.fmt_value(g.get('AnimReference'))} [{rng}" + (f", ×{B._fmt_num(float(rate))}" if rate not in (1, 1.0) else "")
+                         + (f", loops {g.get('LoopingCount')}" if g.get("LoopingCount", 1) not in (1, None) else "") + "]")
+        slots.append(f"- slot `{B.fmt_value(f.get('SlotName'))}`: " + (" → ".join(parts) if parts else "(empty)"))
+    if slots:
+        out += ["## Slots", *slots, ""]
+    secs = []
+    for cs in d.get("CompositeSections") or []:
+        f = B._fields(cs)
+        nxt = B.fmt_value(f.get("NextSectionName"))
+        secs.append(f"- `{B.fmt_value(f.get('SectionName'))}` at {_sec(f.get('LinkValue', 0))}"
+                    + (f" → next `{nxt}`" if nxt not in ("None", "") else " (ends)"))
+    if secs:
+        out += ["## Sections", *secs, ""]
+    notes = []
+    for ev in d.get("Notifies") or []:
+        f = B._fields(ev)
+        t = f.get("LinkValue", f.get("Time", 0))
+        obj = f.get("Notify") if f.get("Notify") not in (None, "None") else f.get("NotifyStateClass")
+        kind = ""
+        if isinstance(obj, dict) and obj.get("struct_type"):
+            args = [f"{k}={B.fmt_value(v)}" for k, v in (obj.get("fields") or {}).items()][:4]
+            kind = str(obj["struct_type"]) + (f": {', '.join(args)}" if args else "")
+        elif obj not in (None, "None"):
+            kind = re.sub(r"_\d+$", "", B.fmt_value(obj))
+        dur = f.get("Duration") or 0
+        notes.append((float(t) if isinstance(t, (int, float)) else 0.0,
+                      f"- {_sec(t)} `{B.fmt_value(f.get('NotifyName'))}`" + (f" ({kind})" if kind else " (event → AnimBP `AnimNotify_" + B.fmt_value(f.get('NotifyName')) + "`)")
+                      + (f", lasts {_sec(dur)}" if isinstance(dur, (int, float)) and dur > 0.001 else "")))
+    if notes:
+        out += ["## Notifies", *[n for _, n in sorted(notes, key=lambda x: x[0])], ""]
+    return out
+
+
 def _render_mapping_context(items):
     d = dict(items)
     maps = d.get("Mappings")
@@ -719,6 +776,12 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
                 if parent not in (None, "None"):
                     md += [f"Parent blackboard: **{B.fmt_value(parent)}**", ""]
                 headline = f"blackboard, {len(body) - 2} keys"
+        elif asset_class == "AnimMontage":
+            exp = expand_subobjects(items, ExportProps(reader, ctx), export.object_name)
+            body = _render_montage(exp)
+            if body:
+                md += body
+                headline = "anim montage, " + body[0].split("·", 1)[0].strip("_ ").lower()
         elif asset_class == "InputMappingContext":
             exp = expand_subobjects(items, ExportProps(reader, ctx), export.object_name)
             body, extra["mapped_actions"] = _render_mapping_context(exp)
@@ -735,6 +798,10 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
                      "Frames", "NumContextData", "NumGlobalInstanceData", "EvaluatorsBegin", "GlobalTasksBegin",
                      "IDToStateMappings", "IDToNodeMappings", "IDToTransitionMappings", "DefaultInstanceData",
                      "DefaultEvaluationScopeInstanceData", "DefaultExecutionRuntimeData"}
+        if asset_class == "AnimMontage" and body:
+            skip |= {"CompositeSections", "SlotAnimTracks", "Notifies", "BlendIn", "BlendOut", "SequenceLength",
+                     "AnimNotifyTracks", "DataModelInterface", "BranchingPointMarkers", "CommonTargetFrameRate",
+                     "bEnableAutoBlendOut", "PreviewSkeletalMesh", "Controller", "DataModel"}
         rest = [(k, v) for k, v in items if k not in skip]
         try:
             rest = expand_subobjects(rest, ExportProps(reader, ctx), export.object_name)

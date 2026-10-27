@@ -205,6 +205,18 @@
           "- **CombatValues** (10s)",
           "  - float `CombatThreatLowVol`: curve asset Curve_Music_CombatThreat_Low"
         ]
+      },
+      {
+        "bug": "F8",
+        "file": "data/Game/ControlRig/Characters/Mannequins/Animations/Gideon/Primary_Attack_A_Medium_Montage.md",
+        "must_contain": [
+          "- slot `UpperBody`: Primary_Attack_A_Medium [0–1.2333s]",
+          "- 0.3807s `SaveAttack` (event → AnimBP `AnimNotify_SaveAttack`)",
+          "(AnimNotify_PlayMontageNotify: NotifyName=AttackReady)"
+        ],
+        "must_not_contain": [
+          "- Notifies (3 items)"
+        ]
       }
     ]
   },

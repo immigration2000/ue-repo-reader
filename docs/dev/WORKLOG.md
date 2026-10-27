@@ -11,6 +11,14 @@
 
 ---
 
+## 2026-10-27 16:30 KST · claude · F8
+- 한 일: AnimMontage를 데이터 에셋으로 렌더(`DATA_CLASSES`에 추가, `data_reader._render_montage`): 길이·블렌드 인/아웃·자동 블렌드아웃,
+  슬롯별 세그먼트(재생 시퀀스, 구간, 재생 속도, 반복), 섹션과 다음 섹션 링크, 노티파이를 시간순으로
+  (노티파이 객체 클래스·설정, 이름만 있으면 "event → AnimBP `AnimNotify_X`"로 AnimBP 이벤트와 연결). 중복되는 원시 프로퍼티는 생략.
+- 검증: regress 3/3 PASS, F8 검사 추가(AR Primary_Attack_A_Medium_Montage).
+- 남은 일·주의: AnimSequence 자체의 노티파이는 아직(시퀀스는 크고 LFS 제한에 걸리기 쉬움). UE 4.25 저장 몽타주(AR 스파이더)는 섹션 이름이
+  `0`, `1`로 나오는데 실제 이름인지 FName 해석 문제인지 미확인. 다음 추천 T3(캐시) 또는 D1(커밋 간 BP diff).
+
 ## 2026-10-27 16:00 KST · claude · F7
 - 한 일: BP 문서에 `## Timelines` — TimelineTemplate(TaggedReader)에서 길이(기본 5s)·autoplay·loop·replicated·LengthMode,
   float/vector/color/event 트랙별 외부 커브 에셋 이름 또는 내부 커브 키(최대 8개, `t→v`). 빈 내부 커브는 "no keys (evaluates to 0)".

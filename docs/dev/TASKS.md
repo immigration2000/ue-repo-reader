@@ -43,7 +43,7 @@
 | F5 | todo | - | GAS 요약(GE·GA) | S |
 | F6 | done | claude | 위젯 슬롯·바인딩·애니메이션 | S / M |
 | F7 | done | claude | 타임라인 템플릿(길이, 트랙, 키) | S–M |
-| F8 | doing | claude | 몽타주·시퀀스 노티파이, 섹션 | S–M |
+| F8 | done | claude | 몽타주·시퀀스 노티파이, 섹션 | S–M |
 | F9 | todo | - | 머티리얼 인스턴스 파라미터(S), 머티리얼 표현식 트리(M) | S / M |
 | F10 | todo | - | C++ 색인(tree-sitter)과 BP↔C++ 링크 | M |
 | F11 | todo | - | Kismet 바이트코드 대체 섹션 | S / M |

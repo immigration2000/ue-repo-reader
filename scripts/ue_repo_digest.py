@@ -493,7 +493,7 @@ def classify_assets(paths, workers):
 DATA_CLASSES = {
     "DataTable", "CompositeDataTable", "UserDefinedStruct", "UserDefinedEnum", "InputAction", "InputMappingContext",
     "BehaviorTree", "BlackboardData", "StateTree", "CurveTable", "CurveFloat", "CurveVector", "CurveLinearColor",
-    "PrimaryDataAsset", "DataAsset", "StringTable", "EnvQuery", "PlayerMappableInputConfig",
+    "PrimaryDataAsset", "DataAsset", "StringTable", "EnvQuery", "PlayerMappableInputConfig", "AnimMontage",
 }
 
 
@@ -815,7 +815,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  A Blueprint file says `⚠ N nodes unreadable` when part of a graph could not be decoded.",
            "- Maps are rendered under `maps/`: Level Blueprint, placed actors with per-instance overrides, game mode.",
            "  Blueprint files end with `Placed in levels` when instances of them are placed in a map.",
-           "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, DataAssets) are",
+           "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, montages, DataAssets) are",
            "  rendered under `data/` — see the Data assets table below.",
            "- C++ is summarized in `cpp/CLASSES.md`; read the real sources in the repo for implementation details.",
            "- GameplayTags (definitions, users, undefined tags) are in `config/GameplayTags.md` when the project has any.",
