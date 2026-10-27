@@ -112,6 +112,8 @@ Select-String -Path "$work\ExtractionGame_Fin_digest\INDEX.md" -Pattern "Coverag
   stderr로 나오므로 Windows PowerShell 5.1에서는 빨간 `NativeCommandError`처럼 보일 수 있는데, 오류가 아니다.
   (`$ErrorActionPreference = "Stop"`이 설정된 세션이면 이 로그 때문에 중단되므로 그 블록에서는 `"Continue"`로 둔다.)
 - `Coverage:` 줄에 `0 failed`, 그리고 `graph nodes decoded N/N`(앞뒤 숫자가 같음)이 보인다.
+- INDEX의 Parse report와 문서별 Parse warnings도 확인한다. 노드 N/N이어도 속성·그래프 렌더링·레벨 BP·외부 액터는
+  부분 실패할 수 있으며, 모두 읽혔을 때만 `everything decoded cleanly`가 표시된다.
 - 첫 실행 때 파서가 `%USERPROFILE%\.cache\ue-repo-reader`에 자동으로 받아진다(정상).
 - `--out`은 요약본 전용 폴더다. 입력 저장소 자체/상위 경로나 심볼릭 링크/정션은 쓸 수 없으며,
   일반 파일이 있는 폴더나 중단된 실행 결과를 요약본으로 식별할 수 없으면 새 출력 폴더를 지정한다.

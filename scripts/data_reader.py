@@ -40,6 +40,7 @@ class TaggedReader:
         from uasset_read.serializers.property_tags import read_property_tag
         self.r = result
         self.ctx = ctx
+        self.issues = ctx.issues
         self.fv5 = result.summary.file_version_ue5
         self.ar = FArchive(path, tolerant=True)
         self.ar._file_version_ue5 = self.fv5
@@ -59,6 +60,7 @@ class TaggedReader:
     # ---- streams
     def export_stream(self, export):
         """Tagged properties of an export. Returns (items, end_offset)."""
+        self.export_name = str(export.object_name)
         self.ar.seek(export.serial_offset)
         if self.fv5 >= 1011:
             ctrl = self.ar.read_u8()
@@ -76,24 +78,32 @@ class TaggedReader:
             if tag.name == "None":
                 break
             if not str(tag.type).endswith("Property"):
+                B.record_issue(self.issues, "properties", self._issue_context(tag), f"invalid property type {tag.type}")
                 break  # desynchronised; stop rather than emit garbage
             end = tag.value_end_offset
             val = None
             try:
+                checkpoint = len(self.issues)
                 if tag.type == "ArrayProperty":
                     val = self._struct_array(tag, depth)
                 elif tag.type == "StructProperty":
                     val = self._tagged_struct(tag, depth)
                 if val is None:
+                    del self.issues[checkpoint:]  # discard warnings from an unsuccessful speculative struct read
                     self.ar.seek(tag.value_start_offset)
                     val = self._parse_value(tag, self.ar, self.names, self.r.export_map, self.r.summary, depth, True)
                     val = self._resolve(tag, val)
             except Exception as e:  # noqa: BLE001
+                B.record_issue(self.issues, "properties", self._issue_context(tag), e)
                 val = f"<unreadable {tag.type}: {type(e).__name__}>"
             if end:
                 self.ar.seek(end)
             items.append((tag.name, val))
         return items
+
+    def _issue_context(self, tag):
+        name = getattr(self, "export_name", "")
+        return f"{name}.{tag.name}" if name else str(tag.name)
 
     # ---- structs
     def _struct_name(self, tag):
@@ -104,7 +114,9 @@ class TaggedReader:
 
     def _tagged_struct(self, tag, depth):
         sname = self._struct_name(tag)
-        if sname == "EdGraphPinType" and tag.size > 0:  # native: keep raw bytes for bp_reader._decode_var_type
+        # Known native payloads must not be probed as property tags (zero bytes can look like FName index 0).
+        # Keep these opaque; EdGraphPinType is decoded separately by bp_reader._decode_var_type.
+        if sname in ("EdGraphPinType", "DeprecateSlateVector2D") and tag.size > 0:
             self.ar.seek(tag.value_start_offset)
             return {"kind": "binary_or_native_property", "struct_type": sname, "raw_data": self.ar.read(tag.size)}
         if not sname or sname in NATIVE_BINARY_STRUCTS or tag.size <= 0:
@@ -443,7 +455,8 @@ class ExportProps:
         if name not in self.cache:
             try:
                 items, _ = self.reader.export_stream(self.by_name[name])
-            except Exception:
+            except Exception as e:
+                B.record_issue(self.reader.issues, "properties", name, e)
                 items = []
             self.cache[name] = dict(items)
         return self.cache[name]
@@ -805,20 +818,23 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
         rest = [(k, v) for k, v in items if k not in skip]
         try:
             rest = expand_subobjects(rest, ExportProps(reader, ctx), export.object_name)
-        except Exception:
-            pass
+        except Exception as e:
+            B.record_issue(ctx.issues, "subobjects", stem, e)
         if rest:
             title = "Properties" if body is None else "Other properties"
             md += [f"## {title}", *render_tree(rest), ""]
         elif body is None:
-            md += ["_(no saved properties — everything is at its class defaults)_", ""]
+            md += ["_(saved properties could not be read completely; defaults are unknown)_" if ctx.issues else
+                   "_(no saved properties — everything is at its class defaults)_", ""]
         if body is None and asset_class not in ("UserDefinedEnum", "UserDefinedStruct", "DataTable"):
             headline = f"{asset_class}, {len(rest)} saved properties"
         refs = _references(result, ctx)
         if refs:
             md += ["## References (project assets used)", ", ".join(f"`{r}`" for r in refs[:60])
                    + (" …" if len(refs) > 60 else ""), ""]
-        summary = {"path": game_path, "class": asset_class, "headline": headline, "references": refs, **extra}
+        md += B.issue_markdown(ctx.issues)
+        summary = {"path": game_path, "class": asset_class, "headline": headline, "references": refs,
+                   "issues": ctx.issues, "parse_status": "partial" if ctx.issues else "ok", "newer_format": _newer, **extra}
         return {"markdown": B.clean_member_names("\n".join(md) + "\n"), "summary": summary}
     finally:
         reader.close()

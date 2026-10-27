@@ -15,6 +15,8 @@ Call `analyze_repo` with the URL (a `/tree/<branch>` URL or `ref` selects a bran
 `.uproject` when the repo has several). If the result says `status: running`, call `wait_for_analysis` with
 the `job_id` until it returns `status: done` — big projects take a few minutes. Keep the `digest_id`.
 
+For a cached digest generated before v1.6.0, run `analyze_repo` again with `refresh=true` to get partial-failure warnings.
+
 ## 2. Read in this order
 
 1. `INDEX.md` (returned by `analyze_repo`; if it ends with "More: call again with offset=…", read the rest with
@@ -26,6 +28,10 @@ the `job_id` until it returns `status: done` — big projects take a few minutes
    `when auto (...)` = automatic anim transition, `⚠ disconnected` = dead code).
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
 5. `cpp/CLASSES.md`, then real C++ via `read_source_file` (a glob like `Source/**/*.h` lists files).
+
+Read **Parse warnings** in each document and the INDEX Parse report. Property/graph-render/Level Blueprint/
+external-actor failures can occur with N/N node coverage. An unreadable Level Blueprint is unknown, not empty;
+values missing after a parse failure are not confirmed class defaults.
 
 Use `search_digest` to find where something is used (`include_source=true` also searches C++ and config).
 

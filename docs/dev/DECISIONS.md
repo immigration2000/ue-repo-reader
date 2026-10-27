@@ -49,3 +49,11 @@
 - 이유: 워커/별도 CLI가 공용 Git 캐시에 동시에 init/fetch/checkout해 잠금 충돌과 반쯤 설치된 모듈이 발생했다.
 - 영향: 새 의존성 없음. 잠금 파일은 남겨 두되 잠금 자체는 프로세스 종료 시 OS가 해제한다. 대기는 최대 600초,
   Git 단계는 각 120초. 기존 정상 캐시는 그대로 사용하며 출력 포맷은 바뀌지 않는다.
+
+## D-008 부분 실패는 구조화된 issues로 전파 (2026-10-27, codex)
+- 결정: VERSION 1.6.0. BP/data/map summary에 `issues: [{stage, context, message}]`와 `parse_status: ok|partial`을 저장한다.
+  문서의 Parse warnings와 INDEX Parse report에도 같은 문제를 표시한다. 맵의 `level_bp_status`는 ok/partial/error,
+  실패한 `level_bp_nodes`는 null로 정상 빈 그래프의 [0,0]과 구분한다. WorldSettings를 못 읽으면 게임모드는 unknown.
+- 이유: 핀 N/N만으로는 속성·그래프 렌더·외부 액터·레벨 BP의 실패가 가려져 INDEX와 회귀가 거짓 성공을 보고했다(A4).
+- 영향: 회귀는 digest.json의 세 종류 에셋·전체 실패·부분 실패·레벨 BP·외부 액터·LFS 다운로드 실패를 검사한다.
+  기존 서버 영속 캐시는 refresh=true로 갱신해야 한다(A6는 별도). 의사코드의 정상 실행 흐름 표기는 바뀌지 않는다.

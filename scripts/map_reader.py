@@ -76,6 +76,8 @@ class PackageActors:
         self.ctx = B.Ctx(self.r)
         self.reader = D.TaggedReader(path, self.r, self.ctx)
         self._props = {}
+        self.issues = self.ctx.issues
+        self.failed_props = set()
         self.children = defaultdict(list)  # outer export index (1-based) -> [export index (1-based)]
         for i, e in enumerate(self.r.export_map):
             oi = getattr(e, "outer_index", 0)
@@ -88,10 +90,15 @@ class PackageActors:
 
     def props(self, idx: int) -> dict:
         if idx not in self._props:
+            before = len(self.issues)
             try:
                 items, _ = self.reader.export_stream(self.r.export_map[idx - 1])
                 self._props[idx] = dict(items)
-            except Exception:
+                if len(self.issues) > before:
+                    self.failed_props.add(idx)
+            except Exception as e:
+                self.failed_props.add(idx)
+                B.record_issue(self.issues, "properties", f"{Path(self.path).name}:{self.name(idx)}", e)
                 self._props[idx] = {}
         return self._props[idx]
 
@@ -166,11 +173,13 @@ class PackageActors:
 
 
 def _world_info(pkg: PackageActors) -> dict:
-    info = {"game_mode": None, "world_partition": False, "streaming": [], "settings": []}
+    info = {"game_mode": None, "game_mode_known": True, "world_partition": False, "streaming": [], "settings": []}
     for i in range(1, len(pkg.r.export_map) + 1):
         cls = pkg.cls(i)
         if cls == "WorldSettings":
             p = pkg.props(i)
+            if i in pkg.failed_props:
+                info["game_mode_known"] = False
             gm = p.get("DefaultGameMode")
             info["game_mode"] = D._val(gm) if gm not in (None, "None") else None
             if p.get("WorldPartition") not in (None, "None"):
@@ -206,12 +215,14 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
     stem = Path(path).stem
     pkg = PackageActors(path)
     ext_errors = 0
+    issues = []
     try:
         ev = getattr(pkg.r.summary, "saved_by_engine_version", None)
         saved = f"{ev.major}.{ev.minor}.{ev.patch}" if ev and getattr(ev, "major", 0) else "?"
         info = _world_info(pkg)
         actors = pkg.actors(level_script_class=f"{stem}_C")
     finally:
+        issues.extend(pkg.issues)
         pkg.close()
     ext = list(external_actor_files or [])
     truncated = max(0, len(ext) - max_external)
@@ -221,9 +232,13 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
             try:
                 actors.extend(ep.actors())
             finally:
+                issues.extend(ep.issues)
                 ep.close()
-        except Exception:
+        except Exception as e:
             ext_errors += 1
+            B.record_issue(issues, "external_actor", Path(f).as_posix(), e)
+    if truncated:
+        B.record_issue(issues, "external_actors", game_path, f"{truncated} packages not read (limit {max_external})")
 
     # Level Blueprint
     lb_md, lb_summary = None, None
@@ -231,12 +246,19 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
         lb = B.read_blueprint(path, game_path)
         text = lb["markdown"]
         lb_summary = lb["summary"]
+        for issue in lb_summary.get("issues", []):
+            B.record_issue(issues, "level_blueprint." + issue["stage"], issue["context"], issue["message"])
+        ok, total = lb_summary.get("nodes_ok", 0), lb_summary.get("nodes_total", 0)
+        if ok < total:
+            B.record_issue(issues, "level_blueprint.nodes", game_path, f"{ok}/{total} nodes decoded")
         if "## Graphs" in text:
             body = text.split("## Graphs", 1)[1].strip()
             head = text.split("## Graphs", 1)[0]
             extra = [ln for ln in head.splitlines() if ln.startswith("|") or ln.startswith("- ")]
             lb_md = (("\n".join(extra) + "\n\n") if extra else "") + body
     except Exception as e:  # noqa: BLE001
+        B.record_issue(issues, "level_blueprint", game_path, e)
+        lb_summary = None
         lb_md = f"(level blueprint could not be read: {type(e).__name__}: {e})"
 
     gameplay = [a for a in actors if a["class"] not in ENVIRONMENT]
@@ -246,7 +268,8 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
     if _newer:
         md += [f"> ⚠ Saved with a newer package format than ue-repo-reader was verified with ({_newer}). "
                "Decoded best-effort — treat values as unconfirmed.", ""]
-    md.append(f"- Game mode override: **{info['game_mode']}**" if info["game_mode"]
+    md.append("- Game mode override: unknown (WorldSettings properties unreadable)" if not info["game_mode_known"] else
+              f"- Game mode override: **{info['game_mode']}**" if info["game_mode"]
               else "- Game mode override: none (uses the project default from DefaultEngine.ini)")
     if info["world_partition"]:
         md.append(f"- World Partition: yes — {len(ext)} external actor packages"
@@ -290,11 +313,16 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
         md.append("")
 
     placed = Counter(a["class"] for a in actors)
+    md += B.issue_markdown(issues)
     summary = {"path": game_path, "saved_with": saved, "game_mode": info["game_mode"],
+               "game_mode_known": info["game_mode_known"], "newer_format": _newer,
                "world_partition": info["world_partition"], "external_actors": len(ext),
+               "external_actor_errors": ext_errors, "external_actors_truncated": truncated,
                "actor_count": len(actors), "gameplay_count": len(gameplay), "placed_classes": dict(placed),
+               "issues": issues, "parse_status": "partial" if issues else "ok",
+               "level_bp_status": "error" if lb_summary is None else lb_summary.get("parse_status", "ok"),
                "level_bp_entries": (lb_summary or {}).get("entries", []),
-               "level_bp_nodes": ((lb_summary or {}).get("nodes_ok", 0), (lb_summary or {}).get("nodes_total", 0))}
+               "level_bp_nodes": (lb_summary.get("nodes_ok", 0), lb_summary.get("nodes_total", 0)) if lb_summary is not None else None}
     return {"markdown": B.clean_member_names("\n".join(md) + "\n"), "summary": summary}
 
 

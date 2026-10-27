@@ -24,6 +24,21 @@
   설치 문서 PowerShell 블록 7개 파싱 OK(pwsh 7.4.6), 파이썬 선택 함수는 가짜 스토어 스텁(exit 9009)·파이썬 없음 두 경우 모두 확인.
 - 남은 일·주의: Windows PowerShell 5.1 실기는 못 돌림 → V2로 남김(사람 PC). Codex가 Windows에서 돌릴 때 확인 부탁.
 
+## 2026-10-27 13:24 KST · codex · A4
+- 한 일: VERSION 1.6.0. BP/data/map summary의 공통 issues(stage/context/message), parse_status와 문서 Parse warnings 도입.
+  속성·변수 메타데이터·위젯·타임라인·전환 규칙·그래프 렌더 실패를 전달. 맵은 외부 액터 실패/상한/LFS 누락과
+  레벨 BP 예외·부분 디코딩도 INDEX/JSON에 전달. 실패한 레벨 BP는 nodes=null, status=error로 빈 0/0과 구분.
+  읽지 못한 WorldSettings 게임모드/데이터 기본값은 unknown으로 표시. INDEX의 clean 판정은 부분 실패도 확인.
+  regress가 JSON의 BP/data/map 전체/부분 실패와 레벨 BP·외부 액터·LFS 실패를 검사하도록 강화.
+  새 검사가 발견한 AR 2개 BP의 SavedViewOffset 네이티브(DeprecateSlateVector2D) 오파싱도 수정: 값 추측 없이 opaque 보존.
+  INDEX 범례·양쪽 SKILL·README·Windows 가이드와 D-008 갱신.
+- 검증: 단위 22/22 PASS(A4 실패 주입/네이티브 검사 7개 추가), regress 3/3 PASS. BP 120개·노드 3057/3057,
+  데이터 97개·맵 9개, 전체/부분 실패 0. 맵/그래프/속성/데이터 실패 주입 시 clean이 사라지고 회귀가 실패하는 것 확인.
+  새 검사 3개를 수정 전 구현에 적용하면 실패 확인(맵 오류 보고, 비-BP 회귀 검사, 네이티브 보존).
+  실제 Windows 정션 검사는 계속 PASS, 기존 symlink 실생성 하위 검사만 권한 부족 skip. git diff --check PASS.
+- 남은 일·주의: 서버 영속 캐시의 예전 digest는 analyze_repo(refresh=true)로 재생성(A6는 별도 todo).
+  Windows에서 검증; Unix flock 분기는 이 PC에서 미실행. 다음은 H6/H7 또는 A5/A6. A3/A4 브랜치를 main에 FF 후 push.
+
 ## 2026-10-27 13:13 KST · codex · A3
 - 한 일: 분류/렌더 Pool 생성 전에 부모에서 파서 설치 완료. 설치는 OS 파일 잠금 + 임시 체크아웃 후 rename으로 게시,
   중단된 설치 교체, Git/잠금 대기시간 제한 추가. D-007에 캐시 설치 규칙 기록.

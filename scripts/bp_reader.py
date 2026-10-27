@@ -535,6 +535,23 @@ def _fields(v) -> dict:
     return f or {}
 
 
+def record_issue(issues: list, stage: str, context: str, error) -> None:
+    message = f"{type(error).__name__}: {error}" if isinstance(error, Exception) else str(error)
+    issue = {"stage": stage, "context": str(context), "message": message}
+    if issue not in issues:
+        issues.append(issue)
+
+
+def issue_markdown(issues: list) -> list[str]:
+    if not issues:
+        return []
+    lines = ["", "## Parse warnings", "", "_Some saved content could not be read; missing values are not confirmed defaults._"]
+    for issue in issues:
+        text = f"{issue['stage']} · {issue['context']}: {issue['message']}".replace("\n", " ")
+        lines.append("- ⚠ " + text)
+    return lines + [""]
+
+
 class Ctx:
     """Per-package helpers: property lookup, package index resolution, names."""
 
@@ -547,6 +564,7 @@ class Ctx:
         self.linker = result.linker
         self.name_map = list(result.name_map or [])
         self._props = {}
+        self.issues = []
         self._by_name = {}
         for o in result.all_objects:
             if getattr(o, "is_export", False):
@@ -592,8 +610,8 @@ class Ctx:
                 for pv in o.serialized_properties or []:
                     if pv.name not in d:
                         d[pv.name] = pv.value
-            except Exception:
-                pass
+            except Exception as e:
+                record_issue(self.issues, "properties", getattr(o, "object_name", "?"), e)
             self._props[key] = d
         return self._props[key]
 
@@ -1553,7 +1571,8 @@ def _variable_metadata(path: str, result, ctx: Ctx, asset_name: str) -> dict:
             if f.get("VarName"):
                 out[f["VarName"]] = meta
         return out
-    except Exception:  # noqa: BLE001 - metadata is a nice-to-have
+    except Exception as e:  # noqa: BLE001
+        record_issue(ctx.issues, "variable_metadata", asset_name, e)
         return {}
 
 
@@ -1651,8 +1670,8 @@ def _widget_extras(path: str, result, ctx: Ctx, asset_name: str) -> list[str]:
                         w = _fields(ab).get("WidgetName")
                         if w and str(w) != "None" and str(w) not in widgets:
                             widgets.append(str(w))
-                except Exception:  # noqa: BLE001
-                    pass
+                except Exception as e:  # noqa: BLE001
+                    record_issue(ctx.issues, "widget_animation", o.object_name, e)
                 ms = ctx.props(o).get("MovieScene")
                 props = []
                 for t in ctx.r.all_objects:
@@ -1669,7 +1688,8 @@ def _widget_extras(path: str, result, ctx: Ctx, asset_name: str) -> list[str]:
                 lines += ["## Widget animations", *anims, ""]
         finally:
             reader.close()
-    except Exception:  # noqa: BLE001 - extras are best-effort
+    except Exception as e:  # noqa: BLE001
+        record_issue(ctx.issues, "widget_extras", asset_name, e)
         return lines
     return lines
 
@@ -1680,7 +1700,8 @@ def _timelines(path: str, result, ctx: Ctx) -> list[str]:
     try:
         import data_reader as D
         reader = D.TaggedReader(path, result, ctx)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        record_issue(ctx.issues, "timelines", Path(path).stem, e)
         return []
     try:
         by_name = {}
@@ -1692,8 +1713,9 @@ def _timelines(path: str, result, ctx: Ctx) -> list[str]:
                 if cls_pred(ctx.class_of(ctx.obj(i))):
                     try:
                         return dict(reader.export_stream(e)[0])
-                    except Exception:  # noqa: BLE001
-                        return {}
+                    except Exception as e:  # noqa: BLE001
+                        record_issue(ctx.issues, "timeline_curve", name, e)
+                        return None
             return None
 
         def curve_desc(ref, external):
@@ -1855,8 +1877,9 @@ def read_blueprint(path: str, game_path: str) -> dict:
                     trans_title[fn] = f"{src} → {dst}"
                     try:
                         rule_of[fn] = renderers[fn].rule_expr()
-                    except Exception:
-                        rule_of[fn] = None
+                    except Exception as e:
+                        record_issue(ctx.issues, "transition_rule", fn, e)
+                        rule_of[fn] = "<unreadable transition rule>"
 
     def rel_parts(key):
         rel = key[len(prefix):] if prefix and key.startswith(prefix) else key
@@ -1914,8 +1937,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
             if nv2:
                 bp_props = dict(bp_props)
                 bp_props["NewVariables"] = nv2
-        except Exception:
-            pass
+        except Exception as e:
+            record_issue(ctx.issues, "variable_declarations", asset_name, e)
     var_table, var_names = _variables(ctx, bp_props, cdo_props, _variable_metadata(path, result, ctx, asset_name))
     if not var_table:
         inferred = {}
@@ -1936,7 +1959,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
 
     summary = {"path": game_path, "kind": kind, "parent": parent, "interfaces": interfaces,
                "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
-               "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": []}
+               "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [], "issues": ctx.issues}
 
     dispatchers = []
     body = []
@@ -1966,6 +1989,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
             else:
                 lines = gr.render_dataflow()
         except Exception as e:  # never let one graph kill the document
+            record_issue(ctx.issues, "graph_render", " › ".join(names), e)
             mode, lines = "error", [f"(render failed: {type(e).__name__}: {e})"]
         missing = sum(1 for n in gr.nodes if not n.pins and n.class_name != "EdGraphNode_Comment")
         label = {"function": "function ", "macro": "macro ", "interface function": "interface function "}.get(r, "")
@@ -1989,6 +2013,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
         md += ["## Event dispatchers", *dispatchers, ""]
     md.append("## Graphs")
     md += body if body else ["(no graphs)"]
+    md += issue_markdown(ctx.issues)
+    summary["parse_status"] = "partial" if ctx.issues or ok_nodes < total_nodes else "ok"
     summary["calls"] = sorted(summary["calls"])
     return {"markdown": clean_member_names("\n".join(md) + "\n"), "summary": summary}
 

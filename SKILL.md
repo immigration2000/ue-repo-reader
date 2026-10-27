@@ -61,6 +61,10 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
 Skip `digest.json` (a machine-readable copy of the same facts). A file that ends with
 `→ continued in X.part2.md` is split; read the parts in order.
 
+Read each document's **Parse warnings** and the INDEX Parse report. Property, graph-rendering, Level Blueprint,
+and external-actor failures are reported even when all graph nodes have decoded pins. An unreadable Level
+Blueprint is **unknown**, not an empty graph; missing values after a parse failure are not confirmed defaults.
+
 Cross-check both directions: when a Blueprint calls project C++ (`INDEX.md` lists these), read that C++;
 when C++ declares a `BlueprintImplementableEvent`/`BlueprintNativeEvent`, grep `blueprints/` for the event
 name to find its Blueprint implementation.
@@ -70,6 +74,8 @@ name to find its Blueprint implementation.
 State the limits that apply, briefly:
 - Nodes that could not be decoded are flagged (`⚠ N nodes unreadable`) and listed in the parse report —
   don't guess their content.
+- `Parse warnings` means part of the asset could not be read or rendered. Quote those limits even if node
+  coverage is N/N; a map can have unreadable properties, a failed Level Blueprint or missing external actors.
 - LFS files that were skipped or failed to download are listed in the parse report; if Blueprints are
   missing because of that, say so and suggest re-running where LFS access works.
 - The digest is a static read of saved assets. It cannot show runtime values, and node names are internal

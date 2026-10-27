@@ -32,7 +32,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -826,6 +826,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "    non-default transition settings",
            f"- Coverage: {len(bps)} Blueprints rendered, {len(failures)} failed; graph nodes decoded {ok_nodes}/{total_nodes}.",
            "  A Blueprint file says `⚠ N nodes unreadable` when part of a graph could not be decoded.",
+           "- `Parse warnings` lists property/graph/actor failures. Node coverage counts decoded pins only;",
+           "  check these warnings too. A failed Level Blueprint is unknown, not an empty graph or 0/0 success.",
            "- Maps are rendered under `maps/`: Level Blueprint, placed actors with per-instance overrides, game mode.",
            "  Blueprint files end with `Placed in levels` when instances of them are placed in a map.",
            "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, montages, DataAssets) are",
@@ -865,10 +867,15 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
                "| Map | Game mode override | Gameplay actors | Level Blueprint | Doc |", "|---|---|---|---|---|"]
         for gp in sorted(levels):
             s = levels[gp]["summary"]
-            ok, tot = s.get("level_bp_nodes", (0, 0))
+            ok, tot = s.get("level_bp_nodes") or (0, 0)
             lbp = ", ".join(dict.fromkeys(e.replace("custom event ", "ce ").replace("event ", "") for e in s["level_bp_entries"])) or ("—" if not tot else "")
+            if s.get("level_bp_status") == "error":
+                lbp = "⚠ unreadable"
+            elif s.get("level_bp_status") == "partial":
+                lbp = "⚠ partial: " + lbp
             wp = " · World Partition" if s.get("world_partition") else ""
-            md.append(f"| `{gp}`{wp} | {s['game_mode'] or '(project default)'} | {s['gameplay_count']} of {s['actor_count']} | "
+            gm = (s['game_mode'] or '(project default)') if s.get("game_mode_known", True) else "⚠ unknown"
+            md.append(f"| `{gp}`{wp} | {gm} | {s['gameplay_count']} of {s['actor_count']} | "
                       f"{lbp.replace('|', '/')} | [md](<maps{gp}.md>) |")
         for gp, err in sorted(map_failures.items()):
             md.append(f"| `{gp}` | ⚠ not read: {err[:80]} |  |  |  |")
@@ -881,7 +888,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         entries = ", ".join(dict.fromkeys(e.replace("custom event ", "ce ").replace("event ", "") for e in s["entries"]))
         if len(entries) > 90:
             entries = entries[:87] + "…"
-        warn = " ⚠" if s["nodes_ok"] < s["nodes_total"] else ""
+        warn = " ⚠" if s["nodes_ok"] < s["nodes_total"] or s.get("issues") else ""
         doc = "blueprints" + gp + ".md"
         md.append(f"| `{gp}` | {s['kind']} | {s['parent']} | {entries.replace('|', '/')} | [md](<{doc}>){warn} |")
     md.append("")
@@ -964,6 +971,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
             s = datas[gp]["summary"]
             used = ", ".join(s.get("used_by", [])[:6]) + (" …" if len(s.get("used_by", [])) > 6 else "")
             headline = s["headline"]
+            if s.get("issues"):
+                headline += " ⚠ partial"
             if s.get("row_struct") and s["row_struct"] in cpp_names:
                 headline += " (row struct in C++)"
             doc = "data" + gp + ".md"
@@ -997,9 +1006,20 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append(f"- partially decoded Blueprints ({len(partial)}):")
         for gp, s in sorted(partial):
             md.append(f"  - `{gp}` {s['nodes_ok']}/{s['nodes_total']} nodes (saved with UE {s['saved_with']})")
-    newer = sorted(gp for gp, r in bps.items() if r["summary"].get("newer_format"))
+    groups = [("Blueprint", bps), ("data asset", datas), ("map", levels)]
+    warned = [(kind, gp, r["summary"]["issues"]) for kind, assets in groups for gp, r in assets.items()
+              if r["summary"].get("issues")]
+    if warned:
+        md.append(f"- ⚠ partially read/rendered assets ({len(warned)}); see each document's Parse warnings:")
+        for kind, gp, issues in sorted(warned):
+            md.append(f"  - {kind} `{gp}` — {len(issues)} issues")
+            for issue in issues:
+                detail = f"{issue['stage']} · {issue['context']}: {issue['message']}".replace("\n", " ")
+                md.append(f"    - {detail[:240]}")
+    newer = sorted(f"{kind} {gp}" for kind, assets in groups for gp, r in assets.items()
+                   if r["summary"].get("newer_format"))
     if newer:
-        md.append(f"- ⚠ {len(newer)} Blueprints use a newer package format than this tool was verified with "
+        md.append(f"- ⚠ {len(newer)} assets use a newer package format than this tool was verified with "
                   f"(decoded best-effort): " + ", ".join(f"`{g}`" for g in newer[:10]) + (" …" if len(newer) > 10 else ""))
     if map_failures:
         md.append(f"- maps that could not be read ({len(map_failures)}):")
@@ -1013,7 +1033,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append(f"- failed Blueprints ({len(failures)}):")
         for gp, err in sorted(failures.items()):
             md.append(f"  - `{gp}` — {err[:200]}")
-    if not partial and not newer and not failures and not data_failures and not map_failures and not (lfs and lfs.get("failed")):
+    if not partial and not warned and not newer and not failures and not data_failures and not map_failures and not (lfs and lfs.get("failed")):
         md.append("- everything decoded cleanly")
     md.append("")
     (out / "INDEX.md").write_text("\n".join(md) + "\n", encoding="utf-8")
@@ -1267,6 +1287,9 @@ def main(argv=None):
         missing = sum(v for k, v in external_pointer.items() if k == gp or k.startswith(gp + "/"))
         if missing:
             s["external_actors_not_downloaded"] = missing
+            import bp_reader
+            bp_reader.record_issue(s["issues"], "external_actors", gp, f"{missing} packages not downloaded (Git LFS)")
+            s["parse_status"] = "partial"
         for cls, n in s["placed_classes"].items():
             placed_in[cls][gp.rsplit("/", 1)[-1]] += n
         dest = out / "maps" / (gp.lstrip("/") + ".md")

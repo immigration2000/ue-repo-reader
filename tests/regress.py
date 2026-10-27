@@ -66,6 +66,35 @@ def check(fx: dict, out: Path) -> list[str]:
         errors.append(f"nodes decoded {ok}/{total} (some unreadable)")
     if total != exp["nodes"]:
         errors.append(f"node total {total} != expected {exp['nodes']}")
+    try:
+        digest = json.loads((out / "digest.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        return errors + [f"digest.json could not be read: {e}"]
+    for key in ("failures", "data_failures", "map_failures"):
+        if not isinstance(digest.get(key), dict):
+            errors.append(f"digest.json: missing or invalid {key}")
+            continue
+        if digest.get(key):
+            errors.append(f"{key}: {len(digest[key])} assets failed")
+    for key in ("blueprints", "data_assets", "maps_detail"):
+        if not isinstance(digest.get(key), dict):
+            errors.append(f"digest.json: missing or invalid {key}")
+            continue
+        for gp, summary in digest[key].items():
+            if "issues" not in summary or "parse_status" not in summary:
+                errors.append(f"{gp}: missing structured parse status/issues")
+            if summary.get("issues"):
+                errors.append(f"{gp}: {len(summary['issues'])} parse/render issues")
+            if summary.get("parse_status") not in (None, "ok"):
+                errors.append(f"{gp}: parse status {summary['parse_status']}")
+            if key == "maps_detail":
+                nodes = summary.get("level_bp_nodes")
+                if nodes is None or nodes[0] != nodes[1] or summary.get("level_bp_status") != "ok":
+                    errors.append(f"{gp}: Level Blueprint incomplete ({nodes}, {summary.get('level_bp_status')})")
+                if any(summary.get(k) for k in ("external_actor_errors", "external_actors_truncated", "external_actors_not_downloaded")):
+                    errors.append(f"{gp}: external actors incomplete")
+    if (digest.get("lfs") or {}).get("failed"):
+        errors.append(f"{digest['lfs']['failed']} LFS downloads failed")
     for c in fx.get("checks", []):
         f = out / c["file"]
         if not f.is_file():

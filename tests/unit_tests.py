@@ -17,6 +17,10 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from failure_tests import (test_partial_map_reporting, test_empty_and_partial_level_blueprints,
+                          test_graph_render_failure_reporting, test_property_failure_reporting,
+                          test_data_failure_defaults_unknown, test_regress_checks_non_blueprint_failures,
+                          test_native_struct_not_probed_as_tags)
 
 
 class _Ar:
