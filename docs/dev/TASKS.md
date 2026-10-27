@@ -41,7 +41,7 @@
 | F3 | done | claude | 변수·함수 플래그(ExposeOnSpawn, Private, SaveGame, RPC, Pure/Const …) | S |
 | F4 | done | claude | BP 클래스 DataAsset 인스턴스 저장값 | S |
 | F5 | todo | - | GAS 요약(GE·GA) | S |
-| F6 | doing | claude | 위젯 슬롯·바인딩·애니메이션 | S / M |
+| F6 | done | claude | 위젯 슬롯·바인딩·애니메이션 | S / M |
 | F7 | todo | - | 타임라인 템플릿(길이, 트랙, 키) | S–M |
 | F8 | todo | - | 몽타주·시퀀스 노티파이, 섹션 | S–M |
 | F9 | todo | - | 머티리얼 인스턴스 파라미터(S), 머티리얼 표현식 트리(M) | S / M |

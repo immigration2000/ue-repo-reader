@@ -11,6 +11,17 @@
 
 ---
 
+## 2026-10-27 15:40 KST · claude · F6
+- 한 일: 위젯 BP
+  - 위젯 트리에 비기본 속성(Visibility, RenderOpacity, Width/HeightOverride, ColorAndOpacity, Brush 리소스 …, `_WIDGET_KEYS`)과
+    슬롯 레이아웃 `[slot Padding=…, HorizontalAlignment=…, Size=…]`(슬롯 export의 저장값 전부, 200자 상한).
+  - `## Widget animations`: 애니메이션별 트랙 대상 속성(MovieScene 트랙의 PropertyBinding)과 바인딩된 위젯(AnimationBindings.WidgetName,
+    TaggedReader로 읽음). `*_INST` 복사본은 건너뜀.
+  - `## Property bindings`: `UWidgetBlueprint.Bindings`(ObjectName.PropertyName ← FunctionName/SourcePath). **테스트 저장소 3개에 바인딩이 하나도
+    없어 실데이터 미검증** — 바인딩 쓰는 프로젝트를 만나면 출력 확인할 것.
+- 검증: regress 3/3 PASS, F6 검사 추가(WBP_NavBtn).
+- 남은 일·주의: 애니메이션 길이·키 값(MovieSceneFrameRange, FloatChannel)은 opaque라 미표시. 다음 추천 T3(blob SHA 캐시), F7(타임라인), F8(몽타주 노티파이).
+
 ## 2026-10-27 15:10 KST · claude · F4
 - 한 일: 이 프로젝트 BP 클래스의 인스턴스로 저장된 에셋(클래스명 `<BP이름>_C`, 예: PDA_PlayerData로 만든 DA_PlayerData)을
   데이터 에셋으로 분류해 저장값을 렌더. EG에서 DA_PlayerData·DA_Stash·DA_UISetting 3개가 새로 `data/`에 생김.

@@ -106,6 +106,14 @@
           "**PDA_UISetting_C**",
           "- CellSize = 64"
         ]
+      },
+      {
+        "bug": "F6",
+        "file": "blueprints/Game/DeltaForce/Blueprints/UI/Widget/Btn/WBP_NavBtn.md",
+        "must_contain": [
+          "- Pressed: animates RenderTransform, ColorAndOpacity on Image_Bottom_Interact, Image_Center_Interact, Image_Top_Interact",
+          "(Visibility=HitTestInvisible, WidthOverride=130, HeightOverride=48)  [slot Padding=Margin{Left=0, Top=0, Right=0, Bottom=0}]"
+        ]
       }
     ]
   },

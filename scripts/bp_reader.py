@@ -1553,6 +1553,74 @@ def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
     return ["| Name | Type | Category | Flags | Default |", "|---|---|---|---|---|"] + [r for _, r in rows], names
 
 
+# widget properties worth showing in the tree (only saved = non-default values appear)
+_WIDGET_KEYS = ("Text", "ToolTipText", "Visibility", "RenderOpacity", "bIsEnabled", "WidthOverride", "HeightOverride",
+                "MinDesiredWidth", "MinDesiredHeight", "Justification", "ColorAndOpacity", "Percent", "Stretch")
+
+
+def _widget_extras(path: str, result, ctx: Ctx, asset_name: str) -> list[str]:
+    """Property bindings (evaluated every frame) and widget animations of a Widget Blueprint."""
+    lines = []
+    try:
+        import data_reader as D
+        exp = next((e for e in result.export_map or [] if e.object_name == asset_name), None)
+        if exp is None:
+            return []
+        reader = D.TaggedReader(path, result, ctx)
+        try:
+            items, _ = reader.export_stream(exp)
+            bindings = dict(items).get("Bindings") or []
+            rows = []
+            for b in bindings:
+                f = _fields(b)
+                src = f.get("FunctionName") if f.get("FunctionName") not in (None, "None", "") else None
+                if not src:
+                    segs = _fields(f.get("SourcePath")).get("Segments") or []
+                    src = ".".join(str(_fields(sg).get("Name") or "?") for sg in segs) or "?"
+                rows.append(f"- {f.get('ObjectName', '?')}.{f.get('PropertyName', '?')} ← {src}")
+            if rows:
+                lines += [f"## Property bindings ({len(rows)} — evaluated every frame; event-driven updates are cheaper)", *rows, ""]
+            anims = []
+            for o in ctx.r.all_objects:
+                if not getattr(o, "is_export", False) or ctx.class_of(o) != "WidgetAnimation":
+                    continue
+                if getattr(o.outer, "object_name", None) != asset_name:
+                    continue  # skip the *_INST copies on the generated class
+                aexp = None
+                for i, e in enumerate(result.export_map or [], 1):
+                    if e.object_name == o.object_name and ctx.obj(i) is o:
+                        aexp = e
+                        break
+                widgets = []
+                try:
+                    aitems, _ = reader.export_stream(aexp) if aexp is not None else ([], 0)
+                    for ab in dict(aitems).get("AnimationBindings") or []:
+                        w = _fields(ab).get("WidgetName")
+                        if w and str(w) != "None" and str(w) not in widgets:
+                            widgets.append(str(w))
+                except Exception:  # noqa: BLE001
+                    pass
+                ms = ctx.props(o).get("MovieScene")
+                props = []
+                for t in ctx.r.all_objects:
+                    if getattr(t, "is_export", False) and ctx.class_of(t).endswith("Track") \
+                            and getattr(t.outer, "object_name", None) == (o.object_name if ms is None else fmt_value(ms)) \
+                            and getattr(getattr(t.outer, "outer", None), "object_name", None) == o.object_name:
+                        pb = _fields(ctx.props(t).get("PropertyBinding")).get("PropertyName")
+                        name = str(pb) if pb not in (None, "None") else ctx.class_of(t).replace("MovieScene", "")
+                        if name not in props:
+                            props.append(name)
+                anims.append(f"- {o.object_name}" + (f": animates {', '.join(props)}" if props else "")
+                             + (f" on {', '.join(widgets)}" if widgets else ""))
+            if anims:
+                lines += ["## Widget animations", *anims, ""]
+        finally:
+            reader.close()
+    except Exception:  # noqa: BLE001 - extras are best-effort
+        return lines
+    return lines
+
+
 def _widget_tree(ctx: Ctx, bp_props) -> list[str]:
     wt_obj = ctx.export_by_ref(bp_props.get("WidgetTree"), "WidgetTree")
     if wt_obj is None:
@@ -1563,10 +1631,19 @@ def _widget_tree(ctx: Ctx, bp_props) -> list[str]:
             return []
         seen.add(id(o))
         p = ctx.props(o)
-        info = [f"{k}={fmt_value(p[k])}" for k in ("Text", "ToolTipText") if p.get(k) is not None]
+        info = [f"{k}={fmt_value(p[k])}" for k in _WIDGET_KEYS if p.get(k) is not None]
+        brush = _fields(p.get("Brush")).get("ResourceObject")
+        if brush not in (None, 0, "None"):
+            info.append(f"Brush={fmt_value(brush)}")
         if p.get("bIsVariable"):
             info.append("isVariable")
-        out = [f"{'  ' * depth}- {o.object_name} : {ctx.class_of(o)}" + (f"  ({', '.join(info)})" if info else "")]
+        line = f"{'  ' * depth}- {o.object_name} : {ctx.class_of(o)}" + (f"  ({', '.join(info)})" if info else "")
+        slot = ctx.export_by_ref(p.get("Slot"))
+        if slot is not None:
+            sp = [f"{k}={fmt_value(v)}" for k, v in ctx.props(slot).items() if k not in ("Parent", "Content")]
+            if sp:
+                line += "  [slot " + ", ".join(sp)[:200] + "]"
+        out = [line]
         for s in p.get("Slots") or []:
             so = ctx.export_by_ref(s)
             if so is not None:
@@ -1702,6 +1779,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     wtree = _widget_tree(ctx, bp_props)
     if wtree:
         md += ["## Widget tree", *wtree, ""]
+        md += _widget_extras(path, result, ctx, asset_name)
     nv = bp_props.get("NewVariables") or []
     if nv and not any(_fields(v).get("VarName") for v in nv):
         # uasset_read leaves arrays of structs opaque in some formats; re-read them with the tagged reader

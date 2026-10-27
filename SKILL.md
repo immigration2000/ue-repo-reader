@@ -34,7 +34,8 @@ A local path works too (e.g. the user's own checkout) — then nothing is cloned
    game mode), the Blueprint catalog with parents and entry points, the C++ ↔ Blueprint map, the
    non-Blueprint logic/data assets, the Enhanced Input check (actions handled but never mapped, or mapped
    but never handled), and the parse report. It also explains the pseudo-code notation.
-2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, variables, class defaults,
+2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, widget tree (non-default widget
+   properties and `[slot …]` layout), property bindings, widget animations, variables, class defaults,
    event dispatchers, and every graph rendered as execution-flow pseudo-code (anim graphs as pose trees,
    state machines as `A → B when <rule>`, `when auto (...)` = automatic transition; functions show
    `-> Out: T` and `return <value>`; `Pin=∅` = object input left unconnected; `$N` = shared pure expression, see the graph's `// where` block).
