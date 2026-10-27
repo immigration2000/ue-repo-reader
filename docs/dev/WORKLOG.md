@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-10-27 14:11 KST · codex · R1
+- 한 일: README·CHATGPT.ko·HF Space README를 공식 문서(2026-10-27 확인)에 맞춰 정정.
+  로컬 스킬은 서버/HF 불필요, 원격 MCP는 선택 사항으로 구분. 검증한 CODEX_SETUP으로 Windows 설치를 통합.
+  HF CPU Basic Docker 신규 생성은 개인 PRO/조직 Team·Enterprise, 유료 하드웨어는 별도 결제 조건임을 구분.
+  잘못된 요금제 단정 표·무료 호스팅 보장·Security and login 경로를 제거. Plugins → + → Add custom MCP server →
+  설치 → @ 호출로 갱신하고 GPT Actions 불필요 명시. 공개 범위는 사용자가 결정하며 실제 배포/설정 변경 없음.
+  낡은 로컬 marketplace JSON 예시는 현재 공식 패키지 안내로 교체. 서버 시간 제한·캐시/전체 SHA 사용법도 기록.
+- 검증: OpenAI Plugins quickstart/custom MCP/skills/package/tunnel, HF Spaces 생성·CPU Basic 조건·Docker 안내 직접 확인 및 링크.
+  Markdown 로컬 링크·코드 fence·UTF-8/BOM 검사 PASS. 최종 코드 전체 회귀 단위 34/34 + 외부 에셋 6/6 + 프로젝트 3/3,
+  실제 MCP HTTP 6도구·캐시/refresh/재시작 검사 PASS(앞 A6 항목). git diff --check PASS.
+- 남은 일·주의: A5/A6/R1 모두 done. 서비스 요금제·UI는 바뀔 수 있어 확인 날짜와 공식 출처를 남김.
+  Windows Job Object 실기 검증 완료, Linux/Docker 배포 실기는 이번 범위에서 실행하지 않음. 후속 후보 T3/T4 또는 R5.
+
 ## 2026-10-27 14:11 KST · codex · A6
 - 한 일: 도구 VERSION·캐시 schema·호스트/소유자/저장소·전체 커밋·프로젝트 원문을 canonical JSON으로 해시.
   SHA-256 전체 256비트를 URL-safe base64 43자로 표현해 Windows 경로 예산 유지(식별자 길이로 실제 eg 쓰기 실패도 재현/해결).

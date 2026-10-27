@@ -9,8 +9,8 @@ Claude Code와 Codex가 같은 `SKILL.md` 형식을 쓰기 때문에 둘 다에�
 
 | 어디서 | 방법 |
 |---|---|
-| **ChatGPT 데스크톱 앱 (Codex)** — Free·Plus 포함 모든 요금제 | 이 저장소를 스킬 폴더에 클론 → 주소만 주면 내 PC에서 분석. 안내: [docs/CHATGPT.ko.md](docs/CHATGPT.ko.md) 맨 앞 · Codex에게 설치 맡기기: [docs/CODEX_SETUP.ko.md](docs/CODEX_SETUP.ko.md) |
-| **ChatGPT 웹 채팅** — Pro·Business·Enterprise | MCP 서버를 한 번 띄우고 플러그인으로 연결. 안내: [docs/CHATGPT.ko.md](docs/CHATGPT.ko.md) |
+| **ChatGPT 데스크톱 앱의 로컬 작업 / Codex** | 스킬로 내 PC에서 분석. **서버 불필요**. 설치: [docs/CODEX_SETUP.ko.md](docs/CODEX_SETUP.ko.md) |
+| **ChatGPT 웹의 커스텀 MCP 연결** (선택 사항) | MCP 서버 실행 → **Plugins**에 연결. 계정·워크스페이스 권한 및 호스팅 조건: [docs/CHATGPT.ko.md](docs/CHATGPT.ko.md) |
 | **Claude 채팅** | Claude 계정 스킬(`ue-repo-reader`) 사용, 또는 같은 MCP 서버를 커스텀 커넥터로 연결 |
 | **Claude Code / Codex CLI** (PC) | 이 폴더를 스킬로 설치(아래) |
 
@@ -19,7 +19,7 @@ ue-repo-reader/
 ├─ scripts/            분석 도구 본체 (ue_repo_digest.py, bp/data/map_reader.py)
 ├─ server/             MCP 서버 (ChatGPT·Claude 채팅용), run_local.bat
 ├─ chatgpt-plugin/     ChatGPT 플러그인 패키지 (plugin.json, skills/, mcp.json)
-├─ deploy/huggingface/ 무료 호스팅용 Dockerfile + Space 설정
+├─ deploy/huggingface/ HF Docker Space 설정 (신규 CPU Basic 생성에 PRO 등 구독 필요)
 ├─ Dockerfile          일반 컨테이너 호스팅용
 └─ SKILL.md            Claude Code / Codex 스킬
 ```

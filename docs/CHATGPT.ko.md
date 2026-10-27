@@ -1,155 +1,114 @@
 # ChatGPT에서 쓰기
 
-| 요금제 | 방법 |
+**내 PC에서 스킬을 실행하면 서버가 필요 없습니다.** MCP 서버는 웹 채팅 등에서 원격 도구를 호출하려는 경우에만
+선택합니다. 로컬 설치·분석과 서버 배포는 별개의 방법입니다.
+
+| 실행 환경 | 방법 |
 |---|---|
-| Free · Plus (+ 모든 요금제) | **ChatGPT 데스크톱 앱의 Codex + 스킬** — 서버 필요 없음, 내 PC에서 실행 (바로 아래) |
-| Pro · Business · Enterprise | 위 방법, 또는 웹 채팅용 **MCP 서버 + 플러그인** (아래 0~2단계) |
+| ChatGPT 데스크톱 앱의 로컬 작업 / Codex CLI | 스킬 설치 → 내 PC의 Python으로 분석 |
+| ChatGPT 웹의 커스텀 MCP 연결 | 선택 사항: MCP 서버 실행 → Plugins에 연결 → 채팅에서 호출 |
 
-## Plus·무료 요금제: ChatGPT 데스크톱 앱(Codex)
+계정·워크스페이스마다 표시되는 기능과 권한이 다를 수 있습니다. 요금제별 가능 여부를 단정하지 말고 현재 메뉴와
+관리자 정책을 확인하세요. [스킬 지원 환경](https://learn.chatgpt.com/docs/build-skills),
+[커스텀 MCP 접근 조건](https://developers.openai.com/api/docs/guides/custom-mcp-server).
+아래 외부 서비스 안내는 **2026-10-27 확인 기준**입니다.
 
-ChatGPT 데스크톱 앱(Windows/Mac)에는 모든 요금제에 Codex가 들어 있고, Codex는 내 PC에서 스킬의 스크립트를
-실행할 수 있습니다. 한 번만 설치하면 이후로는 주소만 주면 됩니다.
+## 1. 로컬 스킬로 분석하기 (서버 불필요)
 
-1. **필요한 프로그램 설치** (PowerShell, 이미 있으면 건너뛰기)
-   ```powershell
-   winget install -e --id Python.Python.3.12
-   winget install -e --id Git.Git
-   ```
-   설치 후 PowerShell을 새로 열고 한 번 실행:
-   ```powershell
-   git lfs install
-   git config --global core.longpaths true
-   python --version   # 3.10 이상이면 OK. 안 되면 py -3 --version 이 되는지 확인(스킬이 py도 씁니다)
-   ```
-2. **스킬 설치** — 스킬 폴더에 이 저장소를 그대로 클론합니다.
-   ```powershell
-   git clone https://github.com/immigration2000/ue-repo-reader "$env:USERPROFILE\.agents\skills\ue-repo-reader"
-   ```
-   업데이트: `git -C "$env:USERPROFILE\.agents\skills\ue-repo-reader" pull`
-3. **ChatGPT 데스크톱 앱 → Codex**에서 작업 폴더를 하나 엽니다(예: 빈 폴더 `C:\UEReview`, 요약본이 여기에 생깁니다).
-   스킬이 안 보이면 앱을 다시 시작하세요(사이드바 **Skills**에서 확인).
-4. 이렇게 말합니다:
-   > https://github.com/immigration2000/ExtractionGame_Fin 분석해줘
+Windows 설치·Python 선택·Git LFS 설정·성공 판정은 검증한 [Codex 설치 가이드](CODEX_SETUP.ko.md)를 따르세요.
+저장소 전체를 `~/.agents/skills/ue-repo-reader/`에 설치합니다. 필요한 것은 Python 3.10+, Git, Git LFS입니다.
+별도 MCP 호스팅이나 Hugging Face 계정은 필요 없습니다.
 
-   (확실히 부르려면 `$ue-repo-reader https://github.com/...`)
-   명령 실행이나 네트워크(깃 클론) 허용을 물으면 허용하세요.
+앱에서 로컬 작업 폴더를 열고 다음처럼 요청합니다.
 
-## Pro 이상: 웹 채팅용 MCP 서버 + 플러그인
+> ue-repo-reader 스킬로 https://github.com/immigration2000/ExtractionGame_Fin 분석해줘
 
-웹 ChatGPT는 스킬 안의 스크립트를 실행하지 못합니다(git 클론, 파이썬 불가). 그래서 분석 도구를 **MCP 서버**로
-인터넷에 띄우고, ChatGPT가 그 서버의 도구를 호출하는 구조입니다.
+Codex CLI에서는 `$ue-repo-reader`로 명시할 수도 있습니다. 직접 실행할 때는:
 
-```
-ChatGPT 채팅 ──(MCP 도구 호출)──▶ ue-repo-reader 서버 ──(git clone)──▶ GitHub 저장소
-                                  └ 요약본 생성 · 파일 읽기 · 검색
+```bash
+python scripts/ue_repo_digest.py https://github.com/owner/Project --out Project_digest
 ```
 
-서버가 제공하는 도구(모두 읽기 전용):
+처음 실행 시 고정 버전 파서를 내려받습니다. 완료 후 출력 폴더의 `INDEX.md`와 Parse report를 확인하세요.
+
+## 2. 원격 MCP 도구 사용하기 (선택 사항)
+
+서버가 git clone과 Python 분석을 수행하고, ChatGPT가 결과를 읽습니다. 대상 저장소를 수정하지 않는 도구 6개를 제공합니다.
 
 | 도구 | 하는 일 |
 |---|---|
-| `analyze_repo` | 저장소 URL을 받아 분석하고 INDEX.md 반환(같은 커밋은 캐시) |
-| `wait_for_analysis` | 큰 프로젝트 분석이 끝날 때까지 대기 |
-| `list_digest_files` / `read_digest_file` | 블루프린트·맵·데이터 파일 목록과 내용(긴 파일은 페이지로) |
-| `search_digest` | 요약본 전체 검색(선택: C++·설정 파일까지) |
-| `read_source_file` | 저장소의 C++ / Build.cs / ini 등 텍스트 파일 읽기 |
+| `analyze_repo` | URL 분석, INDEX.md 반환; 같은 버전·커밋·프로젝트의 완료 결과 재사용 |
+| `wait_for_analysis` | 실행 중인 분석 상태 확인 |
+| `list_digest_files` / `read_digest_file` | 요약본 목록·내용 읽기; 긴 파일은 페이지로 반환 |
+| `search_digest` | 요약본 검색; 선택적으로 C++·설정 파일 포함 |
+| `read_source_file` | C++ / Build.cs / ini 등 원본 텍스트 읽기 |
 
-## 0단계: 요금제 확인 (중요)
+### 서버 실행 방법 A: 내 PC + HTTPS 터널
 
-OpenAI 도움말 기준으로 커스텀 MCP(Developer mode)는 요금제마다 다릅니다.
+1. 이 저장소에서 `server\run_local.bat`를 실행합니다. 서버용 Python과 `mcp` 의존성을 사용하며,
+   콘솔에 비밀 경로가 포함된 주소가 표시됩니다.
+   배치 파일의 `python`은 실제 Python 3.10+여야 합니다. WindowsApps 스텁이면 먼저 위 설치 가이드로 Python 경로를 정리하세요.
+2. 외부 호출용 HTTPS 터널을 연결합니다. 예: `cloudflared tunnel --url http://localhost:8000`.
+   터널 도구는 별도 설치가 필요하며 임시 호스트가 바뀌면 MCP 주소도 갱신합니다.
+3. MCP 주소는 `https://<터널호스트>/<비밀경로>/mcp`입니다. PC·서버·터널이 실행 중이어야 합니다.
 
-| 요금제 | 사용 가능 여부 |
-|---|---|
-| Free / Plus | **지원 안 됨** |
-| Pro | 가능 (읽기 도구만 — 이 서버는 전부 읽기 전용이라 문제없음) |
-| Business | 관리자·소유자만 |
-| Enterprise / Edu | 관리자 + 권한 받은 멤버 |
+[Secure MCP Tunnel](https://developers.openai.com/api/docs/guides/secure-mcp-tunnels)도 선택할 수 있습니다.
+별도 설정과 워크스페이스 권한을 확인하세요.
 
-Plus라면 ChatGPT 웹 채팅에서는 쓸 수 없습니다. 대신 Claude(추가 설정 없이 스킬로 동작, 또는 아래
-"Claude에서도 같은 서버 쓰기")나 Codex(저장소 루트의 `SKILL.md`를 스킬로 사용)를 쓰세요.
+### 서버 실행 방법 B: 컨테이너 호스팅
 
-## 1단계: 서버 띄우기
+일반 호스트에는 루트 `Dockerfile`, Hugging Face에는 `deploy/huggingface/` 파일을 사용합니다.
+메모리가 작으면 `UE_READER_WORKERS=1`로 설정하세요.
 
-### A. Hugging Face Spaces (추천: 무료, PC를 꺼도 동작)
+**Hugging Face Docker Space 신규 생성은 무료 계정의 CPU Basic에서 지원되지 않습니다.** CPU Basic 생성에는
+개인 **PRO**, 조직 **Team/Enterprise** 구독이 필요합니다. 유료 하드웨어는 별도 결제 조건이 적용됩니다.
+CPU Basic의 시간당 하드웨어 비용이 없다는 설명과 Space 생성 자격을 구분하세요.
+[Spaces 생성 조건](https://huggingface.co/docs/hub/spaces-overview),
+[CPU Basic·유료 하드웨어 조건](https://huggingface.co/docs/huggingface_hub/main/guides/manage-spaces).
 
-1. https://huggingface.co/new-space 에서 Space 생성
-   - SDK: **Docker** → **Blank**, 공개 범위: **Public**
-   - (Private Space는 ChatGPT가 접근할 수 없습니다. 대신 아래의 비밀 경로로 보호합니다.)
-2. Space의 **Files** 탭에서 이 저장소의 `deploy/huggingface/Dockerfile`과 `deploy/huggingface/README.md`
-   두 파일을 올립니다(README.md는 기존 파일을 덮어쓰기).
-3. **Settings → Variables and secrets**에서 *Secret*으로 추가:
-   - `UE_READER_SECRET`: 길고 무작위인 문자열. 영문·숫자만 쓰세요(`/ ? #` 금지).
-     Windows PowerShell에서 `[guid]::NewGuid().ToString("N")` 실행 → 32자 문자열이 나옵니다.
-   - `GITHUB_TOKEN`: 비공개 저장소를 읽을 때만. GitHub → Settings → Developer settings →
-     Fine-grained tokens → 대상 저장소 선택, **Contents: Read-only**
-   - (선택) `UE_READER_ALLOWED_OWNERS`: `immigration2000` — 내 저장소만 분석하도록 제한
-4. 빌드가 끝나면(상단 상태가 **Running**) Space 주소가 `https://<계정>-<space이름>.hf.space`입니다
-   (Space 화면 오른쪽 위 **⋮ → Embed this Space → Direct URL**에서 정확한 주소 확인). 브라우저로 열어
-   `ue-repo-reader MCP server is running.`이 보이면 정상입니다.
-5. MCP 주소: `https://<계정>-<space이름>.hf.space/<UE_READER_SECRET>/mcp`
+1. [새 Space](https://huggingface.co/new-space)에서 Docker SDK를 선택합니다. 공개 범위는 직접 결정하세요.
+   연결할 HTTPS 주소에 ChatGPT가 실제로 접근할 수 있어야 합니다.
+2. `deploy/huggingface/Dockerfile`과 `deploy/huggingface/README.md`를 Space 루트의 같은 이름으로 올립니다.
+3. Variables and secrets에 다음 값을 설정합니다.
+   - Secret `UE_READER_SECRET`: 길고 무작위인 영문·숫자 문자열. 예: PowerShell `[guid]::NewGuid().ToString("N")`.
+   - Secret `GITHUB_TOKEN`: 비공개 GitHub 저장소를 읽을 때만. 필요한 저장소에만 Contents: Read-only 권한을 부여합니다.
+   - 선택 변수 `UE_READER_ALLOWED_OWNERS`: 허용할 소유자 목록(쉼표로 구분).
+4. 빌드 후 Space의 정확한 Direct URL에서 `/`를 열어 `ue-repo-reader MCP server is running.`을 확인합니다.
+5. MCP 주소는 `https://<Space호스트>/<UE_READER_SECRET>/mcp`입니다.
 
-무료 Space는 48시간 동안 쓰지 않으면 잠듭니다. 잠든 Space는 페이지를 한 번 열면 깨어나고, 1~2분 걸릴 수 있습니다.
-분석 캐시는 재시작하면 지워지므로 첫 분석은 다시 1분 안팎 걸립니다.
-코드를 업데이트하려면 Space Settings의 **Factory rebuild**를 누르면 GitHub 최신 코드로 다시 빌드됩니다.
+파일·포트 설정은 [HF Docker 안내](https://huggingface.co/docs/hub/spaces-sdks-docker)를 참고하세요.
+휴면·저장소 유지 조건은 호스팅 설정에 따릅니다. 영구 저장소가 없으면 재시작 후 다시 분석해야 합니다.
+HF Dockerfile은 빌드 시 GitHub main을 받으므로, 코드 갱신 시 캐시 없는 재빌드로 최신 코드를 가져오세요.
 
-다른 호스팅(Render, Railway, Fly.io, Cloud Run 등)도 저장소 루트의 `Dockerfile`로 그대로 배포됩니다.
-메모리가 작은 무료 인스턴스라면 `UE_READER_WORKERS=1`로 설정하세요.
+### ChatGPT에서 연결
 
-### B. 내 PC에서 실행 + 터널 (PC가 켜져 있을 때만)
+개발자 모드의 커스텀 MCP 추가는 **Plugins**에서 진행합니다. 기존 Security and login 경로를 찾거나
+GPT 만들기 / GPT Actions를 설정할 필요는 없습니다. 현재 공식 절차:
 
-1. 이 저장소를 클론하고 `server\run_local.bat` 실행 → 콘솔에 비밀 경로가 포함된 주소가 나옵니다.
-2. 다른 창에서 터널을 엽니다. 예: `cloudflared tunnel --url http://localhost:8000`
-   (주소가 실행할 때마다 바뀌므로, 고정 주소가 필요하면 Cloudflare 이름 있는 터널이나 ngrok 고정 도메인을 쓰세요.
-   OpenAI의 Secure MCP Tunnel도 방법입니다.)
-3. MCP 주소: `https://<터널주소>/<비밀경로>/mcp`
+1. **Plugins → + → Add custom MCP server**를 엽니다.
+2. 이름 `UE Repo Reader`, Server URL에 위 `/mcp` 주소를 입력합니다.
+3. **No authentication**을 선택합니다. 이 서버는 비밀 경로가 접근 수단이므로 주소 전체를 공개하지 마세요.
+4. 연결 위험 안내를 검토하고 **Create as a plugin**을 선택합니다.
+5. 생성된 개인/워크스페이스 플러그인을 **설치**한 뒤 새 채팅에서 `@UE Repo Reader`를 선택하고 분석을 요청합니다.
 
-## 2단계: ChatGPT에 연결
+추가 메뉴가 없으면 계정·워크스페이스의 플러그인 권한과 보안 정책을 확인하세요.
+도구가 바뀌면 플러그인 상세 설정의 Refresh로 갱신합니다.
+[OpenAI 연결 절차](https://developers.openai.com/api/docs/guides/custom-mcp-server),
+[Plugins 빠른 시작](https://developers.openai.com/plugins/quickstart).
 
-OpenAI 문서 기준 절차입니다(메뉴 이름은 바뀔 수 있습니다).
+### 스킬 포함 패키지 (선택)
 
-1. ChatGPT → **Settings → Security and login → Developer mode** 켜기
-   (Business/Enterprise는 **Settings → Apps → Advanced settings**에 있을 수 있습니다.)
-2. **Plugins**(화면에 따라 **Apps**) → **+ / Create**
-   - 이름: `UE Repo Reader`, 설명: `언리얼 저장소 분석(블루프린트 포함)`
-   - Connection(연결): MCP 서버 URL에 위의 MCP 주소(끝이 `/mcp`) 입력
-   - 인증(Authentication): **없음(No authentication)**
-   - 위험 안내 체크박스가 나오면 확인 후 체크 → **Scan Tools**가 있으면 눌러 도구 6개가 보이는지 확인 → **Create**
-3. 새 채팅을 열고 입력창의 **+ / 도구 메뉴**에서 UE Repo Reader를 켠 뒤(또는 `@UE Repo Reader`):
-   > https://github.com/immigration2000/ExtractionGame_Fin 분석해줘
+`chatgpt-plugin/`에는 플러그인 설명, 읽는 순서를 담은 스킬, MCP 설정 예제가 있습니다.
+패키지를 사용하려면 `mcp.json`의 URL을 자신의 서버 주소로 바꾸고
+[공식 패키지 안내](https://developers.openai.com/plugins/build/plugins)를 따르세요.
+커스텀 MCP 직접 연결만으로도 서버 도구와 서버 지침을 사용할 수 있습니다.
 
-서버 코드를 업데이트한 뒤 도구 목록이 바뀌었다면 Plugins에서 해당 연결을 열고 **Refresh**를 누르세요.
+## 서버 운영 메모
 
-### 스킬까지 포함한 플러그인 패키지 (선택)
-
-`chatgpt-plugin/` 폴더가 플러그인 패키지입니다(`plugin.json` + `skills/ue-repo-reader/SKILL.md` + `mcp.json`).
-MCP 서버만 연결해도 동작하지만(서버가 사용법 지침을 함께 보냄), 스킬을 넣으면 읽는 순서와 리뷰 체크리스트를
-더 잘 따릅니다.
-
-1. `chatgpt-plugin/mcp.json`의 `url`을 내 MCP 주소로 바꿉니다.
-2. ChatGPT 데스크톱 앱: `~/.agents/plugins/marketplace.json`(Windows는 `%USERPROFILE%\.agents\plugins\`)에
-   아래처럼 등록하고 앱을 다시 시작하면 Plugins Directory에 나타납니다.
-
-```json
-{
-  "name": "personal",
-  "interface": { "displayName": "Personal Plugins" },
-  "plugins": [
-    {
-      "name": "ue-repo-reader",
-      "source": { "source": "local", "path": "C:/Users/<me>/ue-repo-reader/chatgpt-plugin" },
-      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
-      "category": "Developer Tools"
-    }
-  ]
-}
-```
-
-## Claude에서도 같은 서버 쓰기
-
-같은 MCP 주소를 Claude의 **설정 → 커넥터 → 커스텀 커넥터 추가**에 넣으면 Claude 채팅에서도 똑같이 동작합니다.
-
-## 보안 메모
-
-- 서버 주소를 아는 사람은 누구나 도구를 호출할 수 있으므로 **비밀 경로(`UE_READER_SECRET`)를 꼭 설정**하세요.
-- `GITHUB_TOKEN`은 필요한 저장소만, 읽기 전용으로 발급하세요. 토큰은 출력과 로그에서 가려집니다.
-- 서버는 github.com / gitlab.com / bitbucket.org의 https 주소만 받고, 저장소 밖의 파일이나 `.git` 내부는 읽지 않습니다.
+- 공개 호스트에는 `UE_READER_SECRET`을 설정하세요. 주소를 아는 사람은 누구나 서버를 호출할 수 있습니다.
+- GitHub 토큰은 필요한 저장소에만 읽기 권한을 부여합니다. 서버 응답·로그에는 토큰을 가립니다.
+- 서버는 github.com / gitlab.com / bitbucket.org의 HTTPS 저장소를 받으며 저장소 밖과 `.git` 내부 파일 읽기를 거부합니다.
+- 같은 MCP 주소를 Streamable HTTP 지원 클라이언트에서도 사용할 수 있습니다.
+- `UE_READER_TIMEOUT`은 분석 실행의 초 단위 제한입니다(기본 1800). 큐 대기는 제외하며 초과 시 자식 프로세스도 종료합니다.
+- 캐시는 도구/캐시 버전·저장소·커밋·프로젝트별로 구분합니다. 이전 캐시는 재사용하지 않으며 `refresh=true`로 재분석합니다.
+- MCP의 `ref`에는 브랜치·태그 또는 전체 40자 커밋 SHA를 사용합니다. CLI의 짧은 SHA 지원은 그대로 유지됩니다.
