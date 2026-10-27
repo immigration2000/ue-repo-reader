@@ -1129,6 +1129,8 @@ def main(argv=None):
     project_types = {re.sub(r"^[AUF](?=[A-Z])", "", c["name"]) for c in cpp["classes"]}
 
     classes = classify_assets([str(p) for p in local], a.workers)
+    # instances of this project's Blueprint classes saved as assets (e.g. a DataAsset made from PDA_PlayerData)
+    bp_class_names = {Path(str(q)).stem + "_C" for q in local if is_blueprint_class(classes.get(str(q), "?"))}
     data_items = []
     for p in local:
         gp = game_path(p, mounts)
@@ -1137,7 +1139,7 @@ def main(argv=None):
             candidates.append((str(p), gp))
         else:
             others.append((gp, p.stem, cls))
-            if is_data_class(cls, project_types) and p.stat().st_size <= a.max_bp_mb * 1024 * 1024:
+            if (is_data_class(cls, project_types) or cls in bp_class_names) and p.stat().st_size <= a.max_bp_mb * 1024 * 1024:
                 data_items.append((str(p), gp, cls))
     log(f"[scan] {len(candidates)} Blueprints, {len(data_items)} data assets, {len(maps)} maps, {len(others)} other assets")
 

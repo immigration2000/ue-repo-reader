@@ -98,6 +98,14 @@
         "must_contain": [
           "| GridDimensions | IntPoint | Gird | InstanceEditable ExposeOnSpawn |"
         ]
+      },
+      {
+        "bug": "F4",
+        "file": "data/Game/DeltaForce/Data/DataAsset/DA_UISetting.md",
+        "must_contain": [
+          "**PDA_UISetting_C**",
+          "- CellSize = 64"
+        ]
       }
     ]
   },

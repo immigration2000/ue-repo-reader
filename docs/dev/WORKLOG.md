@@ -11,6 +11,13 @@
 
 ---
 
+## 2026-10-27 15:10 KST · claude · F4
+- 한 일: 이 프로젝트 BP 클래스의 인스턴스로 저장된 에셋(클래스명 `<BP이름>_C`, 예: PDA_PlayerData로 만든 DA_PlayerData)을
+  데이터 에셋으로 분류해 저장값을 렌더. EG에서 DA_PlayerData·DA_Stash·DA_UISetting 3개가 새로 `data/`에 생김.
+- 검증: regress 3/3 PASS, F4 검사 추가.
+- 남은 일·주의: 바이트 열거형 배열은 숫자로 나옴(`Stashinfo = [7, 0, …]`, 타입 Array<E_Crates>) — 열거형 이름 매핑은 교차 에셋 조회가 필요해 보류.
+  PDA_PlayerData 변수 표의 `Map<E_Crates, None>` 값 타입 디코딩이 이상함(별도 확인 필요).
+
 ## 2026-10-27 14:50 KST · claude · F3
 - 한 일: 함수 헤더에 `[pure, const, static, private, protected, RunOnServer, RunOnOwningClient, Multicast, Reliable]`
   (FunctionEntry `ExtraFlags`). 변수 표 Flags에 Transient·Config·SaveGame·ExposeToCinematics(PropertyFlags),
