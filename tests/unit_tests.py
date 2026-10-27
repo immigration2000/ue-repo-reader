@@ -223,7 +223,27 @@ def test_output_validated_around_clone():
         assert (out / "tracked.txt").read_text(encoding="utf-8") == "repository file"
 
 
+def _utf8_stdio() -> None:
+    """Windows consoles/pipes default to the ANSI code page (cp949 on Korean systems): never crash on output."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
+def test_lfs_include_pattern():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import fnmatch
+    import ue_repo_digest as D
+    for p in ("Content/UI/WBP_A[1].uasset", "Content/Maps/Map,Night.umap", "Content/X/What?.uasset", "Content/a*b.uasset"):
+        pat = D.lfs_include_pattern(p)
+        assert not any(c in pat for c in "[]*,\\"), pat
+        assert fnmatch.fnmatchcase(p, pat), (p, pat)
+
+
 def main() -> int:
+    _utf8_stdio()
     failed = 0
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

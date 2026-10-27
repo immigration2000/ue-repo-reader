@@ -26,7 +26,7 @@
 | H3 | done | claude | 단정밀도 플로트 플래그를 `FUE5ReleaseStreamObjectVersion >= 36` 게이트로 | S |
 | H5 | done | claude | 모르는 `FileVersionUE5`(>1018)·커스텀 버전이면 경고 후 부분 출력 (5.9 대비) | S |
 | H6 | todo | - | 회귀 세트 확장(버그 재현 픽스처, UE Shed/AssetTools 픽스처 검토) | S–M |
-| H7 | doing | claude | Windows 실기 점검: LFS `--include` 이스케이프, `<PY>` 자리표시자, PowerShell 5.1 stderr; regress.py의 cp949 출력 실패 재현됨(A1) | S |
+| H7 | done | claude | Windows 실기 점검: LFS `--include` 이스케이프, `<PY>` 자리표시자, PowerShell 5.1 stderr; regress.py의 cp949 출력 실패 재현됨(A1) | S |
 | T1 | done | claude | `digest.json`을 "전부 읽기" 대상에서 제외, 큰 DataTable 상한 | S |
 | T2 | done | claude | 부분 클론(`--filter=blob:limit` 또는 `blob:none` 후 필요한 것만) — 콜드 실행의 85~90%가 클론 | M |
 | T3 | todo | - | 에셋별 blob SHA 캐시(바뀐 것만 재파싱) | S–M |
@@ -69,6 +69,7 @@
 | R5 | todo | - | MCP 서버 정리(소수 도구, FTS5 검색, 응답 상한) | S–M |
 | R6 | todo | - | MCP Registry 등록(stdio 패키지) | S |
 | V1 | todo | - | 사람 PC에서 UE Shed / UAsset Translator와 실측 비교 (이 세션에선 실행 불가) | S |
+| V2 | todo | - | 사람 PC(Windows PowerShell 5.1)에서 CODEX_SETUP.ko.md를 처음부터 끝까지 실행 — H7은 pwsh 7·cp949 흉내로만 검증 | S |
 
 ## 분석·리뷰
 

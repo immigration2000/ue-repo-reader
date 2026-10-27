@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -40,7 +41,8 @@ def build(name: str, fx: dict, local: Path | None, out: Path, log: Path) -> tupl
         cmd = [sys.executable, str(DIGEST), fx["url"], "--ref", fx["sha"], "--workdir", str(CACHE / name), "--out", str(out)]
     t = time.time()
     with log.open("w", encoding="utf-8") as fh:
-        rc = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT).returncode
+        rc = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT,
+                            env=dict(os.environ, PYTHONIOENCODING="utf-8:replace")).returncode
     secs = time.time() - t
     if rc != 0 or not (out / "INDEX.md").is_file():
         tail = log.read_text(encoding="utf-8", errors="replace").splitlines()[-5:]
@@ -82,7 +84,17 @@ def check(fx: dict, out: Path) -> list[str]:
     return errors
 
 
+def _utf8_stdio() -> None:
+    """Windows consoles/pipes default to the ANSI code page (cp949 on Korean systems): never crash on output."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass
+
+
 def main() -> int:
+    _utf8_stdio()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--only", nargs="*", help="fixture names to run")
     ap.add_argument("--repo", action="append", default=[], help="NAME=PATH: use an existing local clone")
@@ -91,7 +103,8 @@ def main() -> int:
     fixtures = json.loads(FIXTURES.read_text(encoding="utf-8"))
     local = dict(r.split("=", 1) for r in a.repo)
     CACHE.mkdir(exist_ok=True)
-    unit = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "unit_tests.py")])
+    unit = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "unit_tests.py")],
+                          env=dict(os.environ, PYTHONIOENCODING="utf-8:replace"))
     worst = 1 if unit.returncode else 0
     for name, fx in fixtures.items():
         if a.only and name not in a.only:

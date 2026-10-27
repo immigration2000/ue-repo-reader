@@ -239,6 +239,13 @@ def _safe(fn, *args):
         return 0
 
 
+def lfs_include_pattern(path: str) -> str:
+    """A git-lfs --include pattern matching this literal path on every OS. Glob metacharacters and commas
+    (the list separator) become `?` (any one character): backslash escapes do not survive on Windows, where
+    git-lfs treats `\\` as a path separator. At worst a same-length sibling is downloaded too."""
+    return re.sub(r"[\[\]*?,\\]", "?", path)
+
+
 def pull_lfs(repo: Path, paths: list[Path], max_mb: float, map_max_mb: float = 64.0) -> dict:
     """Download LFS objects for small .uasset files and for maps (Blueprints/data are small; textures/meshes are not)."""
     report = {"pointers": 0, "requested": 0, "skipped_large": 0, "failed": 0, "error": None, "bytes": 0}
@@ -285,8 +292,7 @@ def pull_lfs(repo: Path, paths: list[Path], max_mb: float, map_max_mb: float = 6
     if batch:
         batches.append(batch)
     for b in batches:
-        # LFS include patterns are globs; escape glob metacharacters in literal paths
-        pats = ",".join(re.sub(r"([\[\]\*\?])", r"\\\1", x) for x in b)
+        pats = ",".join(lfs_include_pattern(x) for x in b)
         r = run(["git", "-C", str(repo), "lfs", "pull", "--include", pats], check=False)
         if r.returncode != 0:
             report["error"] = (r.stderr or r.stdout).strip()[-400:]

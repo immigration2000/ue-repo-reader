@@ -36,7 +36,26 @@ py -3 --version
 - `git`, `git lfs`가 버전을 출력하면 OK.
 - 파이썬은 **3.10 이상**이 필요하다. `python`의 Source가 `...\WindowsApps\python.exe`이면 Microsoft Store
   바로가기일 뿐 실제 파이썬이 아니다.
-- 3.10 이상을 실행하는 명령(`python` 또는 `py -3`)을 골라 이후 단계의 `<PY>` 자리에 쓴다.
+- 실제로 쓸 파이썬은 아래 함수가 고른다(`python` → `py -3` → `python3` 순서로 3.10 이상인 첫 번째).
+  2단계에서 설치를 했다면 PATH를 다시 읽은 뒤 이 블록을 다시 실행한다.
+
+```powershell
+$global:UePy = $null
+foreach ($cand in @("python", "py -3", "python3")) {
+    $parts = $cand -split " "
+    if (-not (Get-Command $parts[0] -ErrorAction SilentlyContinue)) { continue }
+    $rest = @($parts | Select-Object -Skip 1)
+    $out = & $parts[0] @rest -c "import sys; print(sys.version_info >= (3, 10))" 2>$null
+    if ($LASTEXITCODE -eq 0 -and "$out".Trim() -eq "True") { $global:UePy = $parts; break }
+}
+function Invoke-UePython {
+    $rest = @($global:UePy | Select-Object -Skip 1)
+    & $global:UePy[0] @rest @args
+}
+if ($global:UePy) { "python 3.10+: $($global:UePy -join ' ')" } else { "python 3.10+ not found" }
+```
+
+- `python 3.10+ not found`가 나오면 2단계에서 파이썬을 설치한다.
 
 ## 2. 없는 것만 설치
 
@@ -82,12 +101,16 @@ Test-Path "$skill\scripts\ue_repo_digest.py"
 ```powershell
 $work = "C:\UEReview"
 New-Item -ItemType Directory -Force $work | Out-Null
-<PY> "$skill\scripts\ue_repo_digest.py" https://github.com/immigration2000/ExtractionGame_Fin --workdir "$work\repos\ExtractionGame_Fin" --out "$work\ExtractionGame_Fin_digest"
+$env:PYTHONIOENCODING = "utf-8:replace"   # 한국어 Windows(cp949) 콘솔에서도 로그가 깨지지 않게
+Invoke-UePython "$skill\scripts\ue_repo_digest.py" https://github.com/immigration2000/ExtractionGame_Fin --workdir "$work\repos\ExtractionGame_Fin" --out "$work\ExtractionGame_Fin_digest"
+"exit code: $LASTEXITCODE"
 Select-String -Path "$work\ExtractionGame_Fin_digest\INDEX.md" -Pattern "Coverage:", "decoded cleanly" | ForEach-Object Line
 ```
 
 성공 기준:
-- 명령이 종료 코드 0으로 끝나고 `INDEX.md`가 생긴다.
+- `exit code: 0`이 나오고 `INDEX.md`가 생긴다. **성공 여부는 종료 코드로만 판단한다.** 진행 로그(`[fetch]`, `[bp]` …)는
+  stderr로 나오므로 Windows PowerShell 5.1에서는 빨간 `NativeCommandError`처럼 보일 수 있는데, 오류가 아니다.
+  (`$ErrorActionPreference = "Stop"`이 설정된 세션이면 이 로그 때문에 중단되므로 그 블록에서는 `"Continue"`로 둔다.)
 - `Coverage:` 줄에 `0 failed`, 그리고 `graph nodes decoded N/N`(앞뒤 숫자가 같음)이 보인다.
 - 첫 실행 때 파서가 `%USERPROFILE%\.cache\ue-repo-reader`에 자동으로 받아진다(정상).
 - `--out`은 요약본 전용 폴더다. 입력 저장소 자체/상위 경로나 심볼릭 링크/정션은 쓸 수 없으며,

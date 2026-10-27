@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-10-27 13:30 KST · claude · H7
+- 한 일:
+  - `tests/regress.py`·`tests/unit_tests.py`가 시작할 때 stdout/stderr를 UTF-8(errors=replace)로 재설정, 자식 프로세스에
+    `PYTHONIOENCODING=utf-8:replace` 전달. (A1이 재현한 cp949 `UnicodeEncodeError`.)
+  - LFS 대체 경로(`git lfs pull --include`) 패턴을 `lfs_include_pattern()`으로: `[ ] * ? , \`를 `?`로 바꿈.
+    백슬래시 이스케이프는 Windows git-lfs에서 경로 구분자로 바뀌고, 쉼표는 목록 구분자라서. 과매칭은 같은 길이 형제 파일뿐.
+  - `docs/CODEX_SETUP.ko.md`: `<PY>` 자리표시자 제거 → `Invoke-UePython` 함수(`python` → `py -3` → `python3` 중 3.10+인 첫 번째,
+    WindowsApps 스텁은 종료 코드로 걸러짐). 5단계에 `PYTHONIOENCODING`, `exit code` 출력, "성공은 종료 코드로만 판단 —
+    PS 5.1에서 stderr 진행 로그가 빨간 NativeCommandError로 보여도 정상" 안내.
+- 검증: `PYTHONIOENCODING=cp949`로 수정 전 regress는 em dash에서 UnicodeEncodeError 재현, 수정 후 3/3 PASS + unit 14/14(lfs 패턴 검사 추가).
+  설치 문서 PowerShell 블록 7개 파싱 OK(pwsh 7.4.6), 파이썬 선택 함수는 가짜 스토어 스텁(exit 9009)·파이썬 없음 두 경우 모두 확인.
+- 남은 일·주의: Windows PowerShell 5.1 실기는 못 돌림 → V2로 남김(사람 PC). Codex가 Windows에서 돌릴 때 확인 부탁.
+
 ## 2026-10-27 12:38 KST · codex · A2
 - 한 일: `validate_output_dir`로 입력 저장소/선택한 프로젝트와 같거나 이를 포함하는 출력 경로를 거부.
   심볼릭 링크·Windows 정션(3.10/3.11도 reparse 속성 사용), 파일 경로, 일반 파일이 있는 폴더도 거부.
