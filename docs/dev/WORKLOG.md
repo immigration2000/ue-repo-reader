@@ -11,6 +11,13 @@
 
 ---
 
+## 2026-10-28 11:30 KST · claude · Q1–Q6 (등록만)
+- 한 일: TASKS.md에 "정확도 — 빈칸과 검증" 절과 Q1~Q6 추가(코드 변경 없음). 근거: REVIEW-2026-10-27의 `노드 N/N` 한계,
+  F6/F7·X6 WORKLOG의 미표시 항목, 캐시된 eg/ar/ves/bt 요약본의 "not decoded"/"unreadable" 표시 점검.
+- 검증: regress 단위 + 외부 에셋 6/6 + 프로젝트 4/4 PASS(캐시 클론).
+- 남은 일·주의: 추천 순서 Q1(5.8 에디터 정답 비교, 실행은 사람 PC) → Q2(StateTree 설정값) → Q3(위젯 애니메이션 키).
+  Q1 스크립트는 사용자 에디터에서 돌아가므로 읽기 전용으로 만들고 프로젝트 파일을 저장·수정하지 않게 할 것.
+
 ## 2026-10-28 11:19 KST · codex · X5
 - 한 일: v1.10.0. K2Node_FunctionEntry.MetaData의 ToolTip/Category/bCallInEditor를 실제 저장 값으로 읽어
   `// Function metadata` / `// Function tooltip` 설명 주석과 BP summary.function_metadata에 출력(그래프 경로/진입점 이름 포함).
