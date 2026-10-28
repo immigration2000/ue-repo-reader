@@ -29,7 +29,7 @@ Codex CLI에서는 `$ue-repo-reader`로 명시할 수도 있습니다. 직접 �
 python scripts/ue_repo_digest.py https://github.com/owner/Project --out Project_digest
 ```
 
-처음 실행 시 고정 버전 파서를 내려받습니다. 완료 후 출력 폴더의 `INDEX.md`와 Parse report를 확인하세요.
+처음 실행 시 고정 버전 파서를 내려받습니다. 완료 후 `INDEX.md`의 읽기 순위·커버리지와 `CATALOG.md`의 전체 Parse report를 확인하세요.
 
 ## 2. 원격 MCP 도구 사용하기 (선택 사항)
 

@@ -8,7 +8,8 @@ binary .uasset files and rendered as pseudo-code; C++, config and content are in
     python ue_repo_digest.py D:/Work/MyProject
 
 Output (in --out):
-    INDEX.md                 start here: project overview, Blueprint catalog, C++<->BP map, parse report
+    INDEX.md                 start here: bounded reading map, entry points, coverage and priority links
+    CATALOG.md               complete catalogs, C++<->BP map, notation and parse report
     blueprints/<path>.md     one file per Blueprint (components, variables, defaults, graphs as pseudo-code)
     cpp/CLASSES.md           C++ UCLASS/USTRUCT/UENUM index with Blueprint-exposed API
     digest.json              machine-readable summary of everything above
@@ -32,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.6.0"
+VERSION = "1.7.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -919,6 +920,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- GameplayTags (definitions, users, undefined tags) are in `config/GameplayTags.md` when the project has any.",
            "- Files longer than ~60k characters are split: `X.md` ends with a link to `X.part2.md`.",
            "- `digest.json` is the same information for scripts — don't read it to understand the project.",
+           "- `INDEX.md` is a bounded reading map; this full catalog preserves every listed asset and warning.",
+           "  Asset context headers link nearby documents ranked by static references/name mentions, not runtime behavior.",
            "- This is a static read of saved assets: it cannot show runtime values, and names are the internal",
            "  node/function names (e.g. `K2_GetActorLocation`), not always the editor display titles.",
            ""]
@@ -1155,11 +1158,11 @@ def validate_output_dir(output: Path, repo: Path, project: Path | None = None) -
     if not isinstance(manifest, dict) or not str(manifest.get("tool", "")).startswith("ue-repo-reader "):
         raise ValueError(f"output directory is not a recognized ue-repo-reader digest: {out}; choose a new --out")
     dirs = {"blueprints", "cpp", "data", "maps", "config"}
-    files = {"INDEX.md", "digest.json"}
+    files = {"INDEX.md", "CATALOG.md", "digest.json"}
     for entry in entries:
         if entry.name in dirs and entry.is_dir():
             continue
-        if (entry.name in files or re.fullmatch(r"INDEX\.part(?:[2-9]|[1-9][0-9]+)\.md", entry.name)) and entry.is_file():
+        if (entry.name in files or re.fullmatch(r"(?:INDEX|CATALOG)\.part(?:[2-9]|[1-9][0-9]+)\.md", entry.name)) and entry.is_file():
             continue
         raise ValueError(f"output directory contains an unrelated entry: {entry}; choose a new --out")
     return out
@@ -1402,15 +1405,18 @@ def main(argv=None):
 
     build_index(meta, proj, cpp, bps, failures, others, maps, lfs, out, uproject, datas, data_failures,
                 level_results, map_failures, placed_in)
+    from navigation import build_navigation, repair_catalog_links
+    navigation = build_navigation(meta, cpp, bps, failures, datas, data_failures, level_results, map_failures, lfs, out)
     digest = {"tool": f"ue-repo-reader {VERSION}", "source": meta, "lfs": lfs,
               "blueprints": {gp: r["summary"] for gp, r in bps.items()}, "failures": failures,
               "data_assets": {gp: r["summary"] for gp, r in datas.items()}, "data_failures": data_failures,
               "maps_detail": {gp: r["summary"] for gp, r in level_results.items()}, "map_failures": map_failures,
-              "maps": sorted(maps), "cpp": cpp}
+              "maps": sorted(maps), "cpp": cpp, "navigation": navigation}
     # compact: this file is for scripts, not for reading (it repeats what the Markdown says)
     (out / "digest.json").write_text(json.dumps(digest, ensure_ascii=False, default=list, separators=(",", ":")),
                                      encoding="utf-8")
     n_split = split_large_markdown(out)
+    repair_catalog_links(out)
     if n_split:
         log(f"[out] split {n_split} large Markdown files into parts of <= {MD_PART_CHARS} characters")
     log(f"[done] {out / 'INDEX.md'}")

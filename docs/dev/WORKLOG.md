@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-10-28 09:20 KST · codex · T4
+- 한 일: v1.7.0. 짧은 INDEX + 전체 CATALOG 분리. 저장 참조/고유 이름 언급의 결정적 PageRank(damping .85,
+  설정 진입점 seed 5배)로 읽기 링크 최대 30개/9KB. 실제 호출·의존성·게임 중요도의 증거가 아닌 탐색 힌트라고 명시.
+  중복 이름·알 수 없는 명시 경로는 추측하지 않음. 에셋/C++ 문서 머리말에 경로·해석 상태·순위·인접 링크,
+  digest.json.navigation에 전체 순위/연결 근거. 경고는 INDEX에 요약하고 CATALOG에 전부 유지. 분할된 report 링크도 보정.
+  두 SKILL 2절·범례·README·MCP 지침/가이드 갱신, CATALOG/part 파일만 출력 교체 허용, D-016 기록.
+- 검증: 전체 regress 단위 50/50 + 외부 에셋 6/6 + 프로젝트 3/3 PASS; BP/노드 수량 변경 없음.
+  우선순위·정규화·고립/빈 그래프·결정성·중복 이름·300문서/긴 한글 설정·모든 문서/링크·부분 실패·분할/재실행 검사 PASS.
+  실제 Windows 5.1 설치본 eg 49 BP/1779 nodes·LFS 특수경로 2개, 실제 MCP HTTP 6도구/INDEX/CATALOG/재사용/재시작/refresh PASS.
+  실제 Markdown 링크/섹션 타깃 모두 유효. 개발 캐시 tiktoken 0.14.0으로 cl100k_base/o200k_base 실측:
+  eg 2119/2139, ar 2216/2220, 작은 ves 1141/1139 tokens. 실행 의존성은 추가하지 않음. 두 skill quick_validate PASS.
+  통합 cold/warm/disabled 101개 Markdown/JSON byte-identical, 실제 BP 5.6→5.7 교체 시 해당 분류/본문만 재생성 PASS.
+- 남은 일·주의: T4 done. T3 통합 eg 실측 cold 13.42s/warm 11.16s/disabled 9.58s에서 분류 캐시의 비용을 확인해
+  T3를 doing으로 되돌림. 작은 분류 헤더는 병렬로 새로 읽고 본문 캐시만 유지하는 조정 후 재검증·통합 push 예정.
+
 ## 2026-10-28 09:15 KST · codex · T3
 - 한 일: 실제 바이트의 Git blob SHA + 디코더 소스/고정 파서/Python/도구 버전/콘텐츠 경로로 분류·BP·data·map 결과 캐시.
   맵은 외부 액터 경로·순서·내용도 포함. 정상 결과만 JSON/gzip + 체크섬/atomic replace로 저장하며 Used by/Placed in은 매번 계산.

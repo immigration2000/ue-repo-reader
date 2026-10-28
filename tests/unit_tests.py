@@ -31,6 +31,8 @@ from skill_install_tests import (test_skill_install_layouts_and_execution, test_
 from clone_tests import test_partial_clone_reuse_keeps_heavy_blobs_missing
 from cache_tests import (test_asset_cache_hash_and_dependency_invalidation, test_asset_cache_corruption_partial_and_eviction,
                          test_asset_cache_only_changed_assets_start_workers, test_asset_cache_preflight_preserves_previous_digest)
+from navigation_tests import (test_pagerank_order_seeds_and_dangling_nodes, test_navigation_resolves_unique_and_explicit_references,
+                              test_navigation_budget_context_and_warnings, test_navigation_split_catalog_anchors_and_rerun)
 from search_tests import (test_search_literal_unicode_and_index_reuse, test_search_fallback_and_coverage_limits,
                           test_mcp_response_limits_and_lossless_pagination, test_search_and_source_globs_contain_links,
                           test_cache_refresh_waits_for_open_readers)
@@ -197,8 +199,10 @@ def test_output_rerun():
             stale = out / "maps" / "stale.md"
             stale.write_text("old generated map", encoding="utf-8")
             (out / "INDEX.part10.md").write_text("old split index", encoding="utf-8")
+            (out / "CATALOG.part10.md").write_text("old split catalog", encoding="utf-8")
             assert _digest_cli(args) == 0
             assert (out / "INDEX.md").is_file() and not stale.exists()
+            assert (out / "CATALOG.md").is_file() and not (out / "CATALOG.part10.md").exists()
             assert (source / "Game.uproject").is_file()
 
 

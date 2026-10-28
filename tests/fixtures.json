@@ -48,7 +48,7 @@
       },
       {
         "bug": "B6",
-        "file": "INDEX.md",
+        "file": "CATALOG.md",
         "must_not_match": [
           "/Script/[A-Za-z]+[._][A-Za-z]*_\\d{6,}",
           " \\(by name\\) "
@@ -79,7 +79,7 @@
       },
       {
         "bug": "F2",
-        "file": "INDEX.md",
+        "file": "CATALOG.md",
         "must_contain": [
           "`IA_EnterBlackSite` ← `BP_NullPointPC`",
           "## Input check (Enhanced Input)"
@@ -168,7 +168,7 @@
       },
       {
         "bug": "F2",
-        "file": "INDEX.md",
+        "file": "CATALOG.md",
         "must_contain": [
           "`IA_Move` (in PlayerConfigData)",
           "`IA_PauseMenu`"
@@ -185,7 +185,7 @@
       },
       {
         "bug": "F1",
-        "file": "INDEX.md",
+        "file": "CATALOG.md",
         "must_contain": [
           "22 tags defined, 12 used"
         ]

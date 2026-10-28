@@ -1,8 +1,10 @@
 """Real CLI cold/warm/disabled cache equivalence using an existing local UE project."""
 import argparse
 import hashlib
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -10,6 +12,36 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+
+
+def check_changed_asset(base):
+    from asset_regress import fetch_file
+    manifest = json.loads((ROOT / "tests/asset_fixtures.json").read_text(encoding="utf-8"))
+    fixture_cache = ROOT / "tests/.cache/asset-fixtures" / manifest["commit"]
+    cases = {case["id"]: case for case in manifest["cases"]}
+    project, out = base / "tiny-project", base / "tiny-out"
+    content = project / "Content"
+    content.mkdir(parents=True)
+    (project / "Tiny.uproject").write_text("{}", encoding="utf-8")
+    shutil.copyfile(fetch_file(manifest, manifest["license"], fixture_cache), project / "LICENSE")
+    bp, data = content / "BP_Keys.uasset", content / "ST_LegacyText.uasset"
+    shutil.copyfile(fetch_file(manifest, cases["pins-5.6"]["asset"], fixture_cache), bp)
+    shutil.copyfile(fetch_file(manifest, cases["strings-4.27"]["asset"], fixture_cache), data)
+    for phase, expected in (("cold", (0, 4, 4, 0)), ("warm", (4, 0, 0, 0)), ("changed", (2, 2, 2, 0))):
+        if phase == "changed":
+            shutil.copyfile(fetch_file(manifest, cases["pins-5.7"]["asset"], fixture_cache), bp)
+        run = subprocess.run([sys.executable, str(ROOT / "scripts/ue_repo_digest.py"), str(project), "--out", str(out),
+                              "--asset-cache-dir", str(base / "tiny-cache")],
+                             capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120)
+        assert run.returncode == 0, run.stderr
+        match = re.search(r"\[cache\] hits=(\d+) misses=(\d+) writes=(\d+) errors=(\d+)", run.stderr)
+        assert match and tuple(map(int, match.groups())) == expected, run.stderr
+        digest = json.loads((out / "digest.json").read_text(encoding="utf-8"))
+        summary = digest["blueprints"]["/Game/BP_Keys"]
+        assert summary["nodes_ok"] == summary["nodes_total"] == 9
+        assert summary["saved_with"].startswith("5.7" if phase == "changed" else "5.6")
+        assert not digest["failures"] and not digest["data_failures"]
+    print("PASS: replacing one real BP reparses only its classification/graphs; untouched data stays cached", flush=True)
 
 
 def main():
@@ -40,6 +72,7 @@ def main():
         assert counts[0] and counts[0][0] == 0 and counts[0][2] > 0, counts
         assert counts[1] and counts[1][0] > 0 and counts[1][2] == 0 and counts[1][3] == 0, counts
         print("PASS: every Markdown/JSON file is byte-identical (cold, warm, disabled)", flush=True)
+        check_changed_asset(base)
 
 
 if __name__ == "__main__":

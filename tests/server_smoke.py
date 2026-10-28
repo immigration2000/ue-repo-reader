@@ -108,6 +108,8 @@ def main():
                     digest_id = await analyze()
                     assert "INDEX.md" in await call("list_digest_files", digest_id=digest_id)
                     assert "ExtractionGame" in await call("read_digest_file", digest_id=digest_id, path="INDEX.md")
+                    assert "PageRank" in await call("read_digest_file", digest_id=digest_id, path="INDEX.md")
+                    assert "How to read this digest" in await call("read_digest_file", digest_id=digest_id, path="CATALOG.md")
                     assert "BP_" in await call("search_digest", digest_id=digest_id, query="BeginPlay")
                     database = work / "data/work" / digest_id / "search.sqlite"
                     assert database.is_file()

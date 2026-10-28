@@ -394,7 +394,10 @@ def safe_path(base: Path, rel: str) -> Path:
 INSTRUCTIONS = """Reads Unreal Engine projects from a git URL, including Blueprints, maps and data assets decoded
 from binary .uasset/.umap files (no editor needed).
 Workflow: call analyze_repo with the URL (it waits up to ~45 s; if it reports 'running', call wait_for_analysis
-until done). Read the returned INDEX.md fully, then read the files you need: maps/*.md (level Blueprint, placed
+until done). Read the returned INDEX.md fully: coverage, configured entry points and PageRank reading links.
+Ranks and context headers use saved references/name mentions, not proven runtime dependencies. CATALOG.md
+preserves complete catalogs, settings, notation and the Parse report; follow continuation parts. Read the files
+you need: maps/*.md (level Blueprint, placed
 actors), blueprints/*.md (components, variables, graphs as execution-flow pseudo-code), data/*.md (DataTables,
 structs, enums, behavior trees, input mappings, DataAssets), cpp/CLASSES.md, and real C++ sources through
 read_source_file. Follow returned offsets until complete: file reads use character offsets; lists/globs use item

@@ -71,6 +71,25 @@ def check(fx: dict, out: Path) -> list[str]:
         digest = json.loads((out / "digest.json").read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         return errors + [f"digest.json could not be read: {e}"]
+    if "navigation" in digest:
+        documents = (digest["navigation"] or {}).get("documents") or {}
+        expected_docs = {folder + gp + ".md" for folder, group in
+                         (("blueprints", "blueprints"), ("data", "data_assets"), ("maps", "maps_detail"))
+                         for gp in (digest.get(group) or {})}
+        if (digest.get("cpp") or {}).get("classes"):
+            expected_docs.add("cpp/CLASSES.md")
+        if set(documents) != expected_docs:
+            errors.append("navigation does not cover every rendered asset/C++ document")
+        if {r.get("rank") for r in documents.values()} != set(range(1, len(documents) + 1)):
+            errors.append("navigation ranks are not a complete sequence")
+        if len(index.encode("utf-8")) > 9_000 or not (out / "CATALOG.md").is_file():
+            errors.append("missing full catalog or INDEX exceeds its 9KB budget")
+        for doc, record in documents.items():
+            path = out / doc
+            if not path.is_file() or "Reading context:" not in path.read_text(encoding="utf-8")[:2500]:
+                errors.append(f"{doc}: missing document/context header")
+            if (set(record.get("incoming") or ()) | set(record.get("outgoing") or ())) - documents.keys():
+                errors.append(f"{doc}: unresolved navigation link")
     for key in ("failures", "data_failures", "map_failures"):
         if not isinstance(digest.get(key), dict):
             errors.append(f"digest.json: missing or invalid {key}")

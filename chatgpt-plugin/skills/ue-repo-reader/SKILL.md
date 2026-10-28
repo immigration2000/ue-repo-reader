@@ -15,13 +15,17 @@ Call `analyze_repo` with the URL (a `/tree/<branch>` URL or `ref` selects a bran
 `.uproject` when the repo has several). If the result says `status: running`, call `wait_for_analysis` with
 the `job_id` until it returns `status: done` — big projects take a few minutes. Keep the `digest_id`.
 
-For a cached digest generated before v1.6.0, run `analyze_repo` again with `refresh=true` to get partial-failure warnings.
+Digests include the output version in their identity; re-run `analyze_repo` after an upgrade to get the current layout.
 
 ## 2. Read in this order
 
 1. `INDEX.md` (returned by `analyze_repo`; if it ends with "More: call again with offset=…", read the rest with
-   `read_digest_file`). It has the project summary, maps, Blueprint catalog, data assets, the C++ ↔ Blueprint
-   map, and the parse report, plus the pseudo-code legend.
+   `read_digest_file`). It is a bounded reading map (usually about 2–4k tokens; small projects need fewer),
+   with coverage, configured entry points and PageRank priority links. Scores use saved references and
+   unique-name mentions; they suggest reading order, not runtime calls, dependencies or gameplay importance.
+   Follow relevant links and the incoming/outgoing context in each asset's header. `CATALOG.md` preserves
+   complete project settings, maps/Blueprint/data catalogs, C++ ↔ Blueprint mapping, Enhanced Input check,
+   GameplayTags, full notation and Parse report; follow continuation parts too.
 2. `maps/…md` — game mode override, Level Blueprint, placed gameplay actors with per-instance overrides.
 3. `blueprints/…md` — components, variables, class defaults, event dispatchers, and every graph as
    execution-flow pseudo-code (`event X`, `[true]:`, `#N = Func()`, `→ goto #N` jumps to the line labelled `[#N]`, `return <value>`, `Pin=∅` = unconnected input,
@@ -29,7 +33,7 @@ For a cached digest generated before v1.6.0, run `analyze_repo` again with `refr
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
 5. `cpp/CLASSES.md`, then real C++ via `read_source_file` (a glob like `Source/**/*.h` lists files).
 
-Read **Parse warnings** in each document and the INDEX Parse report. Property/graph-render/Level Blueprint/
+Read **Parse warnings** in each document, INDEX coverage and the CATALOG Parse report. Property/graph-render/Level Blueprint/
 external-actor failures can occur with N/N node coverage. An unreadable Level Blueprint is unknown, not empty;
 values missing after a parse failure are not confirmed class defaults.
 

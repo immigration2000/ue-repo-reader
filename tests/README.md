@@ -19,6 +19,10 @@ T3 에셋 캐시: 기본 단위 검사에서 실제 Git blob SHA, 같은 크기/
 python tests/cache_smoke.py tests/.cache/eg
 ```
 
+T4 검사에서는 PageRank의 순위/정규화/설정 진입점 가중치·고립 노드·결정성, 중복 이름/알 수 없는 경로 무추측,
+실제 참조와 이름 언급의 구분, 300문서/긴 한글 설정의 INDEX 예산, 모든 문서의 머리말/링크와 부분 실패 표시,
+분할된 CATALOG의 Parse report 링크·출력 재사용을 확인한다. 상세 문자열 기대값은 CATALOG로 이동했고 BP/노드 수는 동일하다.
+
 스킬 설치 검사(`skill_install_tests.py`)는 세 도구의 개인/프로젝트 경로 6개에 실제 파일을 복사한다.
 한글·공백·대괄호·쉼표 경로에서 다른 작업 폴더를 cwd로 설치본의 CLI 도움말과 네 리더의 로컬 import를 실행하고,
 기존 파일 보존·존재하지 않는 프로젝트·탐색 경로의 symlink/Windows junction 거부를 확인한다.

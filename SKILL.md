@@ -41,10 +41,12 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
 
 ## 2. Read it in this order
 
-1. `<out>/INDEX.md` — read all of it first. It has the project summary (modules, plugins, default map and
-   game mode), the Blueprint catalog with parents and entry points, the C++ ↔ Blueprint map, the
-   non-Blueprint logic/data assets, the Enhanced Input check (actions handled but never mapped, or mapped
-   but never handled), and the parse report. It also explains the pseudo-code notation.
+1. `<out>/INDEX.md` — read all of it first: bounded reading map (usually about 2–4k tokens; fewer for small
+   projects), coverage/limits, configured entry points and PageRank priority links. Ranks use saved references
+   and unique-name mentions, with configured-entry seeds; they suggest reading order, not runtime behavior
+   or proven dependencies. Follow the links relevant to the question. Each asset starts with context links.
+   `<out>/CATALOG.md` preserves the complete project settings, map/Blueprint/data catalogs, C++ ↔ Blueprint
+   mapping, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
 2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, widget tree (non-default widget
    properties and `[slot …]` layout), property bindings, widget animations, timelines (length, tracks, curve keys), variables, class defaults,
    event dispatchers, and every graph rendered as execution-flow pseudo-code (anim graphs as pose trees,
@@ -67,11 +69,11 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
 Skip `digest.json` (a machine-readable copy of the same facts). A file that ends with
 `→ continued in X.part2.md` is split; read the parts in order.
 
-Read each document's **Parse warnings** and the INDEX Parse report. Property, graph-rendering, Level Blueprint,
+Read each document's **Parse warnings**, the INDEX coverage summary and the CATALOG Parse report. Property, graph-rendering, Level Blueprint,
 and external-actor failures are reported even when all graph nodes have decoded pins. An unreadable Level
 Blueprint is **unknown**, not an empty graph; missing values after a parse failure are not confirmed defaults.
 
-Cross-check both directions: when a Blueprint calls project C++ (`INDEX.md` lists these), read that C++;
+Cross-check both directions: when a Blueprint calls project C++ (`CATALOG.md` lists these), read that C++;
 when C++ declares a `BlueprintImplementableEvent`/`BlueprintNativeEvent`, grep `blueprints/` for the event
 name to find its Blueprint implementation.
 

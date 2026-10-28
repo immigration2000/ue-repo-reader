@@ -88,7 +88,8 @@ python scripts/ue_repo_digest.py <url> --ref dev --project Chapter03/Game   # �
 
 ```
 Project_digest/
-├─ INDEX.md          ← AI가 가장 먼저 읽는 파일
+├─ INDEX.md          ← 진입점·커버리지·PageRank 읽기 순위 (보통 약 2~4k 토큰)
+├─ CATALOG.md        전체 목록·프로젝트 설정·범례·파싱 리포트
 ├─ blueprints/Game/…/BP_X.md   BP 하나당 파일 하나 (콘텐츠 경로 그대로)
 ├─ data/Game/…/DT_X.md         데이터 에셋 하나당 파일 하나
 ├─ maps/Game/…/L_X.md          맵 하나당 파일 하나 (레벨 BP + 배치된 액터)
@@ -96,7 +97,12 @@ Project_digest/
 └─ digest.json       위 내용 전체를 기계가 읽는 형태로
 ```
 
-**INDEX.md**에 들어가는 것:
+**INDEX.md**는 먼저 읽을 문서를 링크합니다. 설정된 진입점에 가중치를 주고 정적 참조·고유 이름 언급으로
+PageRank를 계산합니다. 런타임 호출이나 게임플레이 중요도를 입증하는 점수는 아닙니다. 이름이 겹치면 추측하지 않습니다.
+각 에셋 파일의 머리말에는 순위·해석 상태·들어오는/나가는 문서 링크가 붙습니다.
+INDEX는 최대 약 9KB로 제한하며 토큰 수는 언어·토크나이저에 따라 달라집니다(작은 프로젝트는 더 짧음).
+
+**CATALOG.md**에 보존하는 전체 정보:
 - 프로젝트 정보: 엔진 버전, 모듈, 플러그인, 기본 맵·게임모드·GameInstance, 입력 설정
 - 블루프린트 목록: 종류(일반/위젯/애님), 부모 클래스, 진입점(BeginPlay, 입력, 컴포넌트 이벤트…)
 - **C++ ↔ BP 매핑**: 어떤 C++ 클래스를 어떤 BP가 상속하는지, 어떤 C++ 함수를 어떤 BP가 호출하는지

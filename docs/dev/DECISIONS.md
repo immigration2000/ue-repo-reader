@@ -121,3 +121,16 @@
 - 영향: 새 의존성 없음. JSON/gzip + checksum + atomic replace, 한 항목 32MB·완료 시 LRU 256MB/10,000개.
   실패/부분 결과는 재시도, 손상/권한 오류는 정상 해석으로 복귀. --no-asset-cache로 끄고 --asset-cache-dir로 이동 가능.
   읽기·쓰기·정리에 링크/정션을 허용하지 않으며 캐시와 출력의 겹침은 기존 출력 삭제 전 거부. 포맷/VERSION 유지.
+
+## D-016 INDEX는 읽기 지도, 완전한 목록은 CATALOG로 보존 (2026-10-28, codex)
+- 결정: v1.7.0. 기존 전체 INDEX 내용은 CATALOG.md, 새 INDEX는 진입점·커버리지/경고·PageRank 링크·짧은 범례를 담는다.
+  최대 30개 링크/9KB를 목표로 보통 2~4k 토큰, 작은 프로젝트는 더 짧다. 실제 토큰 수는 언어/토크나이저에 따라 다르다.
+  에셋/C++ 문서 머리말에 순위/해석 상태/인접 문서 링크, JSON navigation에 모든 순위/방향/연결 근거를 저장한다.
+- 이유: 전체 목록부터 읽으면 질문과 무관한 에셋에 토큰을 쓴다. 저장 참조와 이름 언급을 탐색 링크로 사용하되
+  실제 런타임 호출·의존성·게임플레이 중요도를 확정하지 않는다. 동명 에셋/모르는 명시 경로는 추측 연결하지 않는다(T4).
+  PageRank는 공개 알고리즘을 직접 구현(.85 damping, 설정 진입점 seed 5배, dangling 질량 재분배); 코드 복사 없음.
+  알고리즘 근거: https://snap.stanford.edu/class/cs224w-readings/Brin98Anatomy.pdf §2.1.1.
+- 영향: 기존 BP/노드 수량·의사코드 유지. 전체 데이터/실패/입력/태그 검사는 CATALOG로 이동, INDEX는 경고 수량과 report 링크를 유지.
+  CATALOG.partN도 생성 출력으로만 허용하며 report/legend 링크는 실제 분할 파일로 보정한다. 두 SKILL 2절/범례/MCP 지침 갱신.
+  VERSION 변화로 MCP 완성 캐시는 자동 무효화. 원시 에셋 캐시에는 순위/머리말을 저장하지 않아 교차 맥락은 매번 계산.
+  새 실행 의존성 없음; 개발용 tiktoken은 gitignore 캐시에만 설치해 토큰 수를 비교했다.
