@@ -105,3 +105,13 @@ def test_claude_job_tool_scope_and_overlap_guards():
             assert "separate git worktree" in str(error)
         else:
             raise AssertionError("non-worktree edit target allowed")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = job(tmp)
+        with patch.object(C, "save", side_effect=OSError("disk full")):
+            try:
+                C.run(path, "work", ["not launched"], 1)
+            except OSError:
+                pass
+            else:
+                raise AssertionError("initial state write failure ignored")
+        assert not (path / "running.lock").exists(), "startup failure left a stale running lock"

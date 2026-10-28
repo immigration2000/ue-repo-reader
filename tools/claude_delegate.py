@@ -103,8 +103,16 @@ def summarize(path: Path):
 def run(job: Path, prompt: str, argv: list[str], timeout: float):
     """Keep an independent deadline even if the CLI never writes stdout."""
     lock = job / "running.lock"
-    with lock.open("x", encoding="utf-8") as stream:
-        stream.write(str(os.getpid()))
+    stream = lock.open("x", encoding="utf-8")
+    try:
+        with stream:
+            stream.write(str(os.getpid()))
+        return _run_locked(job, prompt, argv, timeout)
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _run_locked(job: Path, prompt: str, argv: list[str], timeout: float):
     state = load(job)
     process = None
     state.update(phase="running", started_at=timestamp(), manager_pid=os.getpid())
@@ -126,9 +134,13 @@ def run(job: Path, prompt: str, argv: list[str], timeout: float):
             def send_prompt():
                 try:
                     process.stdin.write(prompt)
-                    process.stdin.close()
                 except (OSError, ValueError) as error:
                     delivery_errors.append(f"{type(error).__name__}: prompt delivery failed")
+                finally:
+                    try:
+                        process.stdin.close()
+                    except (OSError, ValueError):
+                        pass
             # On Windows communicate(input=...) writes stdin synchronously before checking its deadline.
             # A full pipe must not block stop/timeout if a broken CLI never reads the prompt.
             writer = Thread(target=send_prompt, daemon=True)
@@ -170,10 +182,7 @@ def run(job: Path, prompt: str, argv: list[str], timeout: float):
             stop_process(process)
     finally:
         state.update(finished_at=timestamp(), elapsed_seconds=round(time.monotonic() - started, 2))
-        try:
-            save(job, state)
-        finally:
-            lock.unlink()
+        save(job, state)
     return state
 
 
