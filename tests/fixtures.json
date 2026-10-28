@@ -147,7 +147,7 @@
         "file": "blueprints/Game/BP_NullPointGM.md",
         "must_contain": [
           "- **TempMatching** (5s)",
-          "  - float `NewTrack_1`: internal curve with no keys"
+          "  - float `NewTrack_0`: internal curve with no keys"
         ]
       },
       {
@@ -308,6 +308,40 @@
         "file": "maps/Game/Maps/World.md",
         "must_contain": [
           "World Partition: yes — 138 external actor packages"
+        ]
+      }
+    ]
+  },
+  "bt": {
+    "url": "https://github.com/UnrealCourse/04_BattleTank",
+    "sha": "19ffc19646ad05f6adeed1816897fa529cdefcea",
+    "note": "UE 4.12 (older than supported 4.25: graphs only partly decoded). Kept for UMG property bindings (X8).",
+    "expect": {
+      "blueprints": 11,
+      "nodes": 98,
+      "nodes_ok": 26,
+      "allow_issues": true
+    },
+    "checks": [
+      {
+        "bug": "X8",
+        "file": "blueprints/Game/UI/PlayerUI_BP.md",
+        "must_contain": [
+          "## Property bindings (2",
+          "- AimPoint.ColorAndOpacity ← Get_AimPoint_ColorAndOpacity_0",
+          "- TextBlock_45.Text ← GetText_0",
+          "- TextBlock_45 : TextBlock"
+        ]
+      },
+      {
+        "bug": "B9",
+        "file": "blueprints/Game/UI/HealthBar.md",
+        "must_contain": [
+          "- ProgressBar_0 : ProgressBar",
+          "- ProgressBar_0.Percent ←"
+        ],
+        "must_not_contain": [
+          "ProgressBar_1"
         ]
       }
     ]

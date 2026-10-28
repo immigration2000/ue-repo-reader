@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.8.0"
+VERSION = "1.9.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -141,7 +141,10 @@ def clone(url: str, dest: Path, ref: str | None, asset_max_mb: float = 8.0, map_
         if needed:
             # Fetch only selected missing blobs in one request. A path checkout
             # from a new commit need not auto-fetch them on every Git version.
-            git("fetch", "-q", "--no-tags", "--filter=blob:none", "origin", "--stdin", input="\n".join(needed) + "\n")
+            # Same form git uses for its own promisor (lazy) fetches. Without --no-write-fetch-head and the no-op
+            # negotiation, git 2.43 against GitHub reports "did not send all necessary objects" for blob ids.
+            git("-c", "fetch.negotiationAlgorithm=noop", "fetch", "-q", "--no-tags", "--no-write-fetch-head",
+                "--recurse-submodules=no", "--filter=blob:none", "origin", "--stdin", input="\n".join(needed) + "\n")
         if stale:
             git("update-index", "--force-remove", "-z", "--stdin", input="\0".join(sorted(stale)) + "\0")
             for path in stale:

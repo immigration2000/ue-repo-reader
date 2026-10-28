@@ -122,7 +122,7 @@ def _install_patches() -> None:
     from uasset_read.serializers import graph_node as GN
     from uasset_read.serializers.property_tags import read_property_tag
 
-    orig_i32, orig_bool = A.FArchive.read_i32, A.FArchive.read_bool
+    orig_i32, orig_bool, orig_u32 = A.FArchive.read_i32, A.FArchive.read_bool, A.FArchive.read_u32
 
     def read_i32(self, key=""):
         if key == "Pin.SourceIndex" and not _FIELDS["source_index"]:
@@ -145,6 +145,29 @@ def _install_patches() -> None:
 
     A.FArchive.read_i32 = read_i32
     A.FArchive.read_bool = read_bool
+
+    # FName numbers are stored +1 (0 = no suffix): number N is shown as "Name_{N-1}" by UE (FName::ToString).
+    # uasset_read prints "Name_{N}", so every numbered export/import/name value came out one too high
+    # (e.g. widget "ProgressBar_0", whose FString binding says ProgressBar_0, appeared as ProgressBar_1).
+    orig_read_name = A.FArchive.read_name
+
+    def read_name(self, name_map=None, *args, **kwargs):
+        start = self.tell()
+        result = orig_read_name(self, name_map, *args, **kwargs)
+        end = self.tell()
+        if name_map is None:
+            name_map = getattr(self, "_name_map", None) or []
+        if end - start == 8:
+            try:
+                self.seek(start)
+                index, number = orig_u32(self), orig_u32(self)
+            finally:
+                self.seek(end)
+            if number > 0 and 0 <= index < len(name_map) and result == f"{name_map[index]}_{number}":
+                return f"{name_map[index]}_{number - 1}"
+        return result
+
+    A.FArchive.read_name = read_name
 
     orig_script = GN._read_node_script_serial
 

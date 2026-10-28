@@ -63,8 +63,8 @@ def check(fx: dict, out: Path) -> list[str]:
         errors.append(f"blueprints {bps} != expected {exp['blueprints']}")
     if failed != 0:
         errors.append(f"{failed} Blueprints failed")
-    if ok != total:
-        errors.append(f"nodes decoded {ok}/{total} (some unreadable)")
+    if ok != exp.get("nodes_ok", total):  # nodes_ok: pinned partial coverage for engines older than supported
+        errors.append(f"nodes decoded {ok}/{total} (expected {exp.get('nodes_ok', total)}/{total})")
     if total != exp["nodes"]:
         errors.append(f"node total {total} != expected {exp['nodes']}")
     try:
@@ -103,15 +103,17 @@ def check(fx: dict, out: Path) -> list[str]:
         for gp, summary in digest[key].items():
             if "issues" not in summary or "parse_status" not in summary:
                 errors.append(f"{gp}: missing structured parse status/issues")
-            if summary.get("issues"):
+            if summary.get("issues") and not exp.get("allow_issues"):
                 errors.append(f"{gp}: {len(summary['issues'])} parse/render issues")
-            if summary.get("parse_status") not in (None, "ok"):
+            if summary.get("parse_status") not in (None, "ok") and not (
+                    exp.get("allow_issues") and summary.get("parse_status") == "partial"):
                 errors.append(f"{gp}: parse status {summary['parse_status']}")
             if summary.get("enum_resolution", {}).get("unresolved"):
                 errors.append(f"{gp}: unresolved enum labels")
             if key == "maps_detail":
                 nodes = summary.get("level_bp_nodes")
-                if nodes is None or nodes[0] != nodes[1] or summary.get("level_bp_status") != "ok":
+                if (nodes is None or nodes[0] != nodes[1] or summary.get("level_bp_status") != "ok") and not (
+                        exp.get("allow_issues") and nodes is not None):
                     errors.append(f"{gp}: Level Blueprint incomplete ({nodes}, {summary.get('level_bp_status')})")
                 if any(summary.get(k) for k in ("external_actor_errors", "external_actors_truncated", "external_actors_not_downloaded")):
                     errors.append(f"{gp}: external actors incomplete")

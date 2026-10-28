@@ -11,6 +11,20 @@
 
 ---
 
+## 2026-10-28 12:30 KST · claude · X8 B9 (+X4 회귀 수정)
+- X8: 바인딩 쓰는 공개 저장소 탐색 → `UnrealCourse/04_BattleTank`(HealthBar, PlayerUI_BP), `05_TestingGrounds`(WBP_Score)에서
+  `DelegateEditorBinding` 발견. 출력 확인: `ProgressBar_0.Percent ← GetPercent_0`, `AimPoint.ColorAndOpacity ← Get_AimPoint_ColorAndOpacity_0`.
+  회귀에 `bt`(BattleTank `19ffc19`) 추가 — UE 4.12라 그래프는 26/98만 디코딩(지원 범위 4.25 미만), `nodes_ok`·`allow_issues`로 고정.
+  regress.py가 `expect.nodes_ok`/`allow_issues`를 지원하게 확장(기본값은 기존과 같은 엄격 검사).
+- B9(발견): 바인딩의 FString `ObjectName`(ProgressBar_0)과 위젯 트리(ProgressBar_1)가 1 차이 → uasset_read가 FName 번호를 `_{N}`으로 표시하는 버그.
+  `read_name` 래핑으로 `_{N-1}`(UE 규칙). 시퀀스 첫 분기 `then_0`, 타임라인 `NewTrack_0`, `SizeBox`→`SizeBox_1` 등 이제 에디터와 일치.
+  VERSION 1.9.0, D-019. F7 기대값 `NewTrack_1`→`NewTrack_0`(의도된 변경).
+- X4 회귀 수정: 새 클론에서 필요한 큰 blob을 `fetch --filter=blob:none origin --stdin`으로 받다가 git 2.43 + GitHub에서
+  "did not send all necessary objects"로 실패(기존 캐시 클론만 쓰던 회귀는 못 잡음). git의 lazy fetch와 같은
+  `-c fetch.negotiationAlgorithm=noop fetch --no-write-fetch-head --recurse-submodules=no --filter=blob:none`로 교체 → BattleTank·TestingGrounds 새 클론 성공.
+- 검증: regress 단위 61 + 외부 에셋 6/6(에디터 정답 핀 비교 포함) + 프로젝트 4/4(eg, ar, ves, bt) PASS.
+- 남은 일·주의: **회귀가 캐시된 클론만 쓰면 클론 경로 버그를 놓친다** — 가끔 `tests/.cache/<name>`을 지우고 새 클론으로 돌릴 것.
+
 ## 2026-10-28 11:45 KST · claude · X3 X7
 - X3 (버그 아님): AR `AM_Spider_Hit` 등 UE 4.25 몽타주의 NameMap에 `"0"`, `"1"`이 실제 이름으로 들어 있음 → 섹션 이름이 정말 `0`, `1`.
   FName 해석 문제 아님. 회귀 검사로 고정.

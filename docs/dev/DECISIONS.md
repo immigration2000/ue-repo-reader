@@ -162,3 +162,13 @@
   이름 연결은 매 실행 수행하므로 enum만 변경/삭제해도 의존 데이터의 재파싱 없이 새 상태를 반영한다.
   새 실행 의존성·상위/타 제품 코드 복사 없음. 필드 의미 참고:
   https://dev.epicgames.com/documentation/unreal-engine/API/Runtime/CoreUObject/FByteProperty
+
+## D-019 FName 번호는 UE 표기(Name_{N-1})로 출력 (2026-10-28, claude)
+- 결정: VERSION 1.9.0. 고정 파서의 `FArchive.read_name`을 감싸 저장 번호 N(>0)을 `Name_{N-1}`로 표시한다
+  (UE `FName::ToString`: 0 = 접미사 없음, 저장값은 표시 번호+1). 우리 `Ctx.fname`은 원래 이 규칙이었다.
+- 이유: uasset_read는 `Name_{N}`으로 찍어 번호 붙은 모든 이름(export·import·FName 값)이 1씩 컸다(B9). 근거:
+  FString으로 저장되는 UMG 바인딩 `ObjectName`=`ProgressBar_0` vs 트리 `ProgressBar_1`, 위젯 이름이 `SizeBox`→`SizeBox_2`로
+  `_1`을 건너뜀, 시퀀스 첫 핀이 `then_1`, 타임라인 첫 트랙이 `NewTrack_1`(에디터 기본은 `NewTrack_0`). 수정 후 모두 UE 표기와 일치.
+- 영향: 번호 붙은 컴포넌트·위젯·액터·핀 이름이 바뀐다(노드 수·디코딩 결과는 동일). 이전 요약본과 텍스트 diff 발생, 에셋 캐시는
+  디코더 소스 해시로 자동 무효화. 회귀에 UE 4.12 BattleTank(`bt`, 바인딩 실데이터)를 `nodes_ok`·`allow_issues`로 추가.
+

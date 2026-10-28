@@ -16,6 +16,7 @@
 | B6 | done | claude | 색인 잡음: Used by 자기 참조, `/Script/CoreUObject.Vector_1476395008` 같은 분류 라벨, Niagara 라벨 분리 | S |
 | B7 | done | claude | 구조체 기본값 원시 출력(GUID 붙은 멤버명, `=-143` 객체 인덱스, 벡터 문자열) | S–M |
 | B8 | done | claude | 순수 노드 반복 인라인(SnapDragAxis 8회) → `let` 한 번 | S |
+| B9 | done | claude | FName 번호 +1 표시(uasset_read `Name_{N}` → UE `Name_{N-1}`): 위젯·컴포넌트·액터·핀 이름 전부 (D-019) | S |
 
 ## P1 — 5.8 포맷 견고화, 토큰, 실행 시간
 
@@ -93,6 +94,6 @@
 | X5 | todo | - | 함수 MetaData(툴팁·카테고리·CallInEditor) 표시 | S |
 | X6 | done | claude | 맵 배치 인스턴스의 변수·태그 오버라이드가 요약본에 나오는지 확인(AR LeverBP KeyCard → GameplayTags "미사용" 오판 가능) | S–M |
 | X7 | done | claude | InputAction 에셋 자체의 트리거·모디파이어(IA 단위 설정) 표시 | S |
-| X8 | doing | claude | 위젯 Property bindings 출력 실데이터 검증(테스트 3개 저장소엔 바인딩 없음) — 바인딩 쓰는 공개 저장소로 확인 | S |
+| X8 | done | claude | 위젯 Property bindings 출력 실데이터 검증(테스트 3개 저장소엔 바인딩 없음) — 바인딩 쓰는 공개 저장소로 확인 | S |
 | X9 | todo | - | AnimSequence 노티파이(시퀀스는 크고 LFS 한도에 걸리기 쉬움 → 헤더/노티파이만 읽는 방법 검토) | M |
 
