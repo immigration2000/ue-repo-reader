@@ -97,7 +97,7 @@ def test_partial_map_reporting():
         assert "everything decoded cleanly" not in index and "⚠ unreadable" in index
         _write_digest(root, maps={"/Game/Test": summary})
         errors = regress.check(_fixture(), root)
-        assert any("Level Blueprint incomplete" in e for e in errors)
+        assert any("Level Blueprint not decoded" in e for e in errors)
         assert any("external actors incomplete" in e for e in errors)
 
 
@@ -115,7 +115,7 @@ def test_empty_and_partial_level_blueprints():
         assert partial["summary"]["issues"][0]["stage"] == "level_blueprint.nodes"
         assert "everything decoded cleanly" not in _index(root, maps={"/Game/Test": partial})
         _write_digest(root, maps={"/Game/Test": partial["summary"]})
-        assert any("Level Blueprint incomplete" in e for e in regress.check(_fixture(), root))
+        assert any("Level Blueprint 1/2 partial" in e for e in regress.check(_fixture(), root))
 
 
 def test_graph_render_failure_reporting():
@@ -147,7 +147,7 @@ def test_graph_render_failure_reporting():
         assert "injected graph failure" in bp["markdown"]
         assert "everything decoded cleanly" not in _index(root, bps={"/Game/Test": bp})
         _write_digest(root, bps={"/Game/Test": bp["summary"]})
-        assert any("parse/render issues" in e for e in regress.check(_fixture(1, 1), root))
+        assert any("unexpected parse issue" in e for e in regress.check(_fixture(1, 1), root))
 
 
 def test_property_failure_reporting():
@@ -211,7 +211,7 @@ def test_data_failure_defaults_unknown():
         assert "defaults are unknown" in data["markdown"] and "everything is at its class defaults" not in data["markdown"]
         assert "everything decoded cleanly" not in _index(root, data={"/Game/Data": data})
         _write_digest(root, data={"/Game/Data": data["summary"]})
-        assert any("parse/render issues" in e for e in regress.check(_fixture(), root))
+        assert any("unexpected parse issue" in e for e in regress.check(_fixture(), root))
 
 
 def test_regress_checks_non_blueprint_failures():

@@ -326,12 +326,48 @@
   "bt": {
     "url": "https://github.com/UnrealCourse/04_BattleTank",
     "sha": "19ffc19646ad05f6adeed1816897fa529cdefcea",
-    "note": "UE 4.12 (older than supported 4.25: graphs only partly decoded). Kept for UMG property bindings (X8).",
+    "note": "UE 4.12 (older than supported 4.25: graphs only partly decoded). Kept for UMG property bindings (X8). Its known limitations are pinned per asset below: blueprint_nodes and level_blueprints list every rendered Blueprint/map, and known_issues lists the exact [stage, context, message] of every accepted parse issue. Anything new, changed or extra fails — widen a pin only with a WORKLOG reason.",
     "expect": {
       "blueprints": 11,
       "nodes": 98,
       "nodes_ok": 26,
-      "allow_issues": true
+      "data_assets": 0,
+      "maps": 4,
+      "external_actors": 0,
+      "blueprint_nodes": {
+        "/Game/Blueprints/BattleTankGameMode_BP": [0, 3],
+        "/Game/Blueprints/TankAIController_BP": [0, 3],
+        "/Game/Blueprints/TankPlayerController_BP": [0, 5],
+        "/Game/Experiments/ConstraintTest": [4, 4],
+        "/Game/Mortar/Mortar_BP": [0, 6],
+        "/Game/Projectile/Projectile_BP": [4, 4],
+        "/Game/Tank/SprungWheel_BP": [4, 4],
+        "/Game/Tank/Tank_BP": [14, 41],
+        "/Game/UI/HealthBar": [0, 6],
+        "/Game/UI/MainMenu_BP": [0, 9],
+        "/Game/UI/PlayerUI_BP": [0, 13]
+      },
+      "level_blueprints": {
+        "/Game/_Levels/BattleGround": [0, 2, "partial"],
+        "/Game/_Levels/BattleGround_MovementTest": [1, 2, "partial"],
+        "/Game/_Levels/MainMenu": [0, 6, "partial"],
+        "/Game/_Levels/SpringTestBed": [0, 0, "ok"]
+      },
+      "known_issues": {
+        "maps_detail": {
+          "/Game/_Levels/BattleGround": [
+            ["level_blueprint.nodes", "/Game/_Levels/BattleGround", "0/2 nodes decoded"]
+          ],
+          "/Game/_Levels/BattleGround_MovementTest": [
+            ["level_blueprint.nodes", "/Game/_Levels/BattleGround_MovementTest", "1/2 nodes decoded"]
+          ],
+          "/Game/_Levels/MainMenu": [
+            ["properties", "Brush_5./Engine/EngineMaterials/WorldGridMaterial_771751935", "invalid property type None"],
+            ["level_blueprint.properties", "MainMenu./Engine/EngineMaterials/WorldGridMaterial_2550136831", "invalid property type /Engine/EngineMaterials/WorldGridMaterial_16777216"],
+            ["level_blueprint.nodes", "/Game/_Levels/MainMenu", "0/6 nodes decoded"]
+          ]
+        }
+      }
     },
     "checks": [
       {
