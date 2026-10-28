@@ -16,6 +16,7 @@ MANIFEST = ROOT / "asset_fixtures.json"
 sys.path.insert(0, str(ROOT.parent / "scripts"))
 import bp_reader as B
 import data_reader as D
+import graph_ir as G
 
 
 def blob_hash(data: bytes) -> str:
@@ -60,6 +61,27 @@ def check_case(case: dict, cache: Path) -> None:
             assert pin_id == stored_guid, f"wrong pin identity in {name}: {pin_id}"
             assert str(pin.default_text_value) == expected["source"], f"wrong text in {name}"
             assert expected["source"] in rendered["markdown"], f"text missing from Markdown: {name}"
+            # New projection oracles target 5.7+; legacy assets retain their
+            # previous checks. In particular the 4.27 oracle's package location
+            # differs from its saved package identity; do not guess a new mapping.
+            if tuple(map(int, case["engine"].split(".")[:2])) >= (5, 7):
+                ir_nodes = [node for graph in rendered["summary"]["graph_ir"]["graphs"] for node in graph["nodes"]
+                            if node["object_path"] == expected["objectPath"].replace(":", ".", 1)]
+                assert len(ir_nodes) == 1, f"missing/ambiguous IR oracle node {expected['objectPath']}"
+                assert len(ir_nodes[0]["pins"]) == len(nodes[name].pins), f"IR dropped decoded pins in {name}"
+                ir_pins = [p for p in ir_nodes[0]["pins"] if p["index"] == expected["pinIndex"]]
+                assert len(ir_pins) == 1, f"missing/ambiguous IR oracle pin in {name}"
+                ir_guid = ir_pins[0]["guid"]
+                assert isinstance(ir_guid, str) and re.sub("[^0-9A-Fa-f]", "", ir_guid).upper() == stored_guid, f"wrong IR pin identity in {name}"
+                assert ir_pins[0]["defaults"]["default_text_value"] == expected["source"], f"wrong IR text in {name}"
+                # Confirm the full field contract exists on the actual pinned
+                # decoder, not only the synthetic models used by fast tests.
+                for field in G._PIN_FIELDS:
+                    assert ir_pins[0][field] == getattr(pin, field), (name, field)
+                for field in G._DEFAULT_FIELDS:
+                    assert ir_pins[0]["defaults"][field] == getattr(pin, field), (name, field)
+                for field in G._TYPE_FIELDS:
+                    assert ir_pins[0]["type"][field] == getattr(pin.pin_type, field), (name, field)
     elif case["kind"] == "string_table":
         rendered = D.read_data_asset(str(path), "/Game/Legacy/ST_LegacyText", "StringTable")
         table = next(p for p in oracle["packages"] if p["asset_name"] == "ST_LegacyText")

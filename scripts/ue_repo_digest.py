@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.12.0"
+VERSION = "1.13.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -914,7 +914,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "    non-default transition settings",
            f"- Coverage: {len(bps)} Blueprints rendered, {len(failures)} failed; graph nodes decoded {ok_nodes}/{total_nodes}.",
            "  A Blueprint file says `⚠ N nodes unreadable` when part of a graph could not be decoded.",
-           "- `Parse warnings` lists property/graph/actor failures. Node coverage counts decoded pins only;",
+           "- `Parse warnings` lists property/graph/actor failures. Node N/N counts nodes with at least one decoded pin;",
+           "  it cannot detect a truncated pin list or prove semantic correctness.",
            "  check these warnings too. A failed Level Blueprint is unknown, not an empty graph or 0/0 success.",
            "- Maps are rendered under `maps/`: Level Blueprint, placed actors with per-instance overrides, game mode.",
            "  Map tables are compact previews. Full decoded actor/root-component saved properties are in",
@@ -927,6 +928,9 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- GameplayTags (definitions, users, undefined tags) are in `config/GameplayTags.md` when the project has any.",
            "- Files longer than ~60k characters are split: `X.md` ends with a link to `X.part2.md`.",
            "- `digest.json` is the same information for scripts — don't read it to understand the project.",
+           "  Scripts can inspect `blueprints[path].graph_ir` / `maps_detail[path].level_bp_graph_ir` for versioned",
+           "  node/pin identities, decoded types/defaults and saved pin references. Check status and issues;",
+           "  complete means projection coverage, not verified gameplay semantics. Node properties/CDOs are outside this IR.",
            "- `INDEX.md` is a bounded reading map; this full catalog preserves every listed asset and warning.",
            "  Asset context headers link nearby documents ranked by static references/name mentions, not runtime behavior.",
            "- This is a static read of saved assets: it cannot show runtime values, and names are the internal",

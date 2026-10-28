@@ -41,6 +41,11 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
    Extra class defaults show at most 40 values and report further values, opaque/native data and unexpanded subobjects.
    Omitted values are unknown here, not confirmed defaults. A display notice alone is not a parse failure,
    and complete BP/data saved values are not yet retained elsewhere; inspect the asset for missing detail.
+   Machine comparisons can use `digest.json` → `blueprints[path].graph_ir` (maps: `maps_detail[path].level_bp_graph_ir`).
+   It retains nonempty parsed graphs, node identity/class, pin types/defaults and saved references, with status/issues.
+   `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists. IDs belong to this asset snapshot;
+   unresolved/ambiguous links have no inferred target. Node properties/CDOs are outside the IR. Prefer Markdown
+   for normal analysis and avoid loading the entire JSON into context.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
    Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.
    Saved names/numbers are preserved; integers for serialized names come from that enum's value table.

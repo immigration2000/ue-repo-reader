@@ -201,7 +201,8 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             "- Anim pose trees use `←`; transitions use `A → B when <rule>`. `when auto (...)` waits for the current "
             "animation to finish; `when never` is constant False. Flags describe saved function/variable settings.",
             "- Saved data is static. Missing values after a parse failure are unknown; an unreadable Level Blueprint "
-            "is unknown, not empty. Node N/N counts decoded pins only. Read Parse warnings even at N/N.",
+            "is unknown, not empty. Node N/N means at least one pin decoded per node; it cannot detect truncated pin lists "
+            "or prove semantics. Read Parse warnings even at N/N.",
             "- `Map<K, V>` shows key/value types; `?` in a type means unspecified or unreadable, with no concrete type inferred.",
             "- `…(+N)` counts entries/fields omitted by compact display. CDO previews also count opaque/native values and "
             "unexpanded subobjects. Omitted values are unknown here, not defaults; a display notice is not a parse failure.",
@@ -212,7 +213,9 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             "- `// Function metadata` / `// Function tooltip` describe saved Category, CallInEditor and ToolTip on function entries. "
             "They are descriptive comments; absent fields are not inferred.",
             "- [Full legend](<CATALOG.md#how-to-read-this-digest>) · [C++ index](<cpp/CLASSES.md>): "
-            "read real C++ sources for implementations. Skip `digest.json` when reading; it repeats facts for scripts.", ""]
+            "read real C++ sources for implementations. Skip `digest.json` when reading; it repeats facts for scripts.",
+            "- Structured pin comparison: `blueprints[path].graph_ir` / `maps_detail[path].level_bp_graph_ir` in JSON. "
+            "Its complete status means projection coverage, not verified gameplay semantics; check issues.", ""]
     shown = 0
     for doc, record in records.items():
         row = f"| {record['rank']} | {link(doc)} | {record['kind']} | {len(record['incoming'])} / {len(record['outgoing'])} | {record['score']:.4f} |"

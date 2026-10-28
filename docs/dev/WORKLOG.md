@@ -11,6 +11,30 @@
 
 ---
 
+## 2026-10-28 16:35 KST · codex · Q9 (W3/W1 공통 핀 구조·정답 비교 기반)
+- 한 일: v1.13.0. scripts/graph_ir.py의 스키마 1을 BP graph_ir / 맵 level_bp_graph_ir에 연결.
+  원본 노드/export 정체성, 핀 타입·전체 텍스트/기본 객체 경로, 저장 참조와 원래 소유자를 보존.
+  미확정/중복/잘못된 필드와 객체 경로는 unknown+issue, 모호한 연결은 후보만 보존하고 대상을 추정하지 않음.
+  parent/subpin/pass-through의 같은 노드 관례는 별도 basis이며 linked_to에는 적용하지 않음. 누락 노드 수 교차 검사 포함.
+  두 SKILL·INDEX/CATALOG·README·docs/GRAPH_IR.md와 버전을 동기화, graph_ir.py도 캐시 fingerprint에 포함(D-025).
+- 실제 Claude 교차검토: 5f30197e-dcde-4e3b-96f0-d322cf04aaae 읽기 전용 3회. Codex가 기본 객체 경로/부재 전파,
+  선언 필드의 무고지 생략, 저장키와 파생키 충돌, graph/node GUID 원문과 pin GUID 저장 바이트 순서, 핀 범위 고지를 보완.
+  실제 고정 디코더 필드 존재 및 eg GridSlot 참조 1120/1120개의 owning_node_object를 확인해 감사의 가정을 정정했고,
+  bt 구조 참조 31개는 로컬 소유자 보완 뒤에도 어떤 그래프 핀 GUID와도 일치하지 않음을 대조. Claude가 정정/최종 수정 수용.
+- 검증: 전체 regress 단위 90/90 + 독립 외부 에셋 6/6 + 고정 프로젝트 4/4 PASS. 5.7/5.8 pin ID/텍스트를
+  공개 IR에도 에디터 정답 대조하며, 실제 모델의 계약 필드/핀 수를 확인. 올바른 parser/Markdown과 틀린 IR을 섞으면 실패함.
+  값/타입/연결 변경·동일 GUID의 다른 소유자·중복/누락/다른 그래프·구조용 연결·정상/미확정 기본 객체/추가 키 반례 PASS.
+  bt는 원래 26/98·5개 issue 유지, 새 IR 진단 85개를 정확히 고정. 새 오류/중복/사라짐/개별 해석 수 감소 검사는 계속 실패함.
+  두 skill quick_validate·버전 일치·diff --check PASS. 기대값 확장 사유는 D-025이며 구버전 디코더 기능을 넓히지 않음.
+- 캐시/크기: 최신 eg fresh/warm/disabled의 101개 출력 byte-identical. warm 97 hits/0 misses·오류0.
+  digest.json은 Q8 655468 → 9755602 bytes, 전체 값/구조를 보존해 증가함. 캐시 97개 압축 합계635048 bytes,
+  최대 비압축 entry2497867 bytes(상한32000000 미만). 이 사례에서 상한 누락/조기 퇴출 없음. 보통 독해는 Markdown을 우선함.
+- 남은 일·주의: Q9 done, 관리 실행 accepted/실행 중 없음. complete는 디코더가 노출한 핀의 투영 범위이며
+  N/N은 노드에 핀이 하나 이상 있다는 뜻. 핀 전체/게임플레이 의미/기본 객체의 독립 정답 보증이 아님.
+  node 속성·CDO·빈 그래프·영구 diff 식별자·런타임 값은 범위 밖. Q1 전체 의미/객체 기본값의 정답 확보와 W2 전체 값 보존은 남음.
+  다음 우선순위는 Q10(UE 5.7+ 프로젝트 지원 경계); 실제 버전 제한은 아직 미적용. 캐시 초대형 entry 무고지 skip은 기존 후속 성능 항목.
+  등록된 개인 스킬의 깨끗한 동일 origin main이 1.3.0인 것을 확인했으며, push 후 설치본을 업데이트/실행 검증할 예정.
+
 ## 2026-10-28 16:02 KST · claude/codex · Q8 (W0의 무고지 표시 생략 제거)
 - 한 일: 실제 Claude Code가 BP dict 6개/구조체 8개·데이터 구조체 10개 표시 상한에 정확한 …(+N)을 추가.
   추가 CDO 40개 뒤의 값, native/opaque·미확정 참조와 미확장 subobject는 수량/제한된 이름 안내를 출력.

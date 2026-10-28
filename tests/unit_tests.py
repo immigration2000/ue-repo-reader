@@ -24,6 +24,13 @@ from display_limits_tests import (test_blueprint_dict_and_struct_previews_mark_e
                                   test_cdo_without_any_printable_value_still_reports_what_is_missing,
                                   test_cdo_keeps_literal_strings_that_only_look_like_opaque_markers,
                                   test_cdo_notice_reaches_blueprint_markdown_and_is_not_a_parse_failure)
+from graph_ir_tests import (test_graph_ir_full_pin_literals_and_type_fields,
+                            test_graph_ir_owner_scopes_shared_guids_and_keeps_observations,
+                            test_graph_ir_never_guesses_missing_ambiguous_or_cross_graph_targets,
+                            test_graph_ir_duplicate_pin_and_invalid_values_remain_unknown,
+                            test_graph_ir_semantic_mutations_visible_without_rendering,
+                            test_graph_ir_object_defaults_and_unknown_reference_fields_are_not_lost,
+                            test_graph_ir_partial_decode_and_structural_pin_references)
 from failure_tests import (test_partial_map_reporting, test_empty_and_partial_level_blueprints,
                           test_graph_render_failure_reporting, test_property_failure_reporting,
                           test_data_failure_defaults_unknown, test_regress_checks_non_blueprint_failures,

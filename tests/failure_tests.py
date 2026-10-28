@@ -138,7 +138,8 @@ def test_graph_render_failure_reporting():
             for name, value in (("_parse", (result, (1, 1))), ("Ctx", ctx), ("_find_blueprint_object", (None, None)),
                                 ("_graph_key", "EventGraph"), ("GraphRenderer", renderer), ("_components", []),
                                 ("_widget_tree", []), ("_timelines", []), ("_variables", ([], set())),
-                                ("_variable_metadata", {}), ("_cdo_lines", [])):
+                                ("_variable_metadata", {}), ("_cdo_lines", []),
+                                ("build_graph_ir", {"status": "complete", "schema_version": 1, "issues": []})):
                 stack.enter_context(patch.object(B, name, return_value=value))
             bp = B.read_blueprint(str(path), "/Game/Test")
         assert bp["summary"]["nodes_ok"] == bp["summary"]["nodes_total"] == 1

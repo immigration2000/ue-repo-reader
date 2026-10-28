@@ -356,15 +356,480 @@
       "known_issues": {
         "maps_detail": {
           "/Game/_Levels/BattleGround": [
-            ["level_blueprint.nodes", "/Game/_Levels/BattleGround", "0/2 nodes decoded"]
+            [
+              "level_blueprint.nodes",
+              "/Game/_Levels/BattleGround",
+              "0/2 nodes decoded"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "?EventGraph",
+              "graph object path unavailable; identity is local to this projection"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "?EventGraph/ordinal:0",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "?EventGraph/ordinal:1",
+              "node export identity unavailable; ordinal is local to this projection"
+            ]
           ],
           "/Game/_Levels/BattleGround_MovementTest": [
-            ["level_blueprint.nodes", "/Game/_Levels/BattleGround_MovementTest", "1/2 nodes decoded"]
+            [
+              "level_blueprint.nodes",
+              "/Game/_Levels/BattleGround_MovementTest",
+              "1/2 nodes decoded"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "/Game/_Levels/BattleGround_MovementTest.umap.BattleGround_MovementTest.PersistentLevel.BattleGround_MovementTest.EventGraph/ordinal:1",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "/Game/_Levels/BattleGround_MovementTest.umap.BattleGround_MovementTest.PersistentLevel.BattleGround_MovementTest.EventGraph/export:65/pin:7810a6538603884d9f9de70e0afee040.sub_pins[0]",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "/Game/_Levels/BattleGround_MovementTest.umap.BattleGround_MovementTest.PersistentLevel.BattleGround_MovementTest.EventGraph/export:65/pin:7810a6538603884d9f9de70e0afee040.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "level_blueprint.graph_ir",
+              "/Game/_Levels/BattleGround_MovementTest.umap.BattleGround_MovementTest.PersistentLevel.BattleGround_MovementTest.EventGraph/export:65/pin:7810a6538603884d9f9de70e0afee040.defaults.default_object_path",
+              "default object path unavailable; object identity is unknown"
+            ]
           ],
           "/Game/_Levels/MainMenu": [
-            ["properties", "Brush_5./Engine/EngineMaterials/WorldGridMaterial_771751935", "invalid property type None"],
-            ["level_blueprint.properties", "MainMenu./Engine/EngineMaterials/WorldGridMaterial_2550136831", "invalid property type /Engine/EngineMaterials/WorldGridMaterial_16777216"],
-            ["level_blueprint.nodes", "/Game/_Levels/MainMenu", "0/6 nodes decoded"]
+            [
+              "properties",
+              "Brush_5./Engine/EngineMaterials/WorldGridMaterial_771751935",
+              "invalid property type None"
+            ],
+            [
+              "level_blueprint.properties",
+              "MainMenu./Engine/EngineMaterials/WorldGridMaterial_2550136831",
+              "invalid property type /Engine/EngineMaterials/WorldGridMaterial_16777216"
+            ],
+            [
+              "level_blueprint.nodes",
+              "/Game/_Levels/MainMenu",
+              "0/6 nodes decoded"
+            ]
+          ]
+        },
+        "blueprints": {
+          "/Game/Blueprints/TankPlayerController_BP": [
+            [
+              "graph_ir",
+              "/Game/Blueprints/TankPlayerController_BP.TankPlayerController_BP.EventGraph/ordinal:1",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Blueprints/TankPlayerController_BP.TankPlayerController_BP.EventGraph/ordinal:2",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Blueprints/TankPlayerController_BP.TankPlayerController_BP.EventGraph/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ]
+          ],
+          "/Game/Experiments/ConstraintTest": [
+            [
+              "graph_ir",
+              "/Game/Experiments/ConstraintTest.ConstraintTest.EventGraph/export:8/pin:bdc0c339fce5194b86d5c17d2ddb9892.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Experiments/ConstraintTest.ConstraintTest.EventGraph/export:9/pin:b30d7c8fa2ab7943a1e4e796c26bc36d.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Experiments/ConstraintTest.ConstraintTest.EventGraph/export:10/pin:b440459d6068f04ca084491fa590bc52.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Experiments/ConstraintTest.ConstraintTest.UserConstructionScript/export:11/pin:7c68a6f0e3c6de43b00dca824b3d183e.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ]
+          ],
+          "/Game/Mortar/Mortar_BP": [
+            [
+              "graph_ir",
+              "/Game/Mortar/Mortar_BP.Mortar_BP.EventGraph/ordinal:1",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Mortar/Mortar_BP.Mortar_BP.EventGraph/ordinal:2",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Mortar/Mortar_BP.Mortar_BP.EventGraph/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Mortar/Mortar_BP.Mortar_BP.EventGraph/ordinal:4",
+              "node export identity unavailable; ordinal is local to this projection"
+            ]
+          ],
+          "/Game/Projectile/Projectile_BP": [
+            [
+              "graph_ir",
+              "/Game/Projectile/Projectile_BP.Projectile_BP.EventGraph/export:6/pin:f8e2bf12ebb9ab409ae5b7040685e3e7.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Projectile/Projectile_BP.Projectile_BP.EventGraph/export:7/pin:3859836f83fc6e4a8ed30a8080bc7ae9.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Projectile/Projectile_BP.Projectile_BP.EventGraph/export:8/pin:4599cd5eb6e3804d8c3e76470bdc3612.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Projectile/Projectile_BP.Projectile_BP.UserConstructionScript/export:9/pin:2eeba5de55b41b4eb72d4142415197dd.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ]
+          ],
+          "/Game/Tank/SprungWheel_BP": [
+            [
+              "graph_ir",
+              "/Game/Tank/SprungWheel_BP.SprungWheel_BP.EventGraph/export:6/pin:080eeb7450cdab46816c077ce3f0c04f.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/SprungWheel_BP.SprungWheel_BP.EventGraph/export:7/pin:c0da8c311c97fc4ab2ee84338453b110.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/SprungWheel_BP.SprungWheel_BP.EventGraph/export:8/pin:213dacc6c85cf446840aab788e8a7d29.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/SprungWheel_BP.SprungWheel_BP.UserConstructionScript/export:9/pin:f18f7403c7506842b82c937b4051801f.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ]
+          ],
+          "/Game/Tank/Tank_BP": [
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/ordinal:4",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/ordinal:5",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/ordinal:6",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/ordinal:7",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/ordinal:8",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/ordinal:9",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/export:62/pin:9dbf618d2e717a42a2304628d0a35254.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/export:78/pin:a16107e06d9a9c48ac1ee2e24885c1bc.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/export:76/pin:6af6d189bc57174eb9c620024fdd90e7.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.EventGraph/export:77/pin:2da2aa0b6dcdbe418f95cb3041fc084e.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:9",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:10",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:11",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:12",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:13",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:14",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:15",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:16",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:17",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:18",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:19",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:20",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:21",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:22",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:23",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:24",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/ordinal:25",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/export:70/pin:e12c80322fd6474c83ce77580b0393f6.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/export:69/pin:d88f3d4868daa84081e714c2c906bb98.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/export:68/pin:6b7d23f0065c1f4ba0e29051215b852f.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/export:71/pin:90e71be0b0b4ce43904ada9083caafdf.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/export:83/pin:ca54b7955e729742bf1333286530c599.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.Input Setup/export:82/pin:a02e95957b474a4ea199aeb2ce77c17e.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/ordinal:4",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/ordinal:5",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/ordinal:6",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/export:63/pin:4fcff76f98425b4584ff2b19b20e7456.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/export:63/pin:4fcff76f98425b4584ff2b19b20e7456.ref_pass_through",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/export:65/pin:dde62038fc2d814b816cb153cf81c57d.ref_pass_through",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/export:72/pin:9d53f33299587149b4aeeaaa68b601e1.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.InitialiseHealthBarWidget/export:72/pin:9d53f33299587149b4aeeaaa68b601e1.ref_pass_through",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.UserConstructionScript/export:64/pin:82bfba53d12a2b47ac9f227736caa683.parent_pin",
+              "unresolved saved pin reference; no target inferred"
+            ],
+            [
+              "graph_ir",
+              "/Game/Tank/Tank_BP.Tank_BP.UserConstructionScript/export:64/pin:82bfba53d12a2b47ac9f227736caa683.ref_pass_through",
+              "unresolved saved pin reference; no target inferred"
+            ]
+          ],
+          "/Game/UI/HealthBar": [
+            [
+              "graph_ir",
+              "/Game/UI/HealthBar.HealthBar.GetPercent/ordinal:2",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/HealthBar.HealthBar.GetPercent/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ]
+          ],
+          "/Game/UI/MainMenu_BP": [
+            [
+              "graph_ir",
+              "/Game/UI/MainMenu_BP.MainMenu_BP.EventGraph/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/MainMenu_BP.MainMenu_BP.EventGraph/ordinal:4",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/MainMenu_BP.MainMenu_BP.EventGraph/ordinal:5",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/MainMenu_BP.MainMenu_BP.EventGraph/ordinal:6",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/MainMenu_BP.MainMenu_BP.EventGraph/ordinal:7",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/MainMenu_BP.MainMenu_BP.EventGraph/ordinal:8",
+              "node export identity unavailable; ordinal is local to this projection"
+            ]
+          ],
+          "/Game/UI/PlayerUI_BP": [
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.Get_AimPoint_ColorAndOpacity/ordinal:2",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.Get_AimPoint_ColorAndOpacity/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.Get_AimPoint_ColorAndOpacity/ordinal:4",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.GetText_0/ordinal:2",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.GetText_0/ordinal:3",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.GetText_0/ordinal:4",
+              "node export identity unavailable; ordinal is local to this projection"
+            ],
+            [
+              "graph_ir",
+              "/Game/UI/PlayerUI_BP.PlayerUI_BP.GetText_0/ordinal:5",
+              "node export identity unavailable; ordinal is local to this projection"
+            ]
           ]
         }
       }

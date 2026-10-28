@@ -21,6 +21,7 @@ import time
 from contextlib import contextmanager
 from pathlib import Path
 from enum_values import EnumScalar
+from graph_ir import build_graph_ir
 
 UASSET_READ_REPO = "https://github.com/soatori/uasset_read.git"
 UASSET_READ_COMMIT = "b10a83a592e43156d17b9cdc0948790b1ab486f9"  # v0.5.4.44, MIT (v0.5.4.45 only removed the LICENSE file)
@@ -2113,6 +2114,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
         return (rank, path)
 
     ordered = sorted(order, key=sort_key)
+    graph_ir = build_graph_ir(((key, graphs[key]) for key in ordered), ctx, game_path, ok_nodes, total_nodes)
+    ctx.issues.extend({"stage": "graph_ir", **issue} for issue in graph_ir["issues"])
 
     md = [f"# {asset_name}", "",
           f"`{game_path}` · {kind} · parent **{parent}**" + (f" · implements {', '.join(interfaces)}" if interfaces else ""),
@@ -2169,7 +2172,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     summary = {"path": game_path, "kind": kind, "parent": parent, "interfaces": interfaces,
                "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
                "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [],
-               "function_metadata": [], "issues": ctx.issues,
+               "function_metadata": [], "graph_ir": graph_ir, "issues": ctx.issues,
                "gameplay_tags": sorted(collect_gameplay_tags(list(cdo_props.values())))}
 
     dispatchers = []
@@ -2234,6 +2237,11 @@ def read_blueprint(path: str, game_path: str) -> dict:
         md += ["## Event dispatchers", *dispatchers, ""]
     md.append("## Graphs")
     md += body if body else ["(no graphs)"]
+    md += ["", "## Graph IR coverage", "",
+           f"Saved pin projection: **{graph_ir['status']}** · schema {graph_ir['schema_version']}. "
+           "Machine-readable nodes, pin types/defaults and saved references: `digest.json` → `blueprints[path].graph_ir` "
+           "(maps: `maps_detail[path].level_bp_graph_ir`). This excludes node properties, class defaults and runtime semantics; "
+           "complete means coverage of decoder-exposed pins, not verified gameplay behavior or detection of truncated pin lists."]
     md += issue_markdown(ctx.issues)
     summary["parse_status"] = "partial" if ctx.issues or ok_nodes < total_nodes else "ok"
     summary["calls"] = sorted(summary["calls"])

@@ -59,6 +59,11 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    Extra class defaults show at most 40 values, with counts for the remainder and for opaque/native values
    or subobjects not expanded. These notices describe incomplete display, not confirmed defaults or parse errors.
    Omitted BP/data values are not yet preserved in a complete structured record; inspect the asset for the missing detail.
+   For machine comparisons, `digest.json` → `blueprints[path].graph_ir` retains nonempty parsed graphs,
+   node identities/classes, pin types/defaults and saved pin references; maps use `maps_detail[path].level_bp_graph_ir`.
+   Check its `status`/`issues`. `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists.
+   IDs are local to an asset snapshot; unresolved/ambiguous links have no inferred target. Node properties/CDOs
+   are outside this IR. Keep reading Markdown for normal analysis; do not load the entire JSON into context.
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment

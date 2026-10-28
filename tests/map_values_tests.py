@@ -93,12 +93,14 @@ def test_map_full_values_reach_summary_and_cache_with_external_identity():
                                    "saved_properties": {"P": list(range(30))}}}]
             def close(self): pass
         info = {"game_mode": None, "game_mode_known": True, "world_partition": True, "streaming": [], "settings": []}
-        bp = {"markdown": "## Graphs\n(no graphs)", "summary": {"issues": [], "parse_status": "ok", "nodes_ok": 0, "nodes_total": 0}}
+        ir = {"schema_version": 1, "status": "complete", "graphs": []}
+        bp = {"markdown": "## Graphs\n(no graphs)", "summary": {"issues": [], "parse_status": "ok", "nodes_ok": 0, "nodes_total": 0, "graph_ir": ir}}
         with patch.object(B, "ensure_uasset_read"), patch.object(B, "_install_patches"), \
                 patch.object(B, "newer_format_note", return_value=""), patch.object(M, "PackageActors", Package), \
                 patch.object(M, "_world_info", return_value=info), patch.object(B, "read_blueprint", return_value=bp):
             result = M.read_map(str(main), "/Plugin/Map", [str(path) for path in external])
         actors = result["summary"]["actors"]
+        assert result["summary"]["level_bp_graph_ir"] == ir
         assert len(actors) == result["summary"]["actor_count"] == 3
         assert len({actor["source_package"] for actor in actors}) == 3
         assert actors[1]["source_package"] == "/Plugin/__ExternalActors__/Map/A/Same"

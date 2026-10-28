@@ -36,16 +36,22 @@ def test_regress_detects_missing_assets():
 
 
 def test_asset_oracle_rejects_wrong_text():
+    from graph_ir_tests import pin as make_pin, node as make_node, project
     with _scratch() as tmp:
         root = Path(tmp)
         expected = [{"objectPath": "/Game/Keys.BP:EventGraph.split", "pinIndex": 0,
                      "pinId": "0102030405060708090A0B0C0D0E0F10", "source": "oracle source"}]
         (root / "expected.json").write_text(json.dumps(expected), encoding="utf-8")
         case = {"kind": "blueprint", "engine": "5.8", "asset": {"path": "BP.uasset"}, "oracle": {"path": "expected.json"}}
-        pin = NS(pin_id="04030201080706050C0B0A09100F0E0D", default_text_value="wrong text")
-        node = NS(_export_object_name="split", pins=[pin])
+        pin = make_pin("04030201080706050C0B0A09100F0E0D", default_text_value="wrong text")
+        node = make_node("split", 1, [pin])
         graph = NS(nodes=[node], subgraphs=[])
-        rendered = {"markdown": "oracle source", "summary": {"issues": [], "parse_status": "ok"}}
+        ir = project([node])
+        ir["graphs"][0]["nodes"][0]["object_path"] = "/Game/Keys.BP.EventGraph.split"
+        ir_pin = ir["graphs"][0]["nodes"][0]["pins"][0]
+        ir_pin["defaults"]["default_text_value"] = "oracle source"
+        rendered = {"markdown": "oracle source", "summary": {"issues": [], "parse_status": "ok",
+                    "graph_ir": ir}}
         with patch.object(B, "read_blueprint", return_value=rendered), \
              patch.object(B, "_parse", return_value=(NS(graphs=[graph]), (1, 1))), \
              patch.object(B, "_read_summary", return_value=NS(saved_by_engine_version=NS(major=5, minor=8, patch=3))):
@@ -57,6 +63,13 @@ def test_asset_oracle_rejects_wrong_text():
                 raise AssertionError("wrong pin text passed its native oracle")
             pin.default_text_value = "oracle source"
             A.check_case(case, root)
+            ir_pin["defaults"]["default_text_value"] = "incorrect IR text"
+            try:
+                A.check_case(case, root)
+            except AssertionError as e:
+                assert "wrong IR text" in str(e)
+            else:
+                raise AssertionError("corrupted public IR passed with correct parser/Markdown text")
 
 
 def _pinned_digest(exp: dict) -> dict:
@@ -119,7 +132,7 @@ def test_regress_accepts_only_pinned_parse_issues():
         _write_pinned(root, digest)
         assert any("unexpected parse issue" in e and "Brush_9" in e for e in regress.check({"expect": exp}, root))
 
-        # A new issue inside a Blueprint that currently decodes without any issue.
+        # A new kind of issue inside a Blueprint, even one with pinned projection gaps.
         digest = _pinned_digest(exp)
         digest["blueprints"]["/Game/Tank/Tank_BP"]["issues"].append(
             {"stage": "graph_render", "context": "EventGraph", "message": "ValueError: injected"})
@@ -147,17 +160,19 @@ def test_regress_accepts_only_pinned_parse_issues():
         digest["maps_detail"][main_menu].update(issues=[], parse_status="ok")
         _write_pinned(root, digest)
         errors = regress.check({"expect": exp}, root)
-        assert len([e for e in errors if "no longer reported" in e]) == 3, errors
+        assert len([e for e in errors if "no longer reported" in e]) == len(exp["known_issues"]["maps_detail"][main_menu]), errors
 
         # "partial" is derived from the pins: an unexplained partial status is not accepted.
         digest = _pinned_digest(exp)
-        digest["blueprints"]["/Game/Projectile/Projectile_BP"]["parse_status"] = "partial"
+        # Q9 exposes projection gaps even in the 4.12 BPs with decoded pins;
+        # the empty SpringTestBed map remains a confirmed clean reference case.
+        digest["maps_detail"]["/Game/_Levels/SpringTestBed"]["parse_status"] = "partial"
         _write_pinned(root, digest)
         assert any("parse status 'partial' != expected 'ok'" in e for e in regress.check({"expect": exp}, root))
 
         # An explicit null status is neither a confirmed success nor a pinned partial state. The key
         # is present, so the structural check stays quiet: only the derived-status check may catch it.
-        for gp, collection, want in (("/Game/Projectile/Projectile_BP", "blueprints", "'ok'"),
+        for gp, collection, want in (("/Game/_Levels/SpringTestBed", "maps_detail", "'ok'"),
                                      ("/Game/Tank/Tank_BP", "blueprints", "'partial'"),
                                      (main_menu, "maps_detail", "'partial'")):
             digest = _pinned_digest(exp)

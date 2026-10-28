@@ -100,7 +100,8 @@ def test_function_metadata_reaches_markdown_summary_and_parse_report():
                                     ("_parse", (result, (1, 1))), ("Ctx", ctx), ("_find_blueprint_object", (None, None)),
                                     ("_graph_key", "Action"), ("GraphRenderer", renderer), ("_components", []),
                                     ("_widget_tree", []), ("_timelines", []), ("_variables", ([], set())),
-                                    ("_variable_metadata", {}), ("_cdo_lines", [])):
+                                    ("_variable_metadata", {}), ("_cdo_lines", []),
+                                    ("build_graph_ir", {"status": "complete", "schema_version": 1, "issues": []})):
                     stack.enter_context(patch.object(B, name, return_value=value))
                 rendered = B.read_blueprint(str(path), "/Game/Test")
             metadata = rendered["summary"]["function_metadata"]
