@@ -161,6 +161,24 @@ def test_claude_job_tool_scope_and_overlap_guards():
             pass
         else:
             raise AssertionError("live orphan worker allowed to overlap")
+        state["manager_pid"] = child.pid + 1
+        C.save(path, state)
+        try:
+            C.recover(path)
+        except ValueError as error:
+            assert "disagrees" in str(error)
+        else:
+            raise AssertionError("mismatched manager identity allowed")
+        state["manager_pid"] = child.pid
+        for invalid in (None, "unknown", 0, -1, True):
+            state["worker_pid"] = invalid
+            C.save(path, state)
+            try:
+                C.recover(path)
+            except ValueError as error:
+                assert "identity is unknown" in str(error)
+            else:
+                raise AssertionError("unknown worker identity treated as exited")
         state["worker_pid"] = child.pid
         C.save(path, state)
         assert C.recover(path)["phase"] == "needs_attention"
@@ -168,3 +186,9 @@ def test_claude_job_tool_scope_and_overlap_guards():
         with redirect_stdout(io.StringIO()):
             C.main(["review", str(path), "--outcome", "rework", "--note", "Recovered; review saved changes"])
         assert C.load(path)["phase"] == "rework"
+        try:
+            C.recover(path)
+        except ValueError as error:
+            assert "No running lock" in str(error)
+        else:
+            raise AssertionError("missing lock was not reported")

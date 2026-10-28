@@ -128,6 +128,8 @@ def recover(job: Path):
     lock = job / "running.lock"
     try:
         manager = int(lock.read_text(encoding="utf-8"))
+    except FileNotFoundError as error:
+        raise ValueError("No running lock to recover") from error
     except ValueError as error:
         raise ValueError("Lock identity is invalid; inspect the job before recovering it") from error
     state = load(job)
@@ -135,7 +137,11 @@ def recover(job: Path):
         raise ValueError("Lock identity disagrees with the job record; inspect before recovering")
     if pid_alive(manager):
         raise ValueError("The original manager is still alive; recovery refused")
-    if pid_alive(state.get("worker_pid")):
+    worker = state.get("worker_pid")
+    if (worker is None and state.get("phase") != "prepared") or (
+            worker is not None and (type(worker) is not int or worker <= 0)):
+        raise ValueError("Original worker identity is unknown; inspect the job before recovery")
+    if pid_alive(worker):
         raise ValueError("The original worker is still alive; wait for it to exit before recovery")
     state.update(phase="needs_attention", recovered_at=timestamp(), stale_manager_pid=manager,
                  recovery_note="Both original processes exited; review existing changes before continuing")
