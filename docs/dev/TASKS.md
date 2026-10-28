@@ -108,7 +108,7 @@
 | Q1 | todo | - | **5.8 에디터 정답 비교**: 에디터 Python 스크립트(BP별 변수·함수·노드 수/클래스, 위젯 바인딩, 함수 메타데이터 등 → JSON)를 만들고, 사람이 ExtractionGame_Fin에서 한 번 실행 → 결과를 회귀 정답으로 넣어 요약본과 자동 대조. 스크립트 작성은 AI, 실행은 사람 | M |
 | Q2 | todo | - | StateTree 태스크·컨디션 인스턴스(instanced struct) 설정값 디코딩 — 지금은 쓰는 BP 이름만 References에 나옴(AR ST_CombatDirector) | M |
 | Q3 | todo | - | 위젯 애니메이션 길이·키 값(MovieSceneFrameRange, FloatChannel 등) — 지금은 대상 속성만 표시 | S–M |
-| Q4 | todo | - | 맵 배치 액터 오버라이드 전체 값 — Markdown 표는 120자·8개로 잘리고 digest.json에도 전체 값이 없음 → 잘린 값의 전체 보존 위치 마련 | S |
+| Q4 | doing | codex | 맵 배치 액터 오버라이드 전체 값 — Markdown 표는 120자·8개로 잘리고 digest.json에도 전체 값이 없음 → 잘린 값의 전체 보존 위치 마련; Claude Code 교차 검토 | S |
 | Q5 | todo | - | 함수 메타데이터 CallInEditor=true 실데이터 검증(지금은 합성 바이트만) — Q1 정답 또는 공개 저장소로 확인 | S |
 | Q6 | todo | - | 구버전 엔진(UE 4.12, bt) 노드 해석 26/98 — 우선순위 낮음(사용자 프로젝트는 5.8) | M |
 | Q7 | doing | claude | bt의 전역 allow_issues 예외를 에셋별 알려진 issue/부분 해석 기대값으로 제한; 예상 밖 새 오류도 통과하는 회귀 공백 수정(Codex 관리) | S |
