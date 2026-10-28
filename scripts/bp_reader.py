@@ -10,6 +10,7 @@ Public entry points:
 from __future__ import annotations
 
 import re
+import json
 import logging
 import os
 import struct
@@ -1613,6 +1614,72 @@ _VAR_FLAG_LABELS = [(0x00002000, "Transient"), (0x00004000, "Config"), (0x010000
 _VAR_META_FLAGS = {"exposeonspawn": "ExposeOnSpawn", "blueprintprivate": "Private"}
 
 
+def _function_metadata(ctx: Ctx, node, path: str, result, context: str) -> dict:
+    """Saved FKismetUserDeclaredFunctionMetadata, never generated pin tooltips/default guesses."""
+    index = getattr(node, "_export_index", None)
+    if not index:
+        return {}
+    props = ctx.props(index)
+    if "MetaData" not in props:
+        return {}
+    meta = props["MetaData"]
+    fields = _fields(meta)
+    status = meta.get("parse_status", "success") if isinstance(meta, dict) else getattr(meta, "parse_status", "success")
+    if status not in ("success", "ok") or not isinstance(fields, dict) or not (isinstance(meta, dict) and "fields" in meta or hasattr(meta, "fields")):
+        # The upstream parser can leave a struct opaque. Re-read just this exact entry export.
+        try:
+            import data_reader as D
+            reader = D.TaggedReader(path, result, ctx)
+            try:
+                items, _ = reader.export_stream(result.export_map[index - 1])
+            finally:
+                reader.close()
+            meta = dict(items).get("MetaData")
+            fields = _fields(meta)
+            status = meta.get("parse_status", "success") if isinstance(meta, dict) else getattr(meta, "parse_status", "success")
+            if status not in ("success", "ok") or not isinstance(fields, dict) or not (isinstance(meta, dict) and "fields" in meta or hasattr(meta, "fields")):
+                raise ValueError("saved function MetaData is unreadable")
+        except Exception as error:
+            record_issue(ctx.issues, "function_metadata", context, error)
+            return {"unreadable": ["MetaData"]}
+    info = {}
+    for source, target in (("Category", "category"), ("ToolTip", "tooltip"), ("bCallInEditor", "call_in_editor")):
+        if source not in fields:
+            continue
+        value = fields[source]
+        if source == "bCallInEditor":
+            if type(value) is bool or type(value) is int and value in (0, 1):
+                info[target] = bool(value)
+                continue
+        else:
+            text = value if isinstance(value, str) else getattr(value, "source_string", None)
+            if isinstance(text, str):
+                info[target] = text
+                continue
+        record_issue(ctx.issues, "function_metadata", context + "." + source, "saved metadata value is unreadable")
+        info.setdefault("unreadable", []).append(source)
+    return info
+
+
+def _function_metadata_comments(info: dict, entry: str) -> list[str]:
+    def literal(text):
+        return (json.dumps(text, ensure_ascii=False).replace("\u0085", "\\u0085")
+                .replace("\u2028", "\\u2028").replace("\u2029", "\\u2029"))
+    lines, labels = [], []
+    if "category" in info:
+        labels.append("Category=" + literal(info["category"]))
+    if "call_in_editor" in info:
+        labels.append("CallInEditor=" + str(info["call_in_editor"]).lower())
+    if labels:
+        lines.append(f"// Function metadata [{entry}]: " + "; ".join(labels))
+    if "tooltip" in info:
+        # JSON escaping keeps newlines/fences/control characters inside this one comment line.
+        lines.append(f"// Function tooltip [{entry}]: " + literal(info["tooltip"]))
+    if info.get("unreadable"):
+        lines.append(f"// Function metadata [{entry}] unknown: " + ", ".join(info["unreadable"]))
+    return lines
+
+
 def _variable_metadata(path: str, result, ctx: Ctx, asset_name: str) -> dict:
     """{VarName: {meta key (lower): value}} — uasset_read leaves BPVariableDescription.MetaDataArray opaque,
     so the Blueprint export is re-read with data_reader's tagged-property reader."""
@@ -2027,7 +2094,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
 
     summary = {"path": game_path, "kind": kind, "parent": parent, "interfaces": interfaces,
                "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
-               "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [], "issues": ctx.issues,
+               "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [],
+               "function_metadata": [], "issues": ctx.issues,
                "gameplay_tags": sorted(collect_gameplay_tags(list(cdo_props.values())))}
 
     dispatchers = []
@@ -2045,6 +2113,16 @@ def read_blueprint(path: str, game_path: str) -> dict:
             continue
         if k in trans_title:
             continue  # rendered inline in its state machine
+        path_title = " › ".join(names)
+        metadata_comments = []
+        for node in gr.nodes:
+            if node.class_name != "K2Node_FunctionEntry":
+                continue
+            entry_name = getattr(node, "_export_object_name", "?")
+            info = _function_metadata(ctx, node, path, result, path_title + ":" + entry_name)
+            if info:
+                summary["function_metadata"].append({"graph": path_title, "entry": entry_name, **info})
+                metadata_comments += _function_metadata_comments(info, entry_name)
         try:
             mode = gr.mode()
             if mode == "state machine":
@@ -2062,8 +2140,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
             mode, lines = "error", [f"(render failed: {type(e).__name__}: {e})"]
         missing = sum(1 for n in gr.nodes if not n.pins and n.class_name != "EdGraphNode_Comment")
         label = {"function": "function ", "macro": "macro ", "interface function": "interface function "}.get(r, "")
-        path_title = " › ".join(names)
         lines = lines or ["(empty)"]
+        lines = metadata_comments + lines
         meta = f"_{mode} graph · {len(gr.nodes)} nodes" + (f" · ⚠ {missing} nodes unreadable_" if missing else "_")
         body += ["", f"### {label}{path_title}", meta, "```text", *lines, "```"]
         summary["graphs"].append(path_title)

@@ -897,6 +897,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  - `Map<K, V>` shows key and value types; `?` inside a type means unspecified or unreadable, never an inferred type",
            "  - typed data-asset enum arrays show `Enum::Enumerator(number, display=\"Label\")`; names/numbers match the enum definition.",
            "    Unresolved values keep their saved name/number; ordinary byte arrays stay numeric.",
+           "  - `// Function metadata` / `// Function tooltip` are saved entry-node descriptions (Category, CallInEditor, ToolTip),",
+           "    not executed statements. Absent metadata is not inferred; explicit CallInEditor=false is kept.",
            "  - one statement per executed node; data inputs are inlined as expressions (`Target.Func(Arg=value)`)",
            "  - `#N = Func(...)` — an impure node whose output is used later as `#N` / `#N.PinName`",
            "  - `$N` — a long pure expression used in several places, spelled out once in the graph's `// where` block",

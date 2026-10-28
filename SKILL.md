@@ -53,6 +53,8 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    state machines as `A → B when <rule>`, `when auto (...)` = automatic transition; functions show
    `-> Out: T` and `return <value>`; `Pin=∅` = object input left unconnected; `$N` = shared pure expression, see the graph's `// where` block).
    `Map<K, V>` includes key/value types; `?` in a type means unspecified in the saved declaration or unreadable.
+   `// Function metadata` and `// Function tooltip` comments show saved Category, CallInEditor and ToolTip
+   from the function entry. They describe the function; missing fields are not inferred and explicit false is kept.
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment

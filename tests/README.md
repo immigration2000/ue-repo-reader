@@ -27,6 +27,10 @@ T4 검사에서는 PageRank의 순위/정규화/설정 진입점 가중치·고�
 X2는 실제 NewVar의 저장된 None terminal과 합성 VarType/그래프 핀/구조체 기술자에서 Map 값 타입을 확인한다.
 미지정은 ?로 표시하고 잘린 타입 선언만 파싱 문제로 보고한다. int/double/struct/object 및 비-Map 타입도 검사한다.
 
+X5는 실제 BFL_Util의 한글 툴팁과 WBP_GridSlot의 Slot 카테고리를 고정 문자열로 검사한다.
+CallInEditor는 현재 3개 프로젝트에 저장된 예가 없어 합성 bool 양쪽 값을 검사하며, 필드 생략/명시 false를 구분한다.
+동명 진입점의 export index 범위, opaque 구조체 재읽기/정리, 잘못된 필드의 경고 전파와 한글·개행·fence·긴 설명 보존도 검사한다.
+
 X1 단위 검사는 FName 배열을 이름 인덱스의 바이트로 오독하지 않는지, 타입이 있는 배열만 이름 연결, 일반 숫자/문자열 보존,
 sparse enum 값·alias·동명/경로/부분 실패,
 20만 원소의 지연 렌더링, 원시 캐시에 새 enum 이름 반영, INDEX/CATALOG의 미해결 표시를 확인한다.

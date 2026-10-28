@@ -113,6 +113,9 @@ def main():
                     enums = await call("read_digest_file", digest_id=digest_id,
                                        path="data/Game/DeltaForce/Data/DataAsset/DA_PlayerData.md")
                     assert 'NewEnumerator21(5, display="MainStash_5")' in enums and 'display="GTIWeaponCrate"' in enums
+                    functions = await call("read_digest_file", digest_id=digest_id,
+                                           path="blueprints/Game/DeltaForce/Blueprints/Core/BFL_Util.md")
+                    assert '// Function tooltip [K2Node_FunctionEntry_1]: "좌측상단 인덱스"' in functions
                     assert "BP_" in await call("search_digest", digest_id=digest_id, query="BeginPlay")
                     database = work / "data/work" / digest_id / "search.sqlite"
                     assert database.is_file()

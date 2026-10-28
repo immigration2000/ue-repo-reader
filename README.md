@@ -120,6 +120,10 @@ INDEX는 최대 약 9KB로 제한하며 토큰 수는 언어·토크나이저에
 INDEX/Parse report에 한계를 표시합니다.
 enum 이름은 원시 본문 캐시를 읽은 뒤 연결하므로 enum만 변경해도 새 표시 이름이 반영됩니다.
 
+함수 진입점에 저장된 카테고리·툴팁·CallInEditor는 그래프의 `// Function metadata` / `// Function tooltip` 주석에 표시합니다.
+한글과 여러 줄 설명을 보존하며, 없는 필드는 추측하지 않습니다. `digest.json`의 BP별 `function_metadata`에는
+그래프 경로·진입점 이름과 함께 같은 값을 저장합니다. 읽지 못한 메타데이터는 Parse warnings로 보고합니다.
+
 **BP 파일** 예시(ActionRoguelike의 실제 출력):
 
 ```text

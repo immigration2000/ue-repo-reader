@@ -31,6 +31,8 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
    execution-flow pseudo-code (`event X`, `[true]:`, `#N = Func()`, `→ goto #N` jumps to the line labelled `[#N]`, `return <value>`, `Pin=∅` = unconnected input,
    `when auto (...)` = automatic anim transition, `⚠ disconnected` = dead code).
    `Map<K, V>` includes key/value types; `?` in a type is unspecified or unreadable, not a concrete type.
+   `// Function metadata` / `// Function tooltip` show saved entry-node Category, CallInEditor and ToolTip.
+   These are descriptions; absent fields are not inferred and explicit false is retained.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
    Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.
    Saved names/numbers are preserved; integers for serialized names come from that enum's value table.

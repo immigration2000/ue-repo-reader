@@ -12,6 +12,17 @@
     },
     "checks": [
       {
+        "bug": "X5",
+        "file": "blueprints/Game/DeltaForce/Blueprints/Core/BFL_Util.md",
+        "must_contain": ["// Function tooltip [K2Node_FunctionEntry_1]: \"좌측상단 인덱스\"", "Category=\"Dataasset\""],
+        "must_not_contain": ["CallInEditor=true", "CallInEditor=false"]
+      },
+      {
+        "bug": "X5",
+        "file": "blueprints/Game/DeltaForce/Blueprints/UI/Grid/WBP_GridSlot.md",
+        "must_contain": ["// Function metadata [K2Node_FunctionEntry_1]: Category=\"Slot\""]
+      },
+      {
         "bug": "X1",
         "file": "data/Game/DeltaForce/Data/DataAsset/DA_PlayerData.md",
         "must_contain": [

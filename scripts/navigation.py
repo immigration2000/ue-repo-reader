@@ -205,6 +205,8 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             "- `Map<K, V>` shows key/value types; `?` in a type means unspecified or unreadable, with no concrete type inferred.",
             '- Typed data-asset enum arrays use `Enum::Enumerator(number, display="Label")`. '
             'Unresolved values retain their saved name/number; ordinary byte arrays stay numeric.',
+            "- `// Function metadata` / `// Function tooltip` describe saved Category, CallInEditor and ToolTip on function entries. "
+            "They are descriptive comments; absent fields are not inferred.",
             "- [Full legend](<CATALOG.md#how-to-read-this-digest>) · [C++ index](<cpp/CLASSES.md>): "
             "read real C++ sources for implementations. Skip `digest.json` when reading; it repeats facts for scripts.", ""]
     shown = 0

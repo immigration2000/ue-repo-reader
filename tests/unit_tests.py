@@ -35,6 +35,11 @@ from navigation_tests import (test_pagerank_order_seeds_and_dangling_nodes, test
                               test_navigation_budget_context_and_warnings, test_navigation_split_catalog_anchors_and_rerun)
 from type_tests import (test_map_declaration_value_types_and_unknown, test_map_graph_and_struct_descriptor_value_types,
                        test_map_unset_type_note_with_and_without_tooltip)
+from function_metadata_tests import (test_function_metadata_fields_and_explicit_booleans,
+                                    test_function_metadata_comment_literals_preserve_text_safely,
+                                    test_function_metadata_opaque_fallback_uses_exact_export_and_closes,
+                                    test_function_metadata_invalid_fields_never_become_false_defaults,
+                                    test_function_metadata_reaches_markdown_summary_and_parse_report)
 from enum_tests import (test_enum_arrays_only_use_explicit_type_identity, test_enum_spans_preserve_literals_numbers_and_unknown_values,
                        test_enum_catalog_ambiguity_partial_and_aliases, test_enum_sparse_serialized_values_are_not_display_order,
                        test_enum_large_arrays_render_lazily_and_cache_raw_values, test_enum_unresolved_limits_visible_in_indexes,
