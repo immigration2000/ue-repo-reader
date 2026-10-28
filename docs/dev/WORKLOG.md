@@ -11,6 +11,15 @@
 
 ---
 
+## 2026-10-28 11:45 KST · claude · X3 X7
+- X3 (버그 아님): AR `AM_Spider_Hit` 등 UE 4.25 몽타주의 NameMap에 `"0"`, `"1"`이 실제 이름으로 들어 있음 → 섹션 이름이 정말 `0`, `1`.
+  FName 해석 문제 아님. 회귀 검사로 고정.
+- X7: InputAction 문서에 `## Input action` — 값 타입(없으면 Boolean), 트리거·모디파이어를 서브오브젝트로 펼쳐 설정값 표시
+  (IMC와 같은 `_input_obj`; 이름만 = 기본 설정), 트리거가 없으면 "fires on any actuation — Down", bConsumeInput 등 비기본 옵션.
+  기존 "Properties"의 원시 `Triggers = [InputTriggerPressed]` 중복 제거. SKILL.md 데이터 목록 갱신.
+- 검증: regress 단위 전체 + 외부 에셋 6/6 + 프로젝트 3/3 PASS, X3 1개·X7 2개 검사 추가. 분포: Pressed 10, 트리거 없음 11, Hold 1 …
+- 남은 일·주의: 남은 X는 X5(함수 MetaData)·X8(위젯 바인딩 실데이터)·X9(AnimSequence 노티파이).
+
 ## 2026-10-28 11:20 KST · claude · X6
 - 조사: AR TestLevel의 TreasureChest 두 인스턴스는 `RequiredKeyCard`를 저장하지 않음(= 클래스 기본값 None), LeverBP는 어느 맵에도
   배치되지 않음 → `KeyCard.*` "미사용"은 오판이 아니라 사실. 맵 인스턴스 오버라이드 자체는 정상 출력됨(예: BP_ApplyEffectZone

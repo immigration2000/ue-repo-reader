@@ -61,7 +61,7 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
 4. `<out>/data/<content path>.md` — data assets: DataTables (every row), UserDefinedStructs (fields, types,
    defaults), UserDefinedEnums (values and display names), StringTables, Behavior Trees (full tree with
    decorators, services and blackboard keys), Blackboards, StateTrees (state hierarchy), EQS queries,
-   input mapping contexts and actions, anim montages (slots, sections, notifies by time), curves (keys), and DataAssets of project C++ types (saved values).
+   input mapping contexts and input actions (value type, triggers, modifiers with settings), anim montages (slots, sections, notifies by time), curves (keys), and DataAssets of project C++ types (saved values).
    Each file ends with **Used by** (Blueprints/data assets that reference it).
    Arrays with explicit enum type metadata use `Enum::Enumerator(number, display="Label")`, resolved from
    this project's decoded UserDefinedEnums. Serialized names/numbers are preserved; numeric values for saved

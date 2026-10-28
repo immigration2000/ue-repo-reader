@@ -644,6 +644,24 @@ def _render_montage(items):
     return out
 
 
+def _render_input_action(items):
+    """Value type, triggers and modifiers with their settings (applied to every mapping of this action),
+    and the non-default action options."""
+    d = dict(items)
+    vt = B.fmt_value(d.get("ValueType")) if d.get("ValueType") is not None else "Boolean"
+    out = [f"- value type `{vt.replace('EInputActionValueType::', '')}`"]
+    trig = [_input_obj(x) for x in d.get("Triggers") or []]
+    mods = [_input_obj(x) for x in d.get("Modifiers") or []]
+    out.append("- triggers: " + (", ".join(trig) if trig else "none (fires on any actuation — Down)"))
+    out.append("- modifiers: " + (", ".join(mods) if mods else "none"))
+    for key, label in (("bConsumeInput", "consumes input"), ("bTriggerWhenPaused", "triggers when paused"),
+                       ("bReserveAllMappings", "reserves all mappings"), ("AccumulationBehavior", "accumulation"),
+                       ("bConsumesActionAndAxisMappings", "consumes legacy action/axis mappings")):
+        if key in d:
+            out.append(f"- {label}: {B.fmt_value(d[key])}")
+    return ["## Input action", "_A trigger/modifier shown by name only uses its default settings._", *out, ""]
+
+
 def _render_mapping_context(items):
     d = dict(items)
     maps = d.get("Mappings")
@@ -826,6 +844,11 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
                 if parent not in (None, "None"):
                     md += [f"Parent blackboard: **{B.fmt_value(parent)}**", ""]
                 headline = f"blackboard, {len(body) - 2} keys"
+        elif asset_class == "InputAction":
+            exp = expand_subobjects(items, ExportProps(reader, ctx), export.object_name)
+            body = _render_input_action(exp)
+            md += body
+            headline = "input action, " + body[0].split("`")[1] if body and "`" in body[0] else "input action"
         elif asset_class == "AnimMontage":
             exp = expand_subobjects(items, ExportProps(reader, ctx), export.object_name)
             body = _render_montage(exp)
@@ -848,6 +871,9 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
                      "Frames", "NumContextData", "NumGlobalInstanceData", "EvaluatorsBegin", "GlobalTasksBegin",
                      "IDToStateMappings", "IDToNodeMappings", "IDToTransitionMappings", "DefaultInstanceData",
                      "DefaultEvaluationScopeInstanceData", "DefaultExecutionRuntimeData"}
+        if asset_class == "InputAction":
+            skip |= {"ValueType", "Triggers", "Modifiers", "bConsumeInput", "bTriggerWhenPaused", "bReserveAllMappings",
+                     "AccumulationBehavior", "bConsumesActionAndAxisMappings"}
         if asset_class == "AnimMontage" and body:
             skip |= {"CompositeSections", "SlotAnimTracks", "Notifies", "BlendIn", "BlendOut", "SequenceLength",
                      "AnimNotifyTracks", "DataModelInterface", "BranchingPointMarkers", "CommonTargetFrameRate",

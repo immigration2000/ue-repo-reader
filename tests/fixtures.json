@@ -19,13 +19,21 @@
           "- [1] E_Crates::NewEnumerator10(6, display=\"GTIWeaponCrate\")",
           "- [4] E_Crates::NewEnumerator22(11, display=\"GTIItemCrate\")"
         ],
-        "must_not_contain": ["Stashinfo = [7, 0, 0, 0, 0]", "; unresolved"]
+        "must_not_contain": [
+          "Stashinfo = [7, 0, 0, 0, 0]",
+          "; unresolved"
+        ]
       },
       {
         "bug": "X2",
         "file": "blueprints/Game/DeltaForce/Data/DataAsset/PDA_PlayerData.md",
-        "must_contain": ["| NewVar | Map<E_Crates, ?> |", "unspecified in the saved declaration"],
-        "must_not_contain": ["Map<E_Crates, None>"]
+        "must_contain": [
+          "| NewVar | Map<E_Crates, ?> |",
+          "unspecified in the saved declaration"
+        ],
+        "must_not_contain": [
+          "Map<E_Crates, None>"
+        ]
       },
       {
         "bug": "B1",
@@ -141,6 +149,13 @@
           "- **TempMatching** (5s)",
           "  - float `NewTrack_1`: internal curve with no keys"
         ]
+      },
+      {
+        "bug": "X7",
+        "file": "data/Game/Knife_FPS_Animations/Demo/FirstPerson/Input/Actions/IA_Inspect.md",
+        "must_contain": [
+          "- triggers: Pressed"
+        ]
       }
     ]
   },
@@ -245,6 +260,22 @@
         "file": "config/GameplayTags.md",
         "must_contain": [
           "- `Directors.Events.KillQuestA` ← ST_CombatDirector"
+        ]
+      },
+      {
+        "bug": "X7",
+        "file": "data/Game/ActionRoguelike/Input/IA_Move.md",
+        "must_contain": [
+          "- value type `Axis2D`",
+          "- modifiers: DeadZone"
+        ]
+      },
+      {
+        "bug": "X3",
+        "file": "data/Game/ExampleContent/Enemy_Great_Spider/Animation/AM_Spider_Hit.md",
+        "must_contain": [
+          "- `0` at 0s",
+          "- `1` at 1.1667s"
         ]
       }
     ]
