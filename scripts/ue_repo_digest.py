@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -895,6 +895,9 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  - `[pure, const, private, RunOnServer, Reliable …]` after a function header — its flags; the Variables",
            "    table's Flags column lists InstanceEditable, ExposeOnSpawn, Private, Replicated, Condition=…, SaveGame …",
            "  - `Map<K, V>` shows key and value types; `?` inside a type means unspecified or unreadable, never an inferred type",
+           "  - Compact values use `…(+N)` for omitted entries/fields; plain `…` can also mean a string/depth limit.",
+           "    Extra CDO defaults show at most 40 values and count further values, opaque/native data and unexpanded subobjects.",
+           "    Those omitted values are unknown here, not defaults; a display notice alone is not a parse failure.",
            "  - typed data-asset enum arrays show `Enum::Enumerator(number, display=\"Label\")`; names/numbers match the enum definition.",
            "    Unresolved values keep their saved name/number; ordinary byte arrays stay numeric.",
            "  - `// Function metadata` / `// Function tooltip` are saved entry-node descriptions (Category, CallInEditor, ToolTip),",

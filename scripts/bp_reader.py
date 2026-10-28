@@ -531,6 +531,14 @@ def _fmt_pin_struct(struct_name: str, dv: str) -> str:
     return trim(dv)
 
 
+def _more_marker(total: int, shown: int) -> str:
+    """`, …(+N)` for the entries a compact preview leaves out; empty at or below the limit.
+
+    This marks a display limit only — the omitted entries were decoded, their values are simply
+    not printed here. It is never a parse failure and never means "default"."""
+    return f", …(+{total - shown})" if total > shown else ""
+
+
 def fmt_value(v, depth=0) -> str:
     """Compact, human readable rendering of a decoded property value."""
     if depth > 3:
@@ -554,8 +562,7 @@ def fmt_value(v, depth=0) -> str:
         return f"<{len(v)} bytes>"
     if isinstance(v, list):
         items = [fmt_value(x, depth + 1) for x in v[:8]]
-        more = f", …(+{len(v) - 8})" if len(v) > 8 else ""
-        return "[" + ", ".join(items) + more + "]"
+        return "[" + ", ".join(items) + _more_marker(len(v), 8) + "]"
     if isinstance(v, dict):
         if "object_name" in v:
             return _short(v.get("object_name"))
@@ -565,7 +572,9 @@ def fmt_value(v, depth=0) -> str:
             return _fmt_fields(v.get("struct_type", ""), v["fields"], depth)
         if v.get("kind") == "binary_or_native_property":
             return f"<{v.get('struct_type') or v.get('type')}>"
-        return "{" + ", ".join(f"{k}={fmt_value(x, depth + 1)}" for k, x in list(v.items())[:6]) + "}"
+        entries = list(v.items())
+        inner = ", ".join(f"{k}={fmt_value(x, depth + 1)}" for k, x in entries[:6])
+        return "{" + inner + _more_marker(len(entries), 6) + "}"
     cls = type(v).__name__
     if cls == "TextValue":
         return '"' + (getattr(v, "source_string", "") or "") + '"'
@@ -584,7 +593,8 @@ def fmt_value(v, depth=0) -> str:
 def _fmt_fields(struct_type, fields, depth):
     if not fields:
         return f"{struct_type}{{}}" if struct_type and struct_type != "UnknownStruct" else "<opaque>"
-    inner = ", ".join(f"{k}={fmt_value(x, depth + 1)}" for k, x in list(fields.items())[:8])
+    items = list(fields.items())
+    inner = ", ".join(f"{k}={fmt_value(x, depth + 1)}" for k, x in items[:8]) + _more_marker(len(items), 8)
     return f"{struct_type}{{{inner}}}" if struct_type and struct_type != "UnknownStruct" else "{" + inner + "}"
 
 
@@ -1932,18 +1942,78 @@ def _widget_tree(ctx: Ctx, bp_props) -> list[str]:
     return lines_for(ctx.export_by_ref(ctx.props(wt_obj).get("RootWidget")), 0, set())
 
 
-def _cdo_lines(cdo_props, var_names) -> list[str]:
-    out = []
+_CDO_LIMIT = 40
+_CDO_NAMES_SHOWN = 6
+
+
+def _cdo_name_list(names: list[str], limit=_CDO_NAMES_SHOWN) -> str:
+    """Names of excluded keys, itself bounded so one note cannot grow without limit."""
+    return ", ".join(names[:limit]) + _more_marker(len(names), limit)
+
+
+def _cdo_unrenderable(v, text: str) -> bool:
+    """Whether a CDO value has no readable form, judged by the value's kind and not by its text alone.
+
+    `<…>` and `AnimNode_…` are how we render native/opaque blocks, empty-field structs and unresolved
+    references — but they are also perfectly ordinary strings. A decoded scalar is always its own value
+    (a String property holding `"<literal>"` or `"AnimNode_Root"` is readable), so the shape of the
+    rendered text may only exclude values whose kind can actually be opaque."""
+    if isinstance(v, (str, bytes, bytearray, EnumScalar)):
+        return isinstance(v, (bytes, bytearray))  # raw bytes have no text; strings are values
+    if isinstance(v, (int, float)) and not isinstance(v, ObjRef):
+        return False
+    return (text.startswith("<") and text.endswith(">")) or text.startswith("AnimNode_")
+
+
+def _cdo_entries(cdo_props, var_names) -> tuple[list[str], dict]:
+    """Split the CDO's saved properties into printable tunable lines and what is left out.
+
+    `info` carries exact counts so nothing disappears silently: `declared` keys are the ones the
+    Variables table already shows (not lost), `internal` are the editor/engine bookkeeping keys we
+    filter on purpose, `subobjects` are default sub-objects we do not expand, and `unrenderable`
+    are values with no readable text (see `_cdo_unrenderable`)."""
+    out, subobjects, unrenderable, declared, internal = [], [], [], [], []
     for k, v in cdo_props.items():
-        if k in _CDO_SKIP or k in var_names or k.startswith("AnimGraphNode_") or k.startswith("__"):
+        if k in _CDO_SKIP or k.startswith("AnimGraphNode_") or k.startswith("__"):
+            internal.append(k)
+            continue
+        if k in var_names:
+            declared.append(k)  # already listed with its default in the Variables table
             continue
         if isinstance(v, dict) and v.get("type") == "export":
-            continue  # default sub-object (component instance), not a tunable value
+            subobjects.append(k)  # default sub-object (component instance), not a tunable value
+            continue
         s = fmt_value(v)
-        if (s.startswith("<") and s.endswith(">")) or s.startswith("AnimNode_"):
+        if _cdo_unrenderable(v, s):
+            unrenderable.append(k)
             continue
         out.append(f"- {k} = {s}")
-    return out[:40]
+    info = {"tunable": len(out), "declared": declared, "internal": internal,
+            "subobjects": subobjects, "unrenderable": unrenderable}
+    return out, info
+
+
+def _cdo_notes(info: dict) -> list[str]:
+    """Explicit notes for everything `_cdo_entries` could not print. Omitted values are unknown
+    in this document — reading them requires the asset itself; they are never assumed defaults."""
+    notes = []
+    hidden = max(0, info["tunable"] - _CDO_LIMIT)
+    if hidden:
+        notes.append(f"- …(+{hidden}) more stored values not printed (preview shows the first {_CDO_LIMIT}); "
+                     "the rest were decoded but are unknown from this document, not defaults")
+    if info["unrenderable"]:
+        notes.append(f"- …(+{len(info['unrenderable'])}) stored values have no readable text here "
+                     f"(native/opaque data or unresolved references): {_cdo_name_list(info['unrenderable'])}"
+                     " — unknown here, not defaults")
+    if info["subobjects"]:
+        notes.append(f"- …(+{len(info['subobjects'])}) default sub-objects are not expanded here "
+                     f"(component/instanced defaults): {_cdo_name_list(info['subobjects'])}")
+    return notes
+
+
+def _cdo_lines(cdo_props, var_names) -> list[str]:
+    out, info = _cdo_entries(cdo_props, var_names)
+    return out[:_CDO_LIMIT] + _cdo_notes(info)
 
 
 def _graph_key(ctx: Ctx, g) -> str:

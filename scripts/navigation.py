@@ -203,6 +203,8 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             "- Saved data is static. Missing values after a parse failure are unknown; an unreadable Level Blueprint "
             "is unknown, not empty. Node N/N counts decoded pins only. Read Parse warnings even at N/N.",
             "- `Map<K, V>` shows key/value types; `?` in a type means unspecified or unreadable, with no concrete type inferred.",
+            "- `…(+N)` counts entries/fields omitted by compact display. CDO previews also count opaque/native values and "
+            "unexpanded subobjects. Omitted values are unknown here, not defaults; a display notice is not a parse failure.",
             "- Map tables are previews; full decoded actor/root-component saved properties: `digest.json` → `maps_detail[map_path].actors`.",
             "  Check `properties_status`: partial actor records are incomplete; absent properties are unknown, not defaults.",
             '- Typed data-asset enum arrays use `Enum::Enumerator(number, display="Label")`. '

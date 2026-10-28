@@ -55,6 +55,10 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    `Map<K, V>` includes key/value types; `?` in a type means unspecified in the saved declaration or unreadable.
    `// Function metadata` and `// Function tooltip` comments show saved Category, CallInEditor and ToolTip
    from the function entry. They describe the function; missing fields are not inferred and explicit false is kept.
+   Compact values use `…(+N)` for omitted entries/fields; plain `…` can also mean a string/depth limit.
+   Extra class defaults show at most 40 values, with counts for the remainder and for opaque/native values
+   or subobjects not expanded. These notices describe incomplete display, not confirmed defaults or parse errors.
+   Omitted BP/data values are not yet preserved in a complete structured record; inspect the asset for the missing detail.
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment

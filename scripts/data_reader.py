@@ -267,6 +267,15 @@ def _fields_of(v):
     return B._fields(v)
 
 
+def _fmt_struct_fields(fields, depth, limit=10) -> str:
+    """Field list of a struct value, with `…(+N)` for the fields this compact line leaves out.
+
+    The omitted fields were decoded; only their text is withheld here. Never a default, never an error."""
+    items = list(fields.items())
+    inner = ", ".join(f"{clean_name(k)}={_val(x, depth + 1)}" for k, x in items[:limit])
+    return inner + B._more_marker(len(items), limit)
+
+
 def _val(v, depth=0) -> str:
     """One-line value, with UserDefinedStruct field names cleaned."""
     st = (v.get("struct_type") if isinstance(v, dict) else getattr(v, "struct_type", None))
@@ -278,17 +287,18 @@ def _val(v, depth=0) -> str:
     if type(v).__name__ == "MapValue":
         ents = getattr(v, "entries", None) or []
         parts = [f"{_val(e.get('key'), depth + 1)}: {_val(e.get('value'), depth + 1)}" for e in ents[:10] if isinstance(e, dict)]
-        return "{" + ", ".join(parts) + (f", …(+{len(ents) - 10})" if len(ents) > 10 else "") + "}"
+        # entries past the limit *and* malformed entries inside it are both counted, so the marker is exact
+        return "{" + ", ".join(parts) + B._more_marker(len(ents), len(parts)) + "}"
     if type(v).__name__ == "StructValue" and f:
-        inner = ", ".join(f"{clean_name(k)}={_val(x, depth + 1)}" for k, x in list(f.items())[:10])
+        inner = _fmt_struct_fields(f, depth)
         return f"{st}{{{inner}}}" if depth == 0 else "{" + inner + "}"
     if isinstance(v, dict) and "fields" in v and isinstance(v["fields"], dict):
-        inner = ", ".join(f"{clean_name(k)}={_val(x, depth + 1)}" for k, x in list(v["fields"].items())[:10])
+        inner = _fmt_struct_fields(v["fields"], depth)
         st = v.get("struct_type") or ""
         return f"{st}{{{inner}}}" if st and st not in ("UnknownStruct",) else "{" + inner + "}"
     if isinstance(v, list):
         items = [_val(x, depth + 1) for x in v[:10]]
-        return "[" + ", ".join(items) + (f", …(+{len(v) - 10})" if len(v) > 10 else "") + "]"
+        return "[" + ", ".join(items) + B._more_marker(len(v), 10) + "]"
     s = B.fmt_value(v, depth)
     return s.replace("\n", "\\n").replace("|", "/")
 

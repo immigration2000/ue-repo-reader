@@ -37,6 +37,10 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
    `Map<K, V>` includes key/value types; `?` in a type is unspecified or unreadable, not a concrete type.
    `// Function metadata` / `// Function tooltip` show saved entry-node Category, CallInEditor and ToolTip.
    These are descriptions; absent fields are not inferred and explicit false is retained.
+   Compact values use `…(+N)` for omitted entries/fields; plain `…` can also mean a string/depth limit.
+   Extra class defaults show at most 40 values and report further values, opaque/native data and unexpanded subobjects.
+   Omitted values are unknown here, not confirmed defaults. A display notice alone is not a parse failure,
+   and complete BP/data saved values are not yet retained elsewhere; inspect the asset for missing detail.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
    Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.
    Saved names/numbers are preserved; integers for serialized names come from that enum's value table.
