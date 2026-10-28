@@ -48,7 +48,7 @@
 ## 4. 테스트 (변경마다 필수)
 
 ```bash
-python tests/regress.py                 # 고정 커밋 3개를 클론해 요약본을 만들고 기대값과 비교
+python tests/regress.py                 # 고정 커밋 4개를 클론해 요약본을 만들고 기대값과 비교
 python tests/regress.py --only eg       # 하나만
 python tests/regress.py --repo eg=/path/to/local/clone   # 이미 받아 둔 클론 재사용
 ```
@@ -99,3 +99,4 @@ python tests/regress.py --repo eg=/path/to/local/clone   # 이미 받아 둔 클
 - 세션 ID·지시·진행 기록은 gitignore된 `.ue-repo-reader/claude-jobs/`에 둔다. 인증 정보는 읽거나 복사하지 않는다.
   로그인은 사용자가 직접 한다. 전체 권한 우회나 사용자 전역 권한 설정 변경 없이 실행한다.
 - Codex 턴이 끝난 뒤 자동 감시가 계속된다고 약속하지 않는다. 후속 실행은 기록된 작업·세션 ID로 이어간다.
+- 실제 실행·재지시·읽기 전용 교차 검토 명령: [CLAUDE_COORDINATION.md](docs/dev/CLAUDE_COORDINATION.md).

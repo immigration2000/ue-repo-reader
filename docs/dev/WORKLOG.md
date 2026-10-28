@@ -11,6 +11,31 @@
 
 ---
 
+## 2026-10-28 14:15 KST · codex · O1 Q4 Q7 (실제 Claude Code와 공동 작업)
+- 한 일: 사용자 요청에 따라 Codex는 Q4 구현·전체 관리, 실제 Claude Code CLI는 별도 worktree에서 Q7 구현을 담당.
+  tools/claude_delegate.py와 CLAUDE_COORDINATION.md 추가: 파일 도구만 허용하는 작업/읽기 전용 검토, 세션 재개·재지시,
+  상태/전체 도구 감사·중단·시간 제한·명시적 stale 잠금 복구·관리자 승인 기록. 성공 응답은 awaiting_review이며 자동 병합하지 않음.
+  Windows stdin이 막혀도 timeout이 적용되고, 초기 기록 저장 실패도 잠금을 정리. 복구는 관리자/작업자 생존 또는 불명확한 신원이면 거부.
+  AGENTS 8절·D-021에 관리 모드 예외를 기록했으며 인증은 사용자가 직접 완료. 새 의존성·권한 우회·전역 설정 변경 없음.
+- Q4: v1.11.0. 표 미리보기와 별도로 maps_detail[map_path].actors에 액터·루트 컴포넌트의 디코딩된 저장 프로퍼티 전체를 보존.
+  package/export index로 외부 액터를 구분하고 문자열/중첩 값/네이티브 필드/opaque bytes를 JSON으로 보존(D-022).
+  미지원/순환/과도한 깊이는 unknown+issue. properties_status=partial은 누락 값도 unknown이라는 뜻을 두 SKILL·모든 범례에 명시.
+  잘못된 ActorLabel은 경고/partial로 남기고 object name으로 식별하며 원래 디코딩 값은 별도로 보존. 클래스 기본값·다른 컴포넌트 export는 확장하지 않음.
+- Q7: 실제 Claude 세션 48ab5c35-6bda-4172-abfa-72307aaffd43이 구현. bt의 전역 allow_issues를 제거하고 정확한 issue 다중집합,
+  모든 BP 노드 수와 Level BP 노드 수/상태를 고정(D-023). Codex 검토에서 null parse_status 공백을 찾아 같은 세션에 수정 지시함.
+  기존에 통과하던 새 BP 오류 주입이 이제 실패하는 것을 직접 재확인. bt의 26/98과 맵 issue 5개는 그대로 알려진 제한임.
+- 교차 검토: Claude가 Q4/O1을 읽기 전용으로 검토하고 partial 안내·잘못된 라벨·전체 도구 감사·stale 복구 네 항목을 지적.
+  Codex가 수정하고 같은 Claude 세션에서 네 항목 모두 수용 확인(총 4회 실행: 구현/재작업/교차 검토/수정 확인).
+  실제 관찰 도구도 구현은 Read/Grep/Edit, 검토는 Read/Grep뿐임을 확인. 마지막 비차단 지적의 신원 불명·잠금 불일치 검사도 보완.
+- 검증: 최종 순차 전체 regress 단위 76/76 + 외부 에셋 6/6 + 프로젝트 eg/ar/ves/bt 4/4 PASS.
+  맵 13개/액터 856개 전체 기록 수와 식별자 유일성, 엄격 JSON 읽기 확인. eg cold/warm/disabled 101개 출력 byte-identical,
+  warm 97 hits/0 misses, 실제 BP 교체 시 해당 본문만 재해석. 실제 MCP HTTP 6도구·응답 제한·재시작/refresh PASS.
+  두 skill quick_validate·버전 일치·문서 링크·diff --check PASS. symlink 생성 권한 하위 검사만 기존대로 skip, 실제 junction PASS.
+- 남은 일·주의: 병렬 검증 도중 테스트용 파서 설치 rename에서 WinError 5가 한 번 발생함. 원인은 확정하지 않았고,
+  해당 검사 단독 재실행과 최종 전체 순차 실행은 모두 PASS. 기대값을 완화하지 않음. 캐시 32MB 상한의 로그와 전역 JSON writer 엄격화는 별도 검토 사항.
+  다음 정확도 과제는 Q1(정답 비교에는 연결/기본값/입출력도 포함), Q2/Q3/Q5/Q6. 턴 종료 뒤 자동 감시는 없음.
+  관리 실행 기록은 .ue-repo-reader/claude-jobs/Q7-1e187f4c에만 보존. main 통합·push 후 사용이 끝난 worktree는 복구 가능하게 archive.
+
 ## 2026-10-28 11:30 KST · claude · Q1–Q6 (등록만)
 - 한 일: TASKS.md에 "정확도 — 빈칸과 검증" 절과 Q1~Q6 추가(코드 변경 없음). 근거: REVIEW-2026-10-27의 `노드 N/N` 한계,
   F6/F7·X6 WORKLOG의 미표시 항목, 캐시된 eg/ar/ves/bt 요약본의 "not decoded"/"unreadable" 표시 점검.

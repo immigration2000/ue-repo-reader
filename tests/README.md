@@ -1,7 +1,7 @@
 # 회귀 테스트
 
 ```powershell
-python tests/regress.py                 # 단위 검사 + 외부 에셋 6개 + 고정 프로젝트 3개
+python tests/regress.py                 # 단위 검사 + 외부 에셋 6개 + 고정 프로젝트 4개
 python tests/regress.py --only assets   # 단위 검사 + 작은 에셋/에디터 정답 대조
 python tests/regress.py --only eg ar    # 지정 프로젝트만 (단위 검사는 항상 실행)
 python tests/windows_smoke.py           # 실제 Windows PowerShell 5.1 설치 가이드·LFS 검증
@@ -90,9 +90,15 @@ python tests/server_smoke.py --deps tests/.cache/server-deps
 | eg | 49 / 1779 | 43 | 5 | 64 |
 | ar | 69 / 1271 | 50 | 3 | 0 |
 | ves | 2 / 7 | 4 | 1 | 138 |
+| bt | 11 / 26해석·98전체 | 0 | 4 | 0 |
 
 ves는 World Partition 맵의 액터 139개와 외부 패키지 138개를 별도로 고정한다.
 테스트 러너 자체에도 데이터/맵 누락, 잘못된 텍스트, 손상된 다운로드를 잡는 검사를 둔다.
+
+bt는 UE 4.12의 알려진 제한만 허용한다(Q7). `expect.blueprint_nodes`는 모든 BP의 `[해석 수, 전체 수]`,
+`level_blueprints`는 모든 맵의 `[해석 수, 전체 수, 상태]`, `known_issues`는 collection/에셋 경로별
+정확한 `[stage, context, message]` 목록이다. 추가·변경·중복·사라진 issue, 새 부분 해석, null 상태도 실패한다.
+`allow_issues` 전역 플래그는 거부한다. 나머지 프로젝트는 기존 전체 해석·오류 없음 기준을 유지한다.
 
 ## 독립 에디터 정답이 있는 외부 에셋
 
