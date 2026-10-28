@@ -444,6 +444,39 @@ _CUR_CTX = None  # Ctx of the package being rendered (set by Ctx.__init__; one p
 _MEMBER_GUID = re.compile(r"\b([A-Za-z][A-Za-z0-9]*)_\d+_[0-9A-F]{32}\b")
 
 
+def collect_gameplay_tags(v, depth=0, out=None) -> set:
+    """Every GameplayTag name inside a decoded property value (structs, containers, arrays, maps), read from the
+    full value — the Markdown truncates long values, so tag usage must not depend on what was printed."""
+    out = set() if out is None else out
+    if depth > 12 or v is None:
+        return out
+    if isinstance(v, (list, tuple, set)):
+        for x in v:
+            collect_gameplay_tags(x, depth + 1, out)
+        return out
+    stype, fields = None, None
+    if isinstance(v, dict):
+        stype, fields = v.get("struct_type"), v.get("fields")
+        if fields is None:
+            for x in v.values():
+                collect_gameplay_tags(x, depth + 1, out)
+            return out
+    elif hasattr(v, "fields"):
+        stype, fields = getattr(v, "struct_type", None), getattr(v, "fields", None)
+    elif hasattr(v, "entries"):  # MapValue
+        for e in getattr(v, "entries", None) or []:
+            collect_gameplay_tags(e, depth + 1, out)
+        return out
+    if isinstance(fields, dict):
+        if str(stype or "").endswith("GameplayTag") or (set(fields) == {"TagName"}):
+            name = fields.get("TagName")
+            if name not in (None, "", "None"):
+                out.add(str(name))
+        for x in fields.values():
+            collect_gameplay_tags(x, depth + 1, out)
+    return out
+
+
 def clean_member_names(text: str) -> str:
     """UserDefinedStruct members are stored as `Name_<n>_<32 hex GUID>`; show the name the editor shows."""
     return _MEMBER_GUID.sub(r"\1", text)
@@ -1971,7 +2004,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
 
     summary = {"path": game_path, "kind": kind, "parent": parent, "interfaces": interfaces,
                "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
-               "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [], "issues": ctx.issues}
+               "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [], "issues": ctx.issues,
+               "gameplay_tags": sorted(collect_gameplay_tags(list(cdo_props.values())))}
 
     dispatchers = []
     body = []

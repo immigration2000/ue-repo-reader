@@ -871,7 +871,8 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
                    + (" …" if len(refs) > 60 else ""), ""]
         md += B.issue_markdown(ctx.issues)
         summary = {"path": game_path, "class": asset_class, "headline": headline, "references": refs,
-                   "issues": ctx.issues, "parse_status": "partial" if ctx.issues else "ok", "newer_format": _newer, **extra}
+                   "issues": ctx.issues, "parse_status": "partial" if ctx.issues else "ok", "newer_format": _newer,
+                   "gameplay_tags": sorted(B.collect_gameplay_tags([v for _, v in items])), **extra}
         markdown, spans = enum_spans.finish(B.clean_member_names("\n".join(md) + "\n"))
         return {"markdown": markdown, "summary": summary, **({"enum_spans": spans} if spans else {})}
     finally:

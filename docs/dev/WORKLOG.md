@@ -11,6 +11,17 @@
 
 ---
 
+## 2026-10-28 11:20 KST · claude · X6
+- 조사: AR TestLevel의 TreasureChest 두 인스턴스는 `RequiredKeyCard`를 저장하지 않음(= 클래스 기본값 None), LeverBP는 어느 맵에도
+  배치되지 않음 → `KeyCard.*` "미사용"은 오판이 아니라 사실. 맵 인스턴스 오버라이드 자체는 정상 출력됨(예: BP_ApplyEffectZone
+  `EffectClassToApply=Effect_Stunned_C`).
+- 한 일: 그래도 F1이 Markdown 정규식에만 의존하면 오버라이드 120자 절단·액터당 8개 표시 한도, 표시하지 않는 내부 데이터에 있는 태그를 놓침
+  → `bp_reader.collect_gameplay_tags()`로 디코딩된 전체 값을 재귀 탐색해 summary `gameplay_tags`에 저장(BP: CDO 값, data: 모든 프로퍼티,
+  map: 액터 오버라이드 전체). `gameplay_tags()`가 이 값을 Markdown 검색과 합침.
+- 결과: AR에서 새로 `Directors.Events.KillQuestA ← ST_CombatDirector`(StateTree 내부 데이터) 발견 — ini·C++ 어디에도 정의 없음(⚠ 표시).
+  사용 태그 12 → 13. 기대값 갱신(의도된 변경), X6 검사 추가, 단위 테스트(긴 값·컨테이너·None) 추가.
+- 검증: regress 단위 전체 + 외부 에셋 6/6 + 프로젝트 3/3 PASS.
+- 남은 일·주의: 맵 Markdown의 오버라이드 표시 한도(120자·8개)는 그대로 — 표 가독성 때문. 값 전체는 digest.json actor 정보엔 없음(필요하면 별도 과제).
 ## 2026-10-28 10:52 KST · codex · X1 / X2 완료
 - 한 일: v1.8.0. X1은 표시만의 문제가 아니라 enum FName 배열을 uint8로 읽던 오독이었다. Stashinfo의 size=44/count=5,
   4+8×5 바이트와 NameMap을 직접 대조해 저장 이름을 확인. 실제 값은 [5,6,8,10,11]이며 기존 [7,0,0,0,0]은 잘못된 출력.

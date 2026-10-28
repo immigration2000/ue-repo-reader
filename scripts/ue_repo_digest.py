@@ -726,7 +726,7 @@ _TAG_REQUEST = re.compile(r'(?:RequestGameplayTag|FGameplayTag::RequestGameplayT
 _TAG_USE = re.compile(r"TagName=([A-Za-z0-9_][A-Za-z0-9_.]*)")
 
 
-def gameplay_tags(proj: Path, docs: dict) -> tuple[list[str], str | None]:
+def gameplay_tags(proj: Path, docs: dict, value_tags: dict | None = None) -> tuple[list[str], str | None]:
     """GameplayTags: definitions (config ini, tag DataTables, native C++ tags), redirects, and which
     Blueprints/data/maps use each tag. Returns (INDEX lines, config/GameplayTags.md text or None)."""
     defined: dict[str, dict] = {}
@@ -767,6 +767,9 @@ def gameplay_tags(proj: Path, docs: dict) -> tuple[list[str], str | None]:
             if n > 0:
                 cpp_uses[tag].add(f.name)
     used = defaultdict(set)
+    for gp, tags in (value_tags or {}).items():  # from full decoded values (not limited by Markdown truncation)
+        for tag in tags:
+            used[tag].add(gp.rsplit("/", 1)[-1])
     for gp, md in docs.items():
         name = gp.rsplit("/", 1)[-1]
         for tag in set(_TAG_USE.findall(md)):
@@ -1060,7 +1063,9 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
 
     md += input_check(bps, datas)
     docs = {gp: r["markdown"] for gp, r in list(bps.items()) + list(datas.items()) + list((levels or {}).items())}
-    tag_index, tag_doc = gameplay_tags(proj, docs)
+    value_tags = {gp: r["summary"].get("gameplay_tags") or []
+                  for gp, r in list(bps.items()) + list(datas.items()) + list((levels or {}).items())}
+    tag_index, tag_doc = gameplay_tags(proj, docs, value_tags)
     if tag_doc:
         (out / "config").mkdir(exist_ok=True)
         (out / "config" / "GameplayTags.md").write_text(tag_doc, encoding="utf-8")

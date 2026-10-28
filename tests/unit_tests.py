@@ -345,6 +345,17 @@ def test_parser_lock_timeout():
             pass  # lock-file presence does not prevent reacquisition after the owner releases it
 
 
+def test_collect_gameplay_tags():
+    class SV:  # stand-in for uasset_read StructValue
+        def __init__(self, struct_type, fields):
+            self.struct_type, self.fields = struct_type, fields
+    long_tail = {"struct_type": "Payload", "fields": {"Note": "x" * 500,
+                 "Required": SV("GameplayTagContainer", {"GameplayTags": [SV("GameplayTag", {"TagName": "KeyCard.Blue"})]})}}
+    tags = B.collect_gameplay_tags([long_tail, SV("GameplayTag", {"TagName": "None"}),
+                                    {"struct_type": "GameplayTag", "fields": {"TagName": "Status.Stunned"}}])
+    assert tags == {"KeyCard.Blue", "Status.Stunned"}, tags
+
+
 def main() -> int:
     _utf8_stdio()
     failed = 0

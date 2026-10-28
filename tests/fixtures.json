@@ -203,7 +203,7 @@
         "bug": "F1",
         "file": "CATALOG.md",
         "must_contain": [
-          "22 tags defined, 12 used"
+          "22 tags defined, 13 used"
         ]
       },
       {
@@ -239,6 +239,13 @@
         "must_not_contain": [
           "- Notifies (3 items)"
         ]
+      },
+      {
+        "bug": "X6",
+        "file": "config/GameplayTags.md",
+        "must_contain": [
+          "- `Directors.Events.KillQuestA` ← ST_CombatDirector"
+        ]
       }
     ]
   },
@@ -257,14 +264,20 @@
       {
         "collection": "maps_detail",
         "path": "/Game/Maps/World",
-        "fields": {"world_partition": true, "external_actors": 138, "actor_count": 139}
+        "fields": {
+          "world_partition": true,
+          "external_actors": 138,
+          "actor_count": 139
+        }
       }
     ],
     "checks": [
       {
         "bug": "H6-WorldPartition",
         "file": "maps/Game/Maps/World.md",
-        "must_contain": ["World Partition: yes — 138 external actor packages"]
+        "must_contain": [
+          "World Partition: yes — 138 external actor packages"
+        ]
       }
     ]
   }

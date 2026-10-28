@@ -156,11 +156,13 @@ class PackageActors:
                 break
         subobjects = {self.name(c) for c in self.children.get(idx, [])}
         overrides = []
+        tags = set()
         for k, v in p.items():
             if k in _ACTOR_META or k.startswith("bOverride"):
                 continue
             if isinstance(v, str) and v in subobjects:
                 continue  # component reference, not a tunable value
+            B.collect_gameplay_tags(v, out=tags)
             s = D._val(v)
             if s.startswith("<") and s.endswith(">"):
                 continue
@@ -169,7 +171,7 @@ class PackageActors:
         return {"name": name, "label": p.get("ActorLabel") or name, "class": cls, "loc": loc, "rot": rot,
                 "scale": scale if scale and scale != "(1, 1, 1)" else None, "mesh": mesh,
                 "folder": B.fmt_value(folder) if folder not in (None, "None", "") else "",
-                "overrides": overrides, "hidden": p.get("bHidden") is True}
+                "overrides": overrides, "hidden": p.get("bHidden") is True, "tags": sorted(tags)}
 
 
 def _world_info(pkg: PackageActors) -> dict:
@@ -319,6 +321,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
                "world_partition": info["world_partition"], "external_actors": len(ext),
                "external_actor_errors": ext_errors, "external_actors_truncated": truncated,
                "actor_count": len(actors), "gameplay_count": len(gameplay), "placed_classes": dict(placed),
+               "gameplay_tags": sorted({t for a in actors for t in a.get("tags") or []}),
                "issues": issues, "parse_status": "partial" if issues else "ok",
                "level_bp_status": "error" if lb_summary is None else lb_summary.get("parse_status", "ok"),
                "level_bp_entries": (lb_summary or {}).get("entries", []),
