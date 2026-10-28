@@ -112,3 +112,12 @@
   read/search/list의 핸들과 refresh/prune 삭제를 짧은 READ_LOCK으로 조정해 Windows 열린 SQLite/파일 삭제 충돌 방지.
   .git·심볼릭 링크·정션은 검색/glob 목록에서 제외. 검색 schema/범위 의미가 바뀌면 search_index.VERSION을 올린다.
   MCP 스킬과 CHATGPT 가이드에 offset 종류·예산·검색 커버리지 한계를 반영. 공개 배포/인증 설정은 변경하지 않음.
+
+## D-015 에셋별 캐시는 실제 바이트와 디코더를 식별 (2026-10-28, codex)
+- 결정: Git blob SHA-1(필터 없이 실제 바이트) + 도구/Python/디코더 소스/고정 파서 버전 + 콘텐츠 경로/클래스로 키를 만든다.
+  맵은 외부 액터의 상대 경로·순서·blob도 포함. 정상 결과만 저장하고 교차 사용처/배치/최종 색인은 매번 다시 계산한다.
+- 이유: HEAD SHA/mtime/크기만 확인하면 로컬 수정과 LFS pointer→실물 전환을 놓치며, 맵 본체가 같아도 배치 액터는 바뀐다(T3).
+  Git 형식 참고: https://git-scm.com/docs/git-hash-object (--no-filters), 공개 포맷을 직접 구현.
+- 영향: 새 의존성 없음. JSON/gzip + checksum + atomic replace, 한 항목 32MB·완료 시 LRU 256MB/10,000개.
+  실패/부분 결과는 재시도, 손상/권한 오류는 정상 해석으로 복귀. --no-asset-cache로 끄고 --asset-cache-dir로 이동 가능.
+  읽기·쓰기·정리에 링크/정션을 허용하지 않으며 캐시와 출력의 겹침은 기존 출력 삭제 전 거부. 포맷/VERSION 유지.

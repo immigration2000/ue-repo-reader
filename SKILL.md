@@ -23,6 +23,8 @@ Useful options:
 - `--ref <branch|tag|sha>` — read something other than the default branch
 - `--project <name|relative path>` — pick one when the repo holds several `.uproject` files (the tool warns)
 - `--workdir <dir>` — where to clone (default `./.ue-repo-reader/<repo>`); an existing clone is reused
+- `--asset-cache-dir <dir>` — persistent clean asset results (default: parser cache folder); changed bytes,
+  decoder/tool versions and map external actors invalidate entries. `--no-asset-cache` forces fresh decoding.
 - `--lfs-max-mb 8` — only Git-LFS `.uasset` files up to this size are downloaded (Blueprints are small;
   textures and meshes are skipped on purpose)
 

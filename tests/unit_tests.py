@@ -29,6 +29,8 @@ from server_tests import (test_server_deadline_without_output, test_server_deadl
                           test_server_cache_reuse_refresh_and_deduplication, test_server_job_publishes_only_current_success)
 from skill_install_tests import (test_skill_install_layouts_and_execution, test_skill_install_preserves_existing_paths)
 from clone_tests import test_partial_clone_reuse_keeps_heavy_blobs_missing
+from cache_tests import (test_asset_cache_hash_and_dependency_invalidation, test_asset_cache_corruption_partial_and_eviction,
+                         test_asset_cache_only_changed_assets_start_workers, test_asset_cache_preflight_preserves_previous_digest)
 from search_tests import (test_search_literal_unicode_and_index_reuse, test_search_fallback_and_coverage_limits,
                           test_mcp_response_limits_and_lossless_pagination, test_search_and_source_globs_contain_links,
                           test_cache_refresh_waits_for_open_readers)
@@ -112,7 +114,7 @@ def _digest_cli(args):
     with patch.object(D, "classify_assets", return_value={}), \
          patch.object(D, "run", return_value=SimpleNamespace(stdout="", returncode=0)), \
          redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-        return D.main(args)
+        return D.main([*args, "--no-asset-cache"])
 
 
 def _reject_output(args):

@@ -11,6 +11,18 @@
 
 ---
 
+## 2026-10-28 09:15 KST · codex · T3
+- 한 일: 실제 바이트의 Git blob SHA + 디코더 소스/고정 파서/Python/도구 버전/콘텐츠 경로로 분류·BP·data·map 결과 캐시.
+  맵은 외부 액터 경로·순서·내용도 포함. 정상 결과만 JSON/gzip + 체크섬/atomic replace로 저장하며 Used by/Placed in은 매번 계산.
+  --no-asset-cache/--asset-cache-dir, 256MB/10,000개 LRU 정리, 손상·쓰기 실패 시 재해석. 캐시/출력 겹침은 삭제 전 거부,
+  링크/정션은 캐시 읽기·쓰기·정리에서 제외. 문서와 D-015 추가. 출력 포맷/VERSION은 유지.
+- 검증: 전체 regress 단위 46/46 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. 같은 크기/mtime 변경, 버전/경로/외부 액터 무효화,
+  실패·부분 결과 비저장, 손상/체크섬, 변경분만 워커 실행, 캐시 정션 밖 파일 보존, 기존 digest 삭제 전 검증 PASS.
+  실제 eg cold/warm/disabled 100개 Markdown/JSON 전부 byte-identical; warm 1,123 hits/4 misses/0 writes/0 errors.
+  4개 미분류 에셋은 재분류. 동시 회귀와 OS 캐시 영향으로 단일 실행 시간의 속도 비교는 결론 내리지 않음.
+- 남은 일·주의: T3 done, T4 doing. 캐시는 사용자의 파서 캐시 아래에 저장되며 새 버전/디코더 수정 시 무효화된다.
+  정리 예산은 실행 완료 시 적용; 입력 파일 해시는 매번 읽어 로컬 수정/LFS 실물을 확인한다. T4 통합 후 main push 예정.
+
 ## 2026-10-27 17:41 KST · codex · R5
 - 한 일: 도구 6개 유지. search_index.py의 SQLite FTS5 trigram 영속 인덱스 추가(완료 세대·schema·SQLite 버전 확인,
   원자 게시/손상 재생성). 대소문자 무시 리터럴 부분 문자열·기호·한글 유지; 1~2자/FTS5 없음은 캐시 instr 검색.

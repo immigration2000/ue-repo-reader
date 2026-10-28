@@ -11,6 +11,14 @@ Python 3.10+와 Git이 필요하다. `python`이 WindowsApps 스텁이면 설치
 Windows smoke는 이미 있는 Python/Git/git-lfs를 사용하며 소프트웨어를 설치하지 않는다.
 생성 결과·외부 바이너리·클론·실행 로그는 모두 gitignore된 `tests/.cache/`에 둔다.
 
+T3 에셋 캐시: 기본 단위 검사에서 실제 Git blob SHA, 같은 크기/mtime의 내용 변경, 도구/디코더/콘텐츠 경로,
+외부 액터 추가·변경·순서, 부분 실패 재시도, 손상/체크섬, 변경분만 워커 실행, 정션 밖 파일 보존을 확인한다.
+실제 프로젝트에서 cold/warm/캐시 끄기의 모든 Markdown/JSON 바이트와 시간·hit 수를 비교하려면:
+
+```bash
+python tests/cache_smoke.py tests/.cache/eg
+```
+
 스킬 설치 검사(`skill_install_tests.py`)는 세 도구의 개인/프로젝트 경로 6개에 실제 파일을 복사한다.
 한글·공백·대괄호·쉼표 경로에서 다른 작업 폴더를 cwd로 설치본의 CLI 도움말과 네 리더의 로컬 import를 실행하고,
 기존 파일 보존·존재하지 않는 프로젝트·탐색 경로의 symlink/Windows junction 거부를 확인한다.

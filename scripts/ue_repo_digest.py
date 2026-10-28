@@ -544,16 +544,28 @@ def _classify(path):
         return path, "?"
 
 
-def classify_assets(paths, workers):
+def classify_assets(paths, workers, cache=None):
     if not paths:
         return {}
+    out, keys, pending = {}, {}, []
+    for path in paths:
+        key = cache.key("class", path) if cache else None
+        value = cache.load(key) if cache else None
+        if value is None:
+            pending.append(path)
+            keys[path] = key
+        else:
+            out[path] = value
+    if not pending:
+        return out
     import bp_reader
     bp_reader.ensure_uasset_read()  # finish installation in the parent, before spawning any workers
     ctx = mp.get_context("spawn")
-    out = {}
     with ctx.Pool(processes=workers, initializer=_worker_init) as pool:
-        for i, (p, cls) in enumerate(pool.imap_unordered(_classify, paths, chunksize=16), 1):
+        for i, (p, cls) in enumerate(pool.imap_unordered(_classify, pending, chunksize=16), 1):
             out[p] = cls
+            if cache:
+                cache.store(keys[p], cls)
             if i % 500 == 0:
                 log(f"[scan] classified {i}/{len(paths)}")
     return out
@@ -610,9 +622,20 @@ def _worker(args):
         return gpath, None, f"{type(e).__name__}: {e}"
 
 
-def process_blueprints(items, workers: int, timeout: int, worker=None, label="bp"):
+def process_blueprints(items, workers: int, timeout: int, worker=None, label="bp", cache=None):
     results, failures = {}, {}
     if not items:
+        return results, failures
+    keys, todo = {}, []
+    for item in items:
+        key = cache.key(label, item) if cache else None
+        value = cache.load(key) if cache else None
+        if value is None:
+            todo.append(item)
+            keys[item[1]] = key
+        else:
+            results[item[1]] = value
+    if not todo:
         return results, failures
     import bp_reader
     bp_reader.ensure_uasset_read()
@@ -620,7 +643,7 @@ def process_blueprints(items, workers: int, timeout: int, worker=None, label="bp
     ctx = mp.get_context("spawn")
     pool = ctx.Pool(processes=workers, initializer=_worker_init, maxtasksperchild=200)
     try:
-        pending = {it[1]: pool.apply_async(worker, (it,)) for it in items}
+        pending = {it[1]: pool.apply_async(worker, (it,)) for it in todo}
         done = 0
         for gp, job in pending.items():
             try:
@@ -631,6 +654,8 @@ def process_blueprints(items, workers: int, timeout: int, worker=None, label="bp
                 res, err = None, f"{type(e).__name__}: {e}"
             if res is not None:
                 results[gp] = res
+                if cache:
+                    cache.store(keys[gp], res)
             else:
                 failures[gp] = err
             done += 1
@@ -639,7 +664,7 @@ def process_blueprints(items, workers: int, timeout: int, worker=None, label="bp
     finally:
         pool.terminate()
         pool.join()
-    return results, failures
+    return {item[1]: results[item[1]] for item in items if item[1] in results}, failures
 
 
 # =========================================================================== index
@@ -1160,6 +1185,8 @@ def main(argv=None):
     ap.add_argument("--lfs-map-max-mb", type=float, default=64.0, help="only download LFS .umap files up to this size (default 64)")
     ap.add_argument("--workers", type=int, default=max(1, min(8, (os.cpu_count() or 2) - 1)))
     ap.add_argument("--timeout", type=int, default=90, help="seconds allowed per Blueprint (default 90)")
+    ap.add_argument("--no-asset-cache", action="store_true", help="decode every asset without reading/writing the asset cache")
+    ap.add_argument("--asset-cache-dir", type=Path, help="parent folder of the persistent asset cache (default: parser cache folder)")
     ap.add_argument("--max-bp-mb", type=float, default=64.0, help="skip Blueprint candidates larger than this")
     a = ap.parse_args(argv)
 
@@ -1199,6 +1226,14 @@ def main(argv=None):
         out = validate_output_dir(output, repo, proj)
     except ValueError as e:
         ap.error(str(e))
+    cache = None
+    if not a.no_asset_cache:
+        from asset_cache import AssetCache
+        cache_dir = a.asset_cache_dir or Path(os.environ.get("UE_REPO_READER_CACHE") or Path.home() / ".cache/ue-repo-reader")
+        cache_root = cache_dir.expanduser().resolve() / "asset-results-v1"
+        if cache_root == out or out in cache_root.parents or cache_root in out.parents:
+            ap.error("asset cache and --out must be separate folders; use --asset-cache-dir or --no-asset-cache")
+        cache = AssetCache(cache_dir, repo, VERSION, log=log)
     if out.exists():
         shutil.rmtree(out)
     (out / "blueprints").mkdir(parents=True)
@@ -1275,7 +1310,7 @@ def main(argv=None):
     log(f"[cpp] {len(cpp['classes'])} reflected types in {len(cpp['modules'])} modules")
     project_types = {re.sub(r"^[AUF](?=[A-Z])", "", c["name"]) for c in cpp["classes"]}
 
-    classes = classify_assets([str(p) for p in local], a.workers)
+    classes = classify_assets([str(p) for p in local], a.workers, cache=cache)
     # instances of this project's Blueprint classes saved as assets (e.g. a DataAsset made from PDA_PlayerData)
     bp_class_names = {Path(str(q)).stem + "_C" for q in local if is_blueprint_class(classes.get(str(q), "?"))}
     data_items = []
@@ -1291,7 +1326,7 @@ def main(argv=None):
     log(f"[scan] {len(candidates)} Blueprints, {len(data_items)} data assets, {len(maps)} maps, {len(others)} other assets")
 
     t0 = time.time()
-    bps, failures = process_blueprints(candidates, a.workers, a.timeout)
+    bps, failures = process_blueprints(candidates, a.workers, a.timeout, cache=cache)
     log(f"[bp] rendered {len(bps)} in {time.time() - t0:.1f}s, {len(failures)} failed")
     for gp, r in bps.items():
         dest = out / "blueprints" / (gp.lstrip("/") + ".md")
@@ -1299,7 +1334,7 @@ def main(argv=None):
         dest.write_text(r["markdown"], encoding="utf-8")
 
     t0 = time.time()
-    datas, data_failures = process_blueprints(data_items, a.workers, a.timeout, worker=_data_worker, label="data")
+    datas, data_failures = process_blueprints(data_items, a.workers, a.timeout, worker=_data_worker, label="data", cache=cache)
     log(f"[data] rendered {len(datas)} in {time.time() - t0:.1f}s, {len(data_failures)} failed")
     # who uses each data asset: Blueprints mentioning it + data assets referencing it
     used_by = defaultdict(set)
@@ -1334,7 +1369,7 @@ def main(argv=None):
         return files
     map_items = [(str(p), gp, ext_for(gp)) for gp, p in map_files.items() if lfs_pointer_size(p) is None]
     t0 = time.time()
-    level_results, map_failures = process_blueprints(map_items, a.workers, a.timeout * 4, worker=_map_worker, label="map")
+    level_results, map_failures = process_blueprints(map_items, a.workers, a.timeout * 4, worker=_map_worker, label="map", cache=cache)
     for gp, p in map_files.items():
         if lfs_pointer_size(p) is not None:
             map_failures[gp] = "not downloaded (Git LFS: over --lfs-map-max-mb or LFS not accessible)"
@@ -1379,6 +1414,9 @@ def main(argv=None):
     if n_split:
         log(f"[out] split {n_split} large Markdown files into parts of <= {MD_PART_CHARS} characters")
     log(f"[done] {out / 'INDEX.md'}")
+    if cache:
+        cache.prune()
+        log("[cache] " + " ".join(f"{key}={value}" for key, value in cache.stats.items()))
     print(str(out / "INDEX.md"))
     return 0
 
