@@ -86,8 +86,8 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| X1 | todo | - | 바이트 열거형 배열이 숫자로 나옴(`Stashinfo = [7, 0, …]`, Array<E_Crates>) → 같은 저장소의 UserDefinedEnum 문서로 이름 매핑 | S |
-| X2 | todo | - | PDA_PlayerData 변수 표 `Map<E_Crates, None>` — Map 값 타입 디코딩 확인 | S |
+| X1 | doing | codex | 바이트 열거형 배열이 숫자로 나옴(`Stashinfo = [7, 0, …]`, Array<E_Crates>) → 같은 저장소의 UserDefinedEnum 문서로 이름 매핑 | S |
+| X2 | doing | codex | PDA_PlayerData 변수 표 `Map<E_Crates, None>` — Map 값 타입 디코딩 확인 | S |
 | X3 | todo | - | UE 4.25 저장 몽타주(AR 스파이더) 섹션 이름이 `0`, `1` — 실제 이름인지 FName 해석 문제인지 확인 | S |
 | X4 | done | codex | 기존 클론 재사용 + `--ref`가 `git checkout ref`로 빠진 큰 blob을 lazy fetch → T2의 materialize 재사용 | S |
 | X5 | todo | - | 함수 MetaData(툴팁·카테고리·CallInEditor) 표시 | S |
