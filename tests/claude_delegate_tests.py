@@ -68,6 +68,12 @@ def test_claude_job_silent_deadline_and_stop():
                     timer.join()
             assert state["phase"] == ("stopped" if stop else "timed_out"), state
             assert state["elapsed_seconds"] < 8 and not (path / "running.lock").exists()
+    # Windows communicate(input=...) can block on stdin before its timeout starts.
+    # Fill the pipe of a child that never reads it; stop/timeout must still be enforced.
+    with tempfile.TemporaryDirectory() as tmp:
+        path = job(tmp)
+        state = C.run(path, "큰 지시" * 200000, [sys.executable, "-c", "import time; time.sleep(20)"], 0.5)
+        assert state["phase"] == "timed_out" and state["elapsed_seconds"] < 8, state
 
 
 def test_claude_job_tool_scope_and_overlap_guards():

@@ -14,6 +14,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from threading import Thread
 
 ROOT = Path(__file__).resolve().parents[1]
 TOOLS = "Read,Glob,Grep,Edit,Write"
@@ -121,7 +122,17 @@ def run(job: Path, prompt: str, argv: list[str], timeout: float):
                                        env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"}, **options)
             state["worker_pid"] = process.pid
             save(job, state)
-            first = True
+            delivery_errors = []
+            def send_prompt():
+                try:
+                    process.stdin.write(prompt)
+                    process.stdin.close()
+                except (OSError, ValueError) as error:
+                    delivery_errors.append(f"{type(error).__name__}: prompt delivery failed")
+            # On Windows communicate(input=...) writes stdin synchronously before checking its deadline.
+            # A full pipe must not block stop/timeout if a broken CLI never reads the prompt.
+            writer = Thread(target=send_prompt, daemon=True)
+            writer.start()
             while True:
                 if (job / "stop.request").exists():
                     state["phase"] = "stopped"
@@ -133,10 +144,13 @@ def run(job: Path, prompt: str, argv: list[str], timeout: float):
                     stop_process(process)
                     break
                 try:
-                    process.communicate(input=prompt if first else None, timeout=min(1, remaining))
+                    process.wait(timeout=min(1, remaining))
                     break
                 except subprocess.TimeoutExpired:
-                    first = False
+                    pass
+            writer.join(timeout=5)
+            if state["phase"] == "running" and (writer.is_alive() or delivery_errors):
+                state.update(phase="needs_attention", error="Prompt delivery did not complete")
             state["exit_code"] = process.returncode
         session, result, _ = summarize(job / state["stdout"])
         if session:
