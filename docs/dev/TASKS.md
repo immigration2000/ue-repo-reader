@@ -107,7 +107,7 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| Q1 | todo | - | **5.8 에디터 정답 비교**: 에디터 Python 스크립트(BP별 변수·함수·노드 수/클래스, 위젯 바인딩, 함수 메타데이터 등 → JSON)를 만들고, 사람이 ExtractionGame_Fin에서 한 번 실행 → 결과를 회귀 정답으로 넣어 요약본과 자동 대조. 스크립트 작성은 AI, 실행은 사람 | M |
+| Q1 | doing | codex | **5.7+ 에디터 정답 비교**: 독립 에디터 수집·파일 동일성 확인·요약/IR 자동 대조·변조 반례 검사. 설치된 5.7/5.8의 격리 프로젝트에서 실측하고 ExtractionGame 전체 정답의 수집 범위를 구분 | M |
 | Q2 | todo | - | StateTree 태스크·컨디션 인스턴스(instanced struct) 설정값 디코딩 — 지금은 쓰는 BP 이름만 References에 나옴(AR ST_CombatDirector) | M |
 | Q3 | todo | - | 위젯 애니메이션 길이·키 값(MovieSceneFrameRange, FloatChannel 등) — 지금은 대상 속성만 표시 | S–M |
 | Q4 | done | codex | 맵 액터·루트 컴포넌트의 디코딩된 저장값 전체를 maps_detail.actors에 보존; partial/unknown 명시, 실제 Claude Code 교차 검토·수정 완료(D-022) | S |
@@ -118,3 +118,4 @@
 | Q9 | done | codex | W3/W1 첫 단계: BP·Level BP 노드/핀/저장 연결의 정규화 IR, 정확한 식별자·불확실성·검증 계약 및 의미 변경 검사 기반; Claude 교차 검토 | S–M |
 | Q10 | done | codex | W0: UE 5.7+ 프로젝트 지원 경계, 미확정/미검증 미래 버전·명시적 best-effort와 혼재 에셋 구분; CLI/MCP/출력/캐시·문서 적용 | S–M |
 | Q11 | done | claude | Q10의 순수 정책·출력 보존·best-effort·프로젝트 선택 경계 독립 회귀 검사 작성; Codex가 실행·통합하고 Claude가 구현 교차 검토 | S |
+| Q12 | doing | claude | Q1 분담: 에디터 전용 읽기 전용 oracle exporter와 독립 검사; 실제 API 범위·수집 실패 명시, Codex가 실행/검증/통합 | S–M |
