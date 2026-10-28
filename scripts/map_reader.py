@@ -197,7 +197,13 @@ class PackageActors:
         return out
 
     def describe(self, idx, cls, p) -> dict:
-        name = self.name(idx)
+        name = str(self.name(idx))
+        label = p.get("ActorLabel")
+        label_invalid = label is not None and not isinstance(label, str)
+        if label_invalid:
+            B.record_issue(self.ctx.issues, "actor_values", name + ".ActorLabel",
+                           "ActorLabel is not text; identity label uses the saved object name")
+        label = label if isinstance(label, str) and label else name
         root = self.child(idx, p.get("RootComponent"))
         rp = self.props(root) if root else {}
         loc = _vec(rp.get("RelativeLocation")) if rp else None
@@ -229,14 +235,15 @@ class PackageActors:
         folder = p.get("FolderPath")
         before_values = len(self.ctx.issues)
         saved = {"source_package": getattr(self, "package_path", Path(self.path).as_posix()), "export_index": idx,
-                 "name": name, "label": p.get("ActorLabel") or name, "class": cls,
+                 "name": name, "label": label, "class": str(cls),
                  "saved_properties": _saved_value(p, self.ctx, name)}
         if root:
-            saved["root_component"] = {"name": self.name(root), "export_index": root,
-                                       "saved_properties": _saved_value(rp, self.ctx, name + "." + self.name(root))}
+            root_name = str(self.name(root))
+            saved["root_component"] = {"name": root_name, "export_index": root,
+                                       "saved_properties": _saved_value(rp, self.ctx, name + "." + root_name)}
         saved["properties_status"] = "partial" if (idx in self.failed_props or (root and root in self.failed_props)
-                                                     or len(self.ctx.issues) > before_values) else "ok"
-        return {"name": name, "label": p.get("ActorLabel") or name, "class": cls, "loc": loc, "rot": rot,
+                                                     or label_invalid or len(self.ctx.issues) > before_values) else "ok"
+        return {"name": name, "label": label, "class": str(cls), "loc": loc, "rot": rot,
                 "scale": scale if scale and scale != "(1, 1, 1)" else None, "mesh": mesh,
                 "folder": B.fmt_value(folder) if folder not in (None, "None", "") else "",
                 "overrides": overrides, "hidden": p.get("bHidden") is True, "tags": sorted(tags), "saved": saved}
@@ -364,6 +371,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
            "_Overrides are the values changed on this placed instance — for Blueprint actors, typically instance-editable variables._", "",
            "_Compact preview only (up to 8 overrides, shortened values). Full decoded actor/root-component saved properties: "
            f"`digest.json` → `maps_detail[\"{game_path}\"].actors`; opaque bytes remain marked, class defaults are not inferred._", "",
+           "_Check each record's `properties_status`: partial records are incomplete; absent properties are unknown._", "",
            "| Actor | Class | Location | Rotation | Overrides |", "|---|---|---|---|---|"]
     for a in sorted(gameplay, key=lambda a: (a["folder"], a["class"], a["label"])):
         label = f"{a['folder']}/{a['label']}" if a["folder"] else a["label"]

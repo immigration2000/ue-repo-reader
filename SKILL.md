@@ -63,6 +63,7 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    Scripts can obtain complete decoded actor/root-component saved properties from
    `digest.json` → `maps_detail[map_path].actors`: source package/export index identify each actor;
    native values retain their fields, opaque bytes use base64, and unavailable values stay explicitly unknown.
+   Check each record's `properties_status`: `partial` means an incomplete read/conversion; absent properties are unknown, not defaults.
    Other component exports and unsaved class defaults are not expanded into these records.
 4. `<out>/data/<content path>.md` — data assets: DataTables (every row), UserDefinedStructs (fields, types,
    defaults), UserDefinedEnums (values and display names), StringTables, Behavior Trees (full tree with

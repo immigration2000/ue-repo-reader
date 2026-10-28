@@ -916,6 +916,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- Maps are rendered under `maps/`: Level Blueprint, placed actors with per-instance overrides, game mode.",
            "  Map tables are compact previews. Full decoded actor/root-component saved properties are in",
            "  `digest.json` → `maps_detail[map_path].actors` (native fields and opaque bytes retained; missing values stay unknown).",
+           "  Check each actor's `properties_status`: partial records are incomplete; absent properties are unknown, not defaults.",
            "  Blueprint files end with `Placed in levels` when instances of them are placed in a map.",
            "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, montages, DataAssets) are",
            "  rendered under `data/` — see the Data assets table below.",

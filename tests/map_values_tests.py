@@ -65,6 +65,12 @@ def test_map_actor_full_values_do_not_reuse_compact_preview():
     assert saved["source_package"] == "/Game/Map" and saved["export_index"] == 1
     actor.failed_props.add(2)
     assert actor.describe(1, "BP_Actor_C", properties)["saved"]["properties_status"] == "partial"
+    actor.failed_props.clear()
+    malformed = actor.describe(1, "BP_Actor_C", {"ActorLabel": {"Bad": "not a label"}})
+    assert malformed["label"] == "Actor" and malformed["saved"]["properties_status"] == "partial"
+    assert malformed["saved"]["saved_properties"]["ActorLabel"] == {"Bad": "not a label"}
+    json.dumps(malformed, allow_nan=False)
+    assert actor.ctx.issues[-1]["context"] == "Actor.ActorLabel"
 
 
 def test_map_full_values_reach_summary_and_cache_with_external_identity():

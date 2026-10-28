@@ -30,6 +30,7 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
    Tables are compact previews. Complete decoded actor/root-component saved properties are retained for
    scripts in `digest.json` → `maps_detail[map_path].actors`, with source package/export index identities.
    Native fields/opaque bytes are preserved; unavailable values stay unknown, and other component exports/class defaults are not expanded.
+   Check each record's `properties_status`: `partial` means incomplete; absent properties are unknown, not defaults.
 3. `blueprints/…md` — components, variables, class defaults, event dispatchers, and every graph as
    execution-flow pseudo-code (`event X`, `[true]:`, `#N = Func()`, `→ goto #N` jumps to the line labelled `[#N]`, `return <value>`, `Pin=∅` = unconnected input,
    `when auto (...)` = automatic anim transition, `⚠ disconnected` = dead code).
