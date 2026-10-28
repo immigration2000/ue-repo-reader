@@ -34,7 +34,9 @@
 - 남은 일·주의: 병렬 검증 도중 테스트용 파서 설치 rename에서 WinError 5가 한 번 발생함. 원인은 확정하지 않았고,
   해당 검사 단독 재실행과 최종 전체 순차 실행은 모두 PASS. 기대값을 완화하지 않음. 캐시 32MB 상한의 로그와 전역 JSON writer 엄격화는 별도 검토 사항.
   다음 정확도 과제는 Q1(정답 비교에는 연결/기본값/입출력도 포함), Q2/Q3/Q5/Q6. 턴 종료 뒤 자동 감시는 없음.
-  관리 실행 기록은 .ue-repo-reader/claude-jobs/Q7-1e187f4c에만 보존. main 통합·push 후 사용이 끝난 worktree는 복구 가능하게 archive.
+  관리 실행 기록은 원래 checkout의 .ue-repo-reader/claude-jobs/Q7-1e187f4c에만 보존; accepted로 마감했고 실행 중 작업 없음.
+  main 4a48004 push 완료. 앱의 archive_worktree는 이 채팅의 primary checkout이라며 정리를 거부함(수동 삭제하지 않음).
+  현재 worktree를 codex/O1-managed-workspace(origin/main 추적)로 전환해 최신 main 내용으로 맞춤. 후속 턴은 이 경로에서도 최신 도구를 사용 가능.
 
 ## 2026-10-28 11:30 KST · claude · Q1–Q6 (등록만)
 - 한 일: TASKS.md에 "정확도 — 빈칸과 검증" 절과 Q1~Q6 추가(코드 변경 없음). 근거: REVIEW-2026-10-27의 `노드 N/N` 한계,
