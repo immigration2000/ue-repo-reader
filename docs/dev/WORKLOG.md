@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-10-28 11:19 KST · codex · X5
+- 한 일: v1.10.0. K2Node_FunctionEntry.MetaData의 ToolTip/Category/bCallInEditor를 실제 저장 값으로 읽어
+  `// Function metadata` / `// Function tooltip` 설명 주석과 BP summary.function_metadata에 출력(그래프 경로/진입점 이름 포함).
+  필드 없음과 명시 false를 구분하고 문자열을 bool로 추측하지 않음. Opaque 구조체는 해당 export index만 TaggedReader로 재읽고,
+  복구 실패/잘못된 필드는 function_metadata issue와 unknown 주석으로 표시. author text는 구조체 GUID 이름 정리에서 제외해 보존.
+  한글·개행·따옴표·fence·Unicode 구분자는 JSON 리터럴로 표현하며 실제 실행 흐름/함수 플래그는 유지.
+  두 SKILL 2절/INDEX/CATALOG 범례·README·테스트 안내·플러그인 버전 갱신, D-020 기록.
+- 검증: 최종 전체 regress 단위 66/66 + 외부 에셋 6/6 + 프로젝트 4/4 PASS. bt는 기존 UE 4.12 부분 해석 기대값(26/98) 포함.
+  기존 3개 프로젝트의 BP/노드 수량 동일. 실제 BFL_Util 한글 툴팁과 WBP_GridSlot Slot 카테고리 문자열 회귀 추가.
+  X5 단위 5개: 합성 bool true/false·필드 생략·명시 빈 문자열, 한글/긴 문구/개행/fence/GUID 원문 보존,
+  동명 노드의 정확한 export index/Reader 정리, opaque fallback/필드 실패·summary/Parse report 전파 PASS.
+  eg/ar/ves에서 저장된 CallInEditor 예는 없어 true/false는 합성 값으로 검증. 실제 metadata 14개(eg) 출력 확인.
+  최종 실제 MCP HTTP 6도구/한글 툴팁 읽기/캐시·검색·refresh·재시작 PASS. eg cold/warm/disabled 출력 101개 byte-identical,
+  warm 97 hits/0 misses/0 writes/0 errors. 두 skill quick_validate·plugin/tool 버전 일치·문서/생성 링크·fence·diff --check PASS.
+- 남은 일·주의: X5 done. 원격 X6/X3/X7/X8/B9·신규 clone 수정까지 보존해 통합 검증함. B9의 진입점 이름 _0 표기를 반영했고,
+  이미 게시된 v1.9.0과 캐시가 섞이지 않도록 v1.10.0 사용. X8 상태 done 보존. 다음 X 후보는 X9, 기능 후보 F5/F9/F10.
+  main fast-forward/push 예정. 배포 대상·공개/인증 설정은 변경하지 않음.
+
 ## 2026-10-28 12:30 KST · claude · X8 B9 (+X4 회귀 수정)
 - X8: 바인딩 쓰는 공개 저장소 탐색 → `UnrealCourse/04_BattleTank`(HealthBar, PlayerUI_BP), `05_TestingGrounds`(WBP_Score)에서
   `DelegateEditorBinding` 발견. 출력 확인: `ProgressBar_0.Percent ← GetPercent_0`, `AimPoint.ColorAndOpacity ← Get_AimPoint_ColorAndOpacity_0`.

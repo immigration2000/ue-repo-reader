@@ -172,3 +172,15 @@
 - 영향: 번호 붙은 컴포넌트·위젯·액터·핀 이름이 바뀐다(노드 수·디코딩 결과는 동일). 이전 요약본과 텍스트 diff 발생, 에셋 캐시는
   디코더 소스 해시로 자동 무효화. 회귀에 UE 4.12 BattleTank(`bt`, 바인딩 실데이터)를 `nodes_ok`·`allow_issues`로 추가.
 
+## D-020 함수 메타데이터는 저장된 진입점 설명으로 출력 (2026-10-28, codex)
+- 결정: v1.10.0. K2Node_FunctionEntry.MetaData의 Category/ToolTip(FText)과 bCallInEditor(bool)를 주석 및
+  BP summary.function_metadata에 그래프 경로/진입점 이름과 함께 저장한다. 실행문·함수 플래그와 구분한다(X5).
+- 이유: 함수 설명과 분류·에디터 호출 설정이 기존 요약에서 빠졌다. 반면 저장되지 않은 값을 false/빈 설명으로 추정하거나,
+  생성된 PinToolTip을 작성자가 저장한 함수 설명으로 사용하면 의미가 달라진다. 실제 eg의 한글 툴팁/Slot 분류로 확인했다.
+- 영향: 명시 false/빈 문자열은 보존하고 없는 필드는 생략한다. Opaque 값은 정확한 export index로 재읽으며 읽기 실패는
+  function_metadata issue와 unknown 표시로 전파한다. 주석 문자열은 JSON escaping으로 원문을 보존하고 구조체 이름 정리에서 제외.
+  두 SKILL 2절/범례/README/플러그인 버전 갱신. v1.9.0(B9) 이후의 새 버전으로 기존 MCP/에셋 캐시를 무효화한다.
+  새 의존성·상위/타 제품 코드 복사 없음. 필드 의미 근거:
+  https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Editor/BlueprintGraph/FKismetUserDeclaredFunctionMetad-
+  https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Editor/BlueprintGraph/UK2Node_FunctionEntry
+

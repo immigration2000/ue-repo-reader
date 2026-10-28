@@ -91,7 +91,7 @@
 | X2 | done | codex | Map 값 타입 표시 수정; NewVar는 실제 저장 terminal None → Map<E_Crates, ?>로 미지정 명시 | S |
 | X3 | done | claude | UE 4.25 저장 몽타주(AR 스파이더) 섹션 이름이 `0`, `1` — 실제 이름인지 FName 해석 문제인지 확인 | S |
 | X4 | done | codex | 기존 클론 재사용 + `--ref`가 `git checkout ref`로 빠진 큰 blob을 lazy fetch → T2의 materialize 재사용 | S |
-| X5 | doing | codex | 함수 MetaData(툴팁·카테고리·CallInEditor) 표시 | S |
+| X5 | done | codex | 저장된 함수 ToolTip·Category·CallInEditor를 설명 주석/구조화 요약에 표시; 미지정/명시 false/읽기 실패 구분 | S |
 | X6 | done | claude | 맵 배치 인스턴스의 변수·태그 오버라이드가 요약본에 나오는지 확인(AR LeverBP KeyCard → GameplayTags "미사용" 오판 가능) | S–M |
 | X7 | done | claude | InputAction 에셋 자체의 트리거·모디파이어(IA 단위 설정) 표시 | S |
 | X8 | done | claude | 위젯 Property bindings 출력 실데이터 검증(테스트 3개 저장소엔 바인딩 없음) — 바인딩 쓰는 공개 저장소로 확인 | S |
