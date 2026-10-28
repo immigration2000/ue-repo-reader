@@ -184,3 +184,12 @@
   https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Editor/BlueprintGraph/FKismetUserDeclaredFunctionMetad-
   https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Editor/BlueprintGraph/UK2Node_FunctionEntry
 
+## D-021 사용자 요청에 따른 Codex 관리·Claude Code 작업자 모드 (2026-10-28, codex)
+- 결정: 실제 Claude Code CLI를 별도 worktree에서 실행하고 Codex가 작업 배정·재지시·검토·테스트·커밋·통합·push를 맡는다.
+  관리 실행은 파일 읽기·편집 도구만 허용하며, 작업자 성공 응답은 검토 대기 상태로 기록한다.
+- 이유: 사용자가 두 도구 사이의 작업 전달까지 직접 관리하도록 요청했다. 같은 checkout의 동시 수정과 검증 전 main 반영을 피하고,
+  새 Codex 에이전트를 Claude Code로 오인하지 않도록 AGENTS.md에 관리 모드의 절차 예외와 역할을 명시한다.
+- 영향: 단독 Claude/Codex 작업 절차는 유지한다. 세션·프롬프트·로그는 로컬 ignore 경로에만 저장하고 인증 정보는 다루지 않는다.
+  새 의존성·전역 권한 변경·전체 권한 우회 없음. Codex 턴 종료 후 지속 감시는 별도 요청이 있어야 한다.
+  CLI 실행/재개 방식: https://code.claude.com/docs/en/headless
+
