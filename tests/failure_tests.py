@@ -15,6 +15,7 @@ import data_reader as R
 import map_reader as M
 import ue_repo_digest as D
 import regress
+from project_support import assess_project
 
 
 def _scratch():
@@ -31,7 +32,7 @@ def _write_digest(root, bps=None, data=None, maps=None, **fields):
 
 def _index(root, bps=None, data=None, maps=None):
     with patch.object(D, "gameplay_tags", return_value=([], None)):
-        D.build_index({}, root, {"classes": [], "modules": []}, bps or {}, {}, [], [], {}, root, None,
+        D.build_index({"project_support": assess_project("5.8")}, root, {"classes": [], "modules": []}, bps or {}, {}, [], [], {}, root, None,
                       datas=data, levels=maps)
     return (root / "INDEX.md").read_text(encoding="utf-8")
 

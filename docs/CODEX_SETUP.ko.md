@@ -125,6 +125,10 @@ Select-String -LiteralPath "$work\ExtractionGame_Fin_digest\INDEX.md" -Pattern "
 
 ## 6. 사용자에게 보고 (한국어, 짧게)
 
+지원 경계: 프로젝트의 `.uproject`가 숫자 5.7/5.8을 선언하면 기본 분석한다. 5.7 미만·빌드 GUID/누락·미검증 신버전은
+거부하며 기존 CLI 출력은 보존한다. 사용자가 범위 밖 탐색을 요청하면 `--best-effort`를 명시하고 INDEX의 **Project support**를
+함께 보고한다. 에셋 저장 버전이 오래됐다는 이유로 5.7+ 프로젝트를 거부하거나, 최신 에셋 하나로 프로젝트 버전을 추정하지 않는다.
+
 - 새로 설치한 것 / 원래 있던 것과 버전 (git, git-lfs, python)
 - 스킬 설치 경로
 - 5단계의 `Coverage:` 줄

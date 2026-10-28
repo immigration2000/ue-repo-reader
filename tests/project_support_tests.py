@@ -181,6 +181,8 @@ def test_project_support_policy_is_pure_and_stateless():
 
 def test_cli_rejects_unsupported_projects_and_preserves_output():
     cases = (("legacy", '{"EngineAssociation": "5.6"}'),
+             ("duplicate", '{"EngineAssociation":"5.6","EngineAssociation":"5.8"}'),
+             ("nested_duplicate", '{"EngineAssociation":"5.8","Extra":{"Key":1,"Key":2}}'),
              ("future", '{"EngineAssociation": "5.9"}'),
              ("guid", '{"EngineAssociation": "{A0B1C2D3-4E5F-6071-8293-A4B5C6D7E8F9}"}'),
              ("label", '{"EngineAssociation": "5.8.0-34113687+++UE5+Release-5.8"}'),
@@ -204,6 +206,15 @@ def test_cli_rejects_unsupported_projects_and_preserves_output():
             assert run.lfs.call_count == 0, f"{name}: downloaded LFS objects of an unsupported project"
             assert run.parser.call_count == 0, f"{name}: installed the parser for an unsupported project"
             assert re.search(r"best[- ]effort", run.text, re.I), f"{name}: refusal did not name the opt-in: {run.text}"
+        source = _project(base / "recursion-source", '{"EngineAssociation":"5.8"}')
+        out = base / "recursion-digest"
+        _previous_output(out)
+        before = _snapshot(out)
+        with patch.object(D, "parse_descriptor", side_effect=RecursionError("descriptor nesting")), \
+             patch.object(D.shutil, "rmtree", side_effect=AssertionError("output deleted after JSON failure")):
+            run = _run_cli([str(source), "--out", str(out)])
+        assert run.code == 2 and _snapshot(out) == before, run.text
+        assert run.classify.call_count == run.lfs.call_count == run.parser.call_count == 0
 
 
 def test_cli_best_effort_keeps_unsupported_status_in_digest_and_indexes():
@@ -267,3 +278,21 @@ def test_cli_project_selection_uses_declaration_not_asset_bytes():
             assert support["best_effort_requested"] is bool(extra), support
             assert digest["source"].get("engine") == "5.8", digest["source"].get("engine")
             assert run.classify.call_count == 1, "the supported project's assets were not classified"
+            for filename, heading in (("INDEX.md", "## Reading priority"), ("CATALOG.md", "## Blueprints (")):
+                head = _head((out / filename).read_text(encoding="utf-8"), heading)
+                assert "Project support: **target**" in head and "normal" in head, (filename, head)
+                assert "Older-saved assets" in head and "not a guarantee of semantic accuracy" in head, head
+
+
+def test_indexes_without_policy_record_remain_unconfirmed():
+    # Legacy callers/records must never receive a default target/clean assurance.
+    with _scratch() as tmp:
+        root = Path(tmp)
+        with patch.object(D, "gameplay_tags", return_value=([], None)):
+            D.build_index({}, root, {"classes": [], "modules": []}, {}, {}, [], [], {}, root, None)
+        from navigation import build_navigation
+        build_navigation({}, {"classes": [], "modules": []}, {}, {}, {}, {}, {}, {}, {}, root)
+        for filename in ("INDEX.md", "CATALOG.md"):
+            text = (root / filename).read_text(encoding="utf-8")
+            assert "Project support: **unconfirmed**" in text, (filename, text)
+            assert "everything decoded cleanly" not in text.lower(), filename

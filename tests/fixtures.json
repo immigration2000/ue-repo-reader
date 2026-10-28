@@ -2,8 +2,16 @@
   "eg": {
     "url": "https://github.com/immigration2000/ExtractionGame_Fin",
     "sha": "f7335adbb7a896457127303fe4eb30a5292ead8f",
-    "note": "UE 5.8.2/5.8.3 with 5.3/5.6 packs; user's main project",
+    "note": "Project EngineAssociation 5.8; assets saved with 5.8.2/5.8.3 and 5.3/5.6 packs; user's main project",
     "expect": {
+      "project_support": {
+        "project_file": "ExtractionGame.uproject",
+        "declared_version": "5.8",
+        "classification": "target",
+        "allowed": true,
+        "best_effort_requested": false,
+        "best_effort_used": false
+      },
       "blueprints": 49,
       "nodes": 1779,
       "data_assets": 43,
@@ -173,8 +181,16 @@
   "ar": {
     "url": "https://github.com/tomlooman/ActionRoguelike",
     "sha": "31bd38491d9dcec99460d85f3084c79441c5ce8b",
-    "note": "UE 5.6 project with assets saved by 4.25-5.6",
+    "note": "Project EngineAssociation 5.8; mixed assets saved by 4.25-5.6",
     "expect": {
+      "project_support": {
+        "project_file": "ActionRoguelike.uproject",
+        "declared_version": "5.8",
+        "classification": "target",
+        "allowed": true,
+        "best_effort_requested": false,
+        "best_effort_used": false
+      },
       "blueprints": 69,
       "nodes": 1271,
       "data_assets": 50,
@@ -294,8 +310,16 @@
   "ves": {
     "url": "https://github.com/MarcelKrawczyk/UE5-character-input-framework",
     "sha": "bc6badd01dea44ce8f9d1b38b85fdd12fcfd291d",
-    "note": "UE 5.7.2, World Partition external actors",
+    "note": "Project EngineAssociation 5.7; assets saved with 5.7.2, World Partition external actors",
     "expect": {
+      "project_support": {
+        "project_file": "Vesper.uproject",
+        "declared_version": "5.7",
+        "classification": "target",
+        "allowed": true,
+        "best_effort_requested": false,
+        "best_effort_used": false
+      },
       "blueprints": 2,
       "nodes": 7,
       "data_assets": 4,
@@ -326,8 +350,17 @@
   "bt": {
     "url": "https://github.com/UnrealCourse/04_BattleTank",
     "sha": "19ffc19646ad05f6adeed1816897fa529cdefcea",
-    "note": "UE 4.12 (older than supported 4.25: graphs only partly decoded). Kept for UMG property bindings (X8). Its known limitations are pinned per asset below: blueprint_nodes and level_blueprints list every rendered Blueprint/map, and known_issues lists the exact [stage, context, message] of every accepted parse issue. Anything new, changed or extra fails — widen a pin only with a WORKLOG reason.",
+    "best_effort": true,
+    "note": "Project EngineAssociation 4.19; assets saved with UE 4.12 (outside the 5.7+ project target, graphs only partly decoded). Kept for UMG property bindings (X8). Its known limitations are pinned per asset below: blueprint_nodes and level_blueprints list every rendered Blueprint/map, and known_issues lists the exact [stage, context, message] of every accepted parse issue. Anything new, changed or extra fails — widen a pin only with a WORKLOG reason.",
     "expect": {
+      "project_support": {
+        "project_file": "BattleTank/BattleTank.uproject",
+        "declared_version": "4.19",
+        "classification": "below_minimum",
+        "allowed": true,
+        "best_effort_requested": true,
+        "best_effort_used": true
+      },
       "blueprints": 11,
       "nodes": 98,
       "nodes_ok": 26,

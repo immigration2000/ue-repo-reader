@@ -11,6 +11,14 @@ without launching Unreal Editor or even having the engine installed.
 
 ## 1. Build the digest
 
+Project target: **UE 5.7+**. Normal repository analysis currently accepts numeric `.uproject`
+`EngineAssociation` declarations for 5.7/5.8. Older projects, unknown build IDs/missing descriptors,
+and newer-than-tested declarations stop before replacing output or fetching LFS/decoding assets.
+Project declarations and each asset's saved-by version are different: older-saved assets inside
+a target project still use the compatibility decoder. Never infer project support from asset versions.
+Unreadable UTF-8 JSON, non-object descriptors, invalid JSON constants or duplicate fields (including
+nested metadata) leave support unconfirmed under this tool's strict metadata policy.
+
 Resolve `<this-skill-dir>` to the directory containing this `SKILL.md`, regardless of whether it is under
 `.agents/skills/`, `.claude/skills/` or `.github/skills/`. Keep the bundled `scripts/` beside it and quote
 the script path when it contains spaces. Run from the user's work directory so clones and output stay there.
@@ -22,6 +30,8 @@ python "<this-skill-dir>/scripts/ue_repo_digest.py" <git-url-or-local-path> --ou
 Useful options:
 - `--ref <branch|tag|sha>` — read something other than the default branch
 - `--project <name|relative path>` — pick one when the repo holds several `.uproject` files (the tool warns)
+- `--best-effort` — explicit exploratory analysis outside the normal project window. Use when the user
+  requests that exploration; retain the below-minimum/unconfirmed/unverified status in the answer.
 - `--workdir <dir>` — where to clone (default `./.ue-repo-reader/<repo>`); an existing clone is reused
 - `--asset-cache-dir <dir>` — persistent clean asset results (default: parser cache folder); changed bytes,
   decoder/tool versions and map external actors invalidate entries. `--no-asset-cache` forces fresh decoding.
@@ -47,6 +57,8 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    or proven dependencies. Follow the links relevant to the question. Each asset starts with context links.
    `<out>/CATALOG.md` preserves the complete project settings, map/Blueprint/data catalogs, C++ ↔ Blueprint
    mapping, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
+   Read **Project support** before interpreting coverage. The declaration is not independent semantic
+   verification; an explicit best-effort run never becomes a confirmed target because parsing succeeded.
 2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, widget tree (non-default widget
    properties and `[slot …]` layout), property bindings, widget animations, timelines (length, tracks, curve keys), variables, class defaults,
    event dispatchers, and every graph rendered as execution-flow pseudo-code (anim graphs as pose trees,
@@ -74,7 +86,7 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    native values retain their fields, opaque bytes use base64, and unavailable values stay explicitly unknown.
    Check each record's `properties_status`: `partial` means an incomplete read/conversion; absent properties are unknown, not defaults.
    Other component exports and unsaved class defaults are not expanded into these records.
-4. `<out>/data/<content path>.md` — data assets: DataTables (every row), UserDefinedStructs (fields, types,
+4. `<out>/data/<content path>.md` — data assets: DataTables (up to 300 rows shown), UserDefinedStructs (fields, types,
    defaults), UserDefinedEnums (values and display names), StringTables, Behavior Trees (full tree with
    decorators, services and blackboard keys), Blackboards, StateTrees (state hierarchy), EQS queries,
    input mapping contexts and input actions (value type, triggers, modifiers with settings), anim montages (slots, sections, notifies by time), curves (keys), and DataAssets of project C++ types (saved values).
@@ -112,7 +124,8 @@ State the limits that apply, briefly:
 - Only the chosen `.uproject` is covered when a repo has several.
 - Map actor locations are the root component's relative location (world location unless attached).
   Materials, Niagara, MetaSounds, animations, meshes and textures are counted, not read.
-- Data assets show only values saved in the asset; a missing field means the class/struct default.
+- Data assets show saved values. An absent field's effective value is not established here; check
+  parse/display limits and verified class/struct defaults before making claims about it.
   StateTree task and condition instances are not decoded (the state hierarchy and the Blueprints the tree
   references are). "Used by" is found by name references, not by C++/config lookups.
 
@@ -140,6 +153,8 @@ Quote the relevant pseudo-code lines and the Blueprint path when you report a fi
   Run where the user's git credentials work (their own machine), or pass a local checkout path.
 - **Blueprint failed / timed out**: listed in the parse report; the rest of the digest is still valid.
   Re-run with a larger `--timeout` if many time out.
-- **Engine version**: tested on assets saved by UE 4.25 through 5.8.3 (UE 5.8 changed FText serialization;
-  handled automatically from each file's saved-by engine version). Newer engines are probed; per-file node
-  counts show exactly how much decoded.
+- **Project engine**: numeric 5.7/5.8 declarations are the current normal window. A GUID/build label is
+  unconfirmed; a 5.9+ declaration is unverified and a below-5.7 project is outside the target.
+  Explicit `--best-effort` permits exploration with that status preserved. No asset header or installed
+  engine is used to upgrade the project declaration. Low-level asset readers still handle older saved
+  packages for mixed-version projects; per-package format warnings and coverage remain independent.

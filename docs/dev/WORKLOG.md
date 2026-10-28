@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-10-28 17:35 KST · codex/claude · Q10/Q11 (W0 프로젝트 지원 경계)
+- 한 일: v1.14.0. UE 5.7+ 프로젝트를 목표로 숫자 EngineAssociation 5.7/5.8만 기본 분석 허용.
+  scripts/project_support.py에 순수 정책을 분리하고 CLI가 선택 descriptor를 한 번 읽어 출력 교체·에셋 캐시·LFS·디코더 전에 판정.
+  구버전/미검증 신버전/빌드 ID·선언 부재/모호하거나 잘못된 JSON은 기본 거부하며 --best-effort / MCP best_effort=true로만 탐색.
+  INDEX/CATALOG 상단과 digest.source.project_support에 선언 원문·선택 경로·분류·요청/실제 탐색 여부를 보존.
+  정책 정보 없는 문서도 미확정이며 탐색 성공을 정상 지원이나 의미 검증으로 승격하지 않음. 오래된 저장 에셋의 호환 리더 유지(D-026).
+  MCP 캐시 schema2는 일반/탐색 모드와 정책 버전·지원 창을 identity에 넣고 producer 정책도 확인. 지원 거부만 정확한 MCP 인자를 안내.
+  두 SKILL/README/설치·서버 가이드와 역사적 HTML의 현행 상태 안내를 동기화. DataTable 300행 미리보기·없는 필드의 값 미확정 설명도 정정.
+- 실제 Claude 분담/검토: Q11 작업자 2b8c7219-b485-4c9e-bffc-ff44d19fcc43가 별도 worktree에서 독립 검사 파일만 작성/수정.
+  Codex가 실행·범위 검토·통합하고 재지시해 잘못된 UTF-8/NaN·미래/선언 부재·거짓 clean 문구 반례를 보완.
+  Q10 읽기 전용 교차검토 cd4d0016-0fbd-41f5-8a95-cbdc078a5d49 2회로 테스트 descriptor 누락, 정책 변경 캐시 무효화,
+  누락 정책의 정상 추정, MCP 거부 안내와 정상 공지 검사를 보완. 중첩 중복 JSON 키도 미확정이라는 엄격한 자체 계약을 명시.
+  작업자 도구는 Read/Glob/Grep/Write/Edit, 검토자는 Read/Grep만 관측. 두 실행 모두 manager 검증 후 accepted, 실행 중 없음.
+- 검증: 최종 전체 regress 단위 101/101 + 외부 독립 에셋 6/6 + 고정 프로젝트 4/4 PASS.
+  실제 MCP HTTP 6도구·재시작/warm/refresh·모드별 별도 키/완료 표식·옵트인한 정상 프로젝트의 requested/used 구분 PASS.
+  eg 실제 cache cold/warm/disabled의 101개 Markdown/JSON byte-identical, warm97 hits/0 misses/오류0.
+  5.8 임시 프로젝트 안의 4.27 데이터와 BP5.6→5.7 교체 시 변경된 BP만 재해석 PASS. 실제 enum 수정/부재 4단계 캐시 무효화도 PASS.
+  두 skill quick_validate·변경 진입점 compile·diff --check PASS. HTML PC/모바일·인쇄·JS-off·검색/정렬·외부 요청/JS 오류0 검사 PASS.
+  HTTP smoke의 깊은 Windows 임시 출력 경로가 260자를 넘은 실행은 실패했고 prefix를 줄인 뒤 실제 전체 smoke를 재실행해 통과.
+- 기대값 정정: 고정 commit의 descriptor 원문과 git show를 대조해 eg/ar=5.8, ves=5.7, bt=4.19 확인.
+  기존 ar5.6/bt4.12는 프로젝트 선언이 아니라 에셋 저장 버전이었다. fixtures/HTML을 정정하고 bt만 명시적 탐색으로 회귀 유지.
+  기존 BP/노드/에셋 수와 bt26/98·정확한 기존 90 issue 기준은 완화하지 않음.
+- 남은 일·주의: Q10/Q11 done. 선언 일치는 핀 전체·게임플레이 의미 정확도의 보증이 아니다. 현재 검증된 기본 창은 5.7/5.8이며
+  소스 빌드 ID/빈 선언은 실제 UE5.7+여도 탐색 모드가 필요하다. 원격 clone은 메타데이터 확인 전에 수행될 수 있다.
+  다음 우선순위는 Q1/W1 독립 에디터 의미 정답 확보·자동 대조이며, Q9 IR의 현재 핀 ID/텍스트 정답 범위는 그대로다.
+  등록 개인 스킬과 원래 main checkout의 1.14.0 동기화·설치 경로 검증은 main 반영 직후 확인한다.
+
 ## 2026-10-28 16:35 KST · codex · Q9 (W3/W1 공통 핀 구조·정답 비교 기반)
 - 한 일: v1.13.0. scripts/graph_ir.py의 스키마 1을 BP graph_ir / 맵 level_bp_graph_ir에 연결.
   원본 노드/export 정체성, 핀 타입·전체 텍스트/기본 객체 경로, 저장 참조와 원래 소유자를 보존.

@@ -12,7 +12,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from server_tests import server_fixture, _cache_job
+from server_tests import server_fixture, _cache_job, _support_record
 import search_index as S
 
 
@@ -191,7 +191,8 @@ def test_cache_refresh_waits_for_open_readers():
             return original_remove(*args, **kwargs)
 
         script = Path(server.DATA) / "digest.py"
-        payload = json.dumps({"tool": f"ue-repo-reader {server.DIGEST_VERSION}", "source": {"commit": job.commit}})
+        payload = json.dumps({"tool": f"ue-repo-reader {server.DIGEST_VERSION}",
+                              "source": {"commit": job.commit, "project_support": _support_record()}})
         script.write_text("import sys; from pathlib import Path; "
                           "out=Path(sys.argv[sys.argv.index('--out')+1]); out.mkdir(); "
                           "(out/'INDEX.md').write_text('# refreshed',encoding='utf-8'); "

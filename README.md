@@ -7,6 +7,13 @@ Claude Code와 Codex가 같은 `SKILL.md` 형식을 쓰기 때문에 둘 다에�
 
 자동 정답 대조를 만드는 개발자는 [그래프 IR의 범위·식별자·미확정 처리](docs/GRAPH_IR.md)를 참고하세요.
 
+프로젝트 지원 대상은 **UE 5.7 이상**이며, 현재 기본 분석 범위는 `.uproject`에 숫자로 선언된 **5.7·5.8**입니다.
+이 프로젝트 안에 4.x/5.3/5.6으로 저장된 에셋이 섞여 있어도 에셋별 호환 리더로 읽습니다.
+5.7 미만 프로젝트·확인할 수 없는 빌드 ID·미검증 신버전은 기본 실행을 거부합니다. 명시적으로 탐색하려면
+CLI의 `--best-effort` 또는 MCP의 `best_effort=true`를 사용하세요. 결과의 **Project support**에는 미확정/범위 밖 상태를 유지합니다.
+프로젝트 선언과 해석된 노드 수는 전체 핀·게임플레이 의미가 정확하다는 보증이 아닙니다.
+이 도구는 읽을 수 없는 UTF-8 JSON·객체가 아닌 JSON·중첩을 포함한 중복 필드가 있는 프로젝트 메타데이터를 미확정으로 처리합니다.
+
 ## 쓰는 방법
 
 | 어디서 | 방법 |
@@ -168,7 +175,7 @@ Stunned → ExitStun   when !bStunned
 
 | 종류 | 내용 |
 |---|---|
-| DataTable / CompositeDataTable | 모든 행을 표로 (행 구조체가 C++에 있으면 표시) |
+| DataTable / CompositeDataTable | 최대 300행 미리보기와 생략 안내 (행 구조체가 C++에 있으면 표시) |
 | UserDefinedStruct | 필드 이름·타입·기본값·툴팁 |
 | UserDefinedEnum | 값·열거자·표시 이름 |
 | StringTable | 네임스페이스와 키 → 문자열 |

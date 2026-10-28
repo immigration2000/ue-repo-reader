@@ -17,6 +17,14 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from project_support_tests import (test_project_support_numeric_boundaries_and_patch_strings,
+                                   test_project_support_unconfirmed_declarations_and_metadata_errors,
+                                   test_project_support_best_effort_requires_real_booleans,
+                                   test_project_support_policy_is_pure_and_stateless,
+                                   test_cli_rejects_unsupported_projects_and_preserves_output,
+                                   test_cli_best_effort_keeps_unsupported_status_in_digest_and_indexes,
+                                   test_cli_project_selection_uses_declaration_not_asset_bytes,
+                                   test_indexes_without_policy_record_remain_unconfirmed)
 from display_limits_tests import (test_blueprint_dict_and_struct_previews_mark_exact_missing_counts,
                                   test_blueprint_previews_keep_literal_scalars_and_special_structs,
                                   test_data_struct_previews_mark_exact_missing_counts,
@@ -38,10 +46,13 @@ from failure_tests import (test_partial_map_reporting, test_empty_and_partial_le
 from coverage_tests import (test_regress_detects_missing_assets, test_asset_oracle_rejects_wrong_text,
                            test_asset_download_hash_guard, test_regress_accepts_only_pinned_parse_issues,
                            test_regress_detects_node_and_level_blueprint_coverage_loss)
+from coverage_tests import test_regress_project_support_must_match_pinned_declaration
 from server_tests import (test_server_deadline_without_output, test_server_deadline_kills_descendants,
                           test_server_output_and_exit_status, test_server_job_timeout_releases_slot,
                           test_server_cache_key_collisions_and_version, test_server_cache_requires_completion_and_identity,
-                          test_server_cache_reuse_refresh_and_deduplication, test_server_job_publishes_only_current_success)
+                          test_server_cache_reuse_refresh_and_deduplication, test_server_job_publishes_only_current_success,
+                          test_server_project_support_modes_never_share_cached_results,
+                          test_server_project_support_opt_in_reaches_cli_and_public_tool)
 from skill_install_tests import (test_skill_install_layouts_and_execution, test_skill_install_preserves_existing_paths)
 from clone_tests import test_partial_clone_reuse_keeps_heavy_blobs_missing
 from cache_tests import (test_asset_cache_hash_and_dependency_invalidation, test_asset_cache_corruption_partial_and_eviction,
@@ -147,10 +158,11 @@ def _output_scratch():
 
 def _digest_cli(args):
     # No assets are present: exercise the real CLI and filesystem, without parser installation or git.
+    # Projectless fixtures explicitly use exploratory mode; policy checks live separately.
     with patch.object(D, "classify_assets", return_value={}), \
          patch.object(D, "run", return_value=SimpleNamespace(stdout="", returncode=0)), \
          redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-        return D.main([*args, "--no-asset-cache"])
+        return D.main([*args, "--no-asset-cache", "--best-effort"])
 
 
 def _reject_output(args):

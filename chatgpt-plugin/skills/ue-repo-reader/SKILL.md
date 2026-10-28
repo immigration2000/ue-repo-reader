@@ -11,11 +11,21 @@ from it — never guess what a Blueprint does from its name.
 
 ## 1. Build the digest
 
+Project target is **UE 5.7+**; normal analysis currently accepts numeric 5.7/5.8 declarations in the
+selected `.uproject`. Older projects, unknown build IDs/missing descriptors and newer-than-tested
+declarations are refused by default. A target project can contain older-saved assets; package
+compatibility is separate. Never infer the project version from its asset headers.
+Unreadable UTF-8 JSON, non-object descriptors, invalid constants or duplicate fields (including nested
+metadata) are unconfirmed under the tool's strict metadata policy.
+
 Call `analyze_repo` with the URL (a `/tree/<branch>` URL or `ref` selects a branch; `project` picks one
 `.uproject` when the repo has several). If the result says `status: running`, call `wait_for_analysis` with
 the `job_id` until it returns `status: done` — big projects take a few minutes. Keep the `digest_id`.
 
 Digests include the output version in their identity; re-run `analyze_repo` after an upgrade to get the current layout.
+`analyze_repo(..., best_effort=true)` explicitly enables exploratory analysis outside the normal window
+when the user requests it. The support classification stays below-minimum/unconfirmed/unverified;
+do not treat a successful parse as support confirmation. Mode is part of the cache identity.
 
 ## 2. Read in this order
 
@@ -26,6 +36,7 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
    Follow relevant links and the incoming/outgoing context in each asset's header. `CATALOG.md` preserves
    complete project settings, maps/Blueprint/data catalogs, C++ ↔ Blueprint mapping, Enhanced Input check,
    GameplayTags, full notation and Parse report; follow continuation parts too.
+   Read the prominent **Project support** notice as well as decode coverage before drawing conclusions.
 2. `maps/…md` — game mode override, Level Blueprint, placed gameplay actors with per-instance overrides.
    Tables are compact previews. Complete decoded actor/root-component saved properties are retained for
    scripts in `digest.json` → `maps_detail[map_path].actors`, with source package/export index identities.

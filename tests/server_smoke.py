@@ -42,7 +42,7 @@ def main():
     assert commit == fixture["sha"], "use the pinned eg fixture from tests/regress.py"
     cache = ROOT / "tests/.cache"
     cache.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="server-smoke-", dir=cache) as tmp:
+    with tempfile.TemporaryDirectory(prefix="m-", dir=cache) as tmp:
         work = Path(tmp)
         count = work / "runs.txt"
         # Exercise the real CLI and spawn workers using the existing local clone.
@@ -81,6 +81,7 @@ def main():
                     await session.initialize()
                     tools = (await session.list_tools()).tools
                     assert len(tools) == 6 and all(t.annotations.readOnlyHint for t in tools)
+                    assert "best_effort" in next(t for t in tools if t.name == "analyze_repo").inputSchema["properties"]
                     for tool in tools:
                         if tool.name in ("list_digest_files", "read_source_file"):
                             assert "offset" in tool.inputSchema["properties"], "pagination missing from MCP schema"
@@ -92,8 +93,8 @@ def main():
                         assert len(text) <= 20000, f"{name} exceeded its response budget"
                         return text
 
-                    async def analyze(refresh=False):
-                        text = await call("analyze_repo", repo_url="owner/repo", ref=commit, refresh=refresh)
+                    async def analyze(refresh=False, best_effort=False):
+                        text = await call("analyze_repo", repo_url="owner/repo", ref=commit, refresh=refresh, best_effort=best_effort)
 
                         async def wait_done(text):
                             while "job_id:" in text and "status: error" not in text:
@@ -137,6 +138,14 @@ def main():
                         assert count.read_text(encoding="utf-8") == "11", "refresh did not run"
                         assert "BP_" in await call("search_digest", digest_id=digest_id, query="BeginPlay")
                         index_timestamps.append(database.stat().st_mtime_ns)
+                    else:
+                        exploratory = await analyze(best_effort=True)
+                        assert exploratory != digest_id, "strict and opt-in MCP results aliased"
+                        identity = json.loads((work / "data/work" / exploratory / "cache.json").read_text(encoding="utf-8"))
+                        policy = json.loads((work / "data/work" / exploratory / "digest/digest.json").read_text(encoding="utf-8"))["source"]["project_support"]
+                        assert identity["best_effort"] is True and policy["best_effort_requested"] is True
+                        assert policy["classification"] == "target" and policy["best_effort_used"] is False
+                        assert count.read_text(encoding="utf-8") == "111"
 
         for restarted in (False, True):
             with (work / f"server-{int(restarted)}.log").open("w", encoding="utf-8") as log:
@@ -156,7 +165,7 @@ def main():
                 finally:
                     proc.terminate()
                     proc.wait(timeout=10)
-        print("PASS MCP HTTP: 6 tools, eg 49 BP / 1779 nodes, response limits, warm/restart index reuse and refresh")
+        print("PASS MCP HTTP: 6 tools, eg 49 BP / 1779 nodes, response limits, warm/restart/refresh and strict/opt-in cache separation")
 
 
 if __name__ == "__main__":

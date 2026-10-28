@@ -10,6 +10,7 @@ import re
 from collections import defaultdict
 from pathlib import PurePosixPath
 from urllib.parse import quote
+from project_support import support_notice
 
 INDEX_BYTES = 9_000  # roughly 2–4k tokens; actual tokenizer/language may differ
 WORDS = re.compile(r"[^\W\d]\w*", re.UNICODE)
@@ -151,10 +152,13 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
                        for s in levels.values())
     coverage = re.search(r"Coverage: .*", catalog).group(0)
     parse_bad = issues or partial or newer or level_bad or external_bad or failures or data_failures or map_failures or lfs.get("failed") or enum_unknown
-    clean = not parse_bad and all(r["summary"].get("nodes_ok") == r["summary"].get("nodes_total") for r in bps.values())
+    support = meta.get("project_support")
+    clean = (not parse_bad and isinstance(support, dict) and support.get("classification") == "target"
+             and all(r["summary"].get("nodes_ok") == r["summary"].get("nodes_total") for r in bps.values()))
     md = [short(catalog.splitlines()[0], 140), "", "Read this map first, then follow links for the question at hand.",
           short(next((line for line in catalog.splitlines() if line.startswith("source:")), ""), 240),
           short(next((line for line in catalog.splitlines() if line.startswith("engine (")), ""), 180), "",
+          *support_notice(meta.get("project_support")),
           "## Coverage and limits", "", "- " + coverage,
           f"- Rendered: {len(datas)} data assets, {len(levels)} maps, {len(cpp.get('classes') or [])} C++ types.",
           f"- Failed: {len(failures)} Blueprints, {len(data_failures)} data assets, {len(map_failures)} maps.",

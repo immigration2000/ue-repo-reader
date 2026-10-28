@@ -32,8 +32,9 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+from project_support import assess_project, declaration_text, parse_descriptor, support_notice
 
-VERSION = "1.13.0"
+VERSION = "1.14.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -880,11 +881,12 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
     title = uproject.stem if uproject else Path(meta.get("url") or proj).stem
     src = meta.get("url") or str(proj)
     commit = (meta.get("commit") or "")[:10]
-    engine = meta.get("engine") or "?"
+    engine = declaration_text(meta.get("engine") or "?")
     md += [f"# {title} — Unreal repo digest", "",
            f"source: {src}" + (f" @ `{commit}` ({meta.get('branch')}, {meta.get('commit_date', '')[:10]})" if commit else ""),
            f"engine (EngineAssociation): **{engine}** · generated {_dt.date.today().isoformat()} by ue-repo-reader {VERSION}",
            ""]
+    md += support_notice(meta.get("project_support"))
     total_nodes = sum(r["summary"]["nodes_total"] for r in bps.values())
     ok_nodes = sum(r["summary"]["nodes_ok"] for r in bps.values())
     md += ["## How to read this digest", "",
@@ -1138,7 +1140,11 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append("- ⚠ enum labels unresolved (saved names/numbers retained; missing/ambiguous enum or unknown value):")
         md.extend(f"  - `{gp}` — {count} rendered values" for gp, count in sorted(unresolved_enums))
     if not partial and not warned and not newer and not failures and not data_failures and not map_failures and not unresolved_enums and not (lfs and lfs.get("failed")):
-        md.append("- everything decoded cleanly")
+        support = meta.get("project_support")
+        if isinstance(support, dict) and support.get("classification") == "target":
+            md.append("- everything decoded cleanly")
+        else:
+            md.append("- No decode failures reported in rendered assets; project support remains outside the normal target or unconfirmed.")
     md.append("")
     (out / "INDEX.md").write_text("\n".join(md) + "\n", encoding="utf-8")
 
@@ -1201,6 +1207,8 @@ def main(argv=None):
     ap.add_argument("--out", help="output directory (default: ./<name>_digest)")
     ap.add_argument("--source-label", help="what to show as the source in INDEX.md (e.g. a URL without credentials)")
     ap.add_argument("--project", help="which .uproject to read when the repo holds several (name or relative path)")
+    ap.add_argument("--best-effort", action="store_true",
+                    help="explicit exploratory opt-in for legacy, unconfirmed or newer-than-tested project declarations")
     ap.add_argument("--workdir", help="where to clone (default: ./.ue-repo-reader/<name>)")
     ap.add_argument("--lfs-max-mb", type=float, default=8.0, help="only download LFS .uasset files up to this size (default 8)")
     ap.add_argument("--lfs-map-max-mb", type=float, default=64.0, help="only download LFS .umap files up to this size (default 64)")
@@ -1247,6 +1255,27 @@ def main(argv=None):
         out = validate_output_dir(output, repo, proj)
     except ValueError as e:
         ap.error(str(e))
+    # This gate must precede output replacement, LFS downloads and decoder setup.
+    # Read the selected descriptor exactly once; never infer its engine from assets.
+    up, metadata_error = {}, None
+    if uproject:
+        try:
+            up = parse_descriptor(uproject.read_text(encoding="utf-8-sig"))
+        except (OSError, ValueError, UnicodeError, RecursionError) as e:
+            up, metadata_error = {}, f"{type(e).__name__}: {e}"
+    support = assess_project(up.get("EngineAssociation"), best_effort=a.best_effort,
+                             project_found=uproject is not None, metadata_error=metadata_error)
+    support["project_file"] = uproject.relative_to(repo).as_posix() if uproject else None
+    meta["project_support"] = support
+    meta["engine"] = support["engine_association"] if isinstance(support["engine_association"], str) else "?"
+    if metadata_error:
+        meta["project_metadata_error"] = metadata_error[:400]
+    if not support["allowed"]:
+        log(f"[project-support-refused] {support['classification']}")
+        ap.error(support["reason"] + " Normal analysis requires a numeric 5.7/5.8 project declaration. "
+                 "Use --best-effort only for explicitly exploratory analysis; its support status stays outside target or unconfirmed.")
+    if support["best_effort_used"]:
+        log(f"[warn] explicit best-effort: {support['classification']}. {support['reason']}")
     cache = None
     if not a.no_asset_cache:
         from asset_cache import AssetCache
@@ -1268,12 +1297,12 @@ def main(argv=None):
             f"(choose another with --project)")
     if uproject:
         try:
-            up = json.loads(uproject.read_text(encoding="utf-8-sig", errors="replace"))
-            meta["engine"] = up.get("EngineAssociation") or "?"
             meta["modules"] = up.get("Modules") or []
             meta["plugins"] = [p.get("Name") for p in up.get("Plugins") or [] if p.get("Enabled")]
         except Exception as e:  # noqa: BLE001
             log(f"[warn] could not read {uproject.name}: {e}")
+        if metadata_error:
+            log(f"[warn] could not read {uproject.name}: {metadata_error}")
     else:
         log("[warn] no .uproject found — treating the repo root as the project")
     if (proj / "Plugins").is_dir():

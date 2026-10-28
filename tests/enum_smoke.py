@@ -29,7 +29,7 @@ def main():
             target = project / "Content" / PACKAGE / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(args.repo / "Content" / PACKAGE / relative, target)
-        (project / "Tiny.uproject").write_text("{}", encoding="utf-8")
+        (project / "Tiny.uproject").write_text('{"EngineAssociation":"5.8"}', encoding="utf-8")
         enum_file = project / "Content" / PACKAGE / "Enum/E_Crates.uasset"
         snapshots = []
         for phase, expected in (("cold", (0, 3, 3, 0)), ("warm", (3, 0, 0, 0)),

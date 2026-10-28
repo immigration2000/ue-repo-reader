@@ -129,7 +129,7 @@ def test_asset_cache_preflight_preserves_previous_digest():
         base = Path(tmp)
         project, out = base / "project", base / "out"
         project.mkdir()
-        (project / "P.uproject").write_text("{}", encoding="utf-8")
+        (project / "P.uproject").write_text('{"EngineAssociation":"5.8"}', encoding="utf-8")
         out.mkdir()
         (out / "digest.json").write_text('{"tool":"ue-repo-reader 1.6.0"}', encoding="utf-8")
         (out / "INDEX.md").write_text("keep old result", encoding="utf-8")

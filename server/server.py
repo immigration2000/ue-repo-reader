@@ -46,9 +46,10 @@ from search_index import MAX_INDEX_FILES, search, text_files
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 from ue_repo_digest import VERSION as DIGEST_VERSION
+import project_support as PROJECT_POLICY
 
 DIGEST_SCRIPT = ROOT / "scripts" / "ue_repo_digest.py"
-CACHE_SCHEMA = 1  # bump when server-side cache identity/completion semantics change
+CACHE_SCHEMA = 2  # strict and explicit exploratory analyses must never share results
 DATA = Path(os.environ.get("UE_READER_DATA", "/tmp/ue-reader"))
 SECRET = os.environ.get("UE_READER_SECRET", "").strip("/")
 TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
@@ -179,6 +180,7 @@ class Job:
     log: list = field(default_factory=list)
     error: str | None = None
     done_event: threading.Event = field(default_factory=threading.Event)
+    best_effort: bool = False
 
     @property
     def dir(self) -> Path:
@@ -191,10 +193,18 @@ LOCK = threading.Lock()
 RUN_SLOT = threading.Semaphore(1)  # one analysis at a time keeps memory predictable
 
 
-def cache_identity(repo: RepoRef, commit: str, project: str | None) -> dict:
+def project_policy_identity() -> dict:
+    return {"version": PROJECT_POLICY.POLICY_VERSION,
+            "minimum": list(PROJECT_POLICY.MIN_PROJECT), "maximum_tested": list(PROJECT_POLICY.MAX_TESTED_PROJECT)}
+
+
+def cache_identity(repo: RepoRef, commit: str, project: str | None, best_effort: bool = False) -> dict:
+    if type(best_effort) is not bool:
+        raise ValueError("best_effort must be a boolean")
     return {"schema": CACHE_SCHEMA, "tool": f"ue-repo-reader {DIGEST_VERSION}",
             "host": repo.host, "owner": repo.owner, "repo": repo.name,
-            "commit": commit.lower(), "project": project or None}
+            "commit": commit.lower(), "project": project or None, "best_effort": best_effort,
+            "project_policy": project_policy_identity()}
 
 
 def identity_key(identity: dict) -> str:
@@ -205,8 +215,8 @@ def identity_key(identity: dict) -> str:
     return base64.urlsafe_b64encode(hashlib.sha256(raw.encode("utf-8")).digest()).decode("ascii").rstrip("=")
 
 
-def digest_key(repo: RepoRef, commit: str, project: str | None) -> str:
-    return identity_key(cache_identity(repo, commit, project))
+def digest_key(repo: RepoRef, commit: str, project: str | None, best_effort: bool = False) -> str:
+    return identity_key(cache_identity(repo, commit, project, best_effort))
 
 
 def completed_cache(directory: Path, expected: dict | None = None) -> bool:
@@ -217,7 +227,8 @@ def completed_cache(directory: Path, expected: dict | None = None) -> bool:
             return False
         if identity.get("schema") != CACHE_SCHEMA or identity.get("tool") != f"ue-repo-reader {DIGEST_VERSION}":
             return False
-        if set(identity) != {"schema", "tool", "host", "owner", "repo", "commit", "project"}:
+        if (set(identity) != {"schema", "tool", "host", "owner", "repo", "commit", "project", "best_effort", "project_policy"}
+                or type(identity["best_effort"]) is not bool or identity["project_policy"] != project_policy_identity()):
             return False
         if identity_key(identity) != directory.name:
             return False
@@ -227,7 +238,7 @@ def completed_cache(directory: Path, expected: dict | None = None) -> bool:
 
 
 def publish_cache(job: Job) -> None:
-    identity = cache_identity(job.repo, job.commit, job.project)
+    identity = cache_identity(job.repo, job.commit, job.project, job.best_effort)
     # The digest itself is written by the child. Do not publish a completion
     # marker for a stale producer or a partial/malformed output.
     manifest = json.loads((job.dir / "digest" / "digest.json").read_text(encoding="utf-8"))
@@ -235,6 +246,14 @@ def publish_cache(job: Job) -> None:
         raise RuntimeError("digest producer version does not match this server")
     if manifest.get("source", {}).get("commit") != job.commit:
         raise RuntimeError("digest source commit does not match this analysis")
+    support = manifest.get("source", {}).get("project_support")
+    if (not isinstance(support, dict) or type(support.get("policy_version")) is not int
+            or support["policy_version"] != PROJECT_POLICY.POLICY_VERSION or support.get("allowed") is not True
+            or support.get("best_effort_requested") is not job.best_effort
+            or support.get("classification") not in ("target", "below_minimum", "unverified_newer", "unconfirmed")
+            or support.get("best_effort_used") is not (support.get("classification") != "target")
+            or (not job.best_effort and support["classification"] != "target")):
+        raise RuntimeError("digest project-support policy does not match this analysis")
     marker = job.dir / "cache.json.tmp"
     marker.write_text(json.dumps(identity, sort_keys=True, ensure_ascii=True), encoding="utf-8")
     marker.replace(job.dir / "cache.json")
@@ -259,6 +278,8 @@ def run_job(job: Job) -> None:
                    "--workers", str(WORKERS)]
             if job.project:
                 cmd += ["--project", job.project]
+            if job.best_effort:
+                cmd.append("--best-effort")
             env = dict(os.environ, GIT_TERMINAL_PROMPT="0", PYTHONIOENCODING="utf-8:replace")
             env.setdefault("UE_REPO_READER_CACHE", str(DATA / "cache"))  # keep the parser pre-fetched at image build
 
@@ -268,6 +289,10 @@ def run_job(job: Job) -> None:
 
             code = run_process(cmd, env=env, timeout=JOB_TIMEOUT, on_line=log_line)
             if code != 0 or not (out_dir / "INDEX.md").is_file():
+                if code == 2 and any(line.startswith("[project-support-refused]") for line in job.log):
+                    raise RuntimeError("Project declaration is outside the normal 5.7/5.8 window or unconfirmed. "
+                                       "For explicitly exploratory analysis, call analyze_repo with best_effort=true; "
+                                       "the support classification will remain outside target or unconfirmed.")
                 raise RuntimeError("digest failed: " + " | ".join(job.log[-5:]))
             publish_cache(job)
             job.status = "done"
@@ -290,23 +315,23 @@ def prune() -> None:
                 shutil.rmtree(p, ignore_errors=True)
 
 
-def start_or_get(repo: RepoRef, project: str | None, refresh: bool) -> Job:
+def start_or_get(repo: RepoRef, project: str | None, refresh: bool, best_effort: bool = False) -> Job:
     commit = resolve_commit(repo)
-    key = digest_key(repo, commit, project)
+    key = digest_key(repo, commit, project, best_effort)
     with LOCK:
         job = BY_KEY.get(key)
-        cached = completed_cache(DATA / "work" / key, cache_identity(repo, commit, project))
+        cached = completed_cache(DATA / "work" / key, cache_identity(repo, commit, project, best_effort))
         if job and job.status in ("queued", "running"):
             return job
         if cached and not refresh:
             if not job or job.status != "done":
-                job = Job(uuid.uuid4().hex[:10], key, repo, commit, project, status="done", finished=time.time())
+                job = Job(uuid.uuid4().hex[:10], key, repo, commit, project, status="done", finished=time.time(), best_effort=best_effort)
                 job.done_event.set()
                 JOBS[job.id] = job
                 BY_KEY[key] = job
             os.utime(DATA / "work" / key)
             return job
-        job = Job(uuid.uuid4().hex[:10], key, repo, commit, project)
+        job = Job(uuid.uuid4().hex[:10], key, repo, commit, project, best_effort=best_effort)
         JOBS[job.id] = job
         BY_KEY[key] = job
     threading.Thread(target=run_job, args=(job,), daemon=True).start()
@@ -393,6 +418,9 @@ def safe_path(base: Path, rel: str) -> Path:
 
 INSTRUCTIONS = """Reads Unreal Engine projects from a git URL, including Blueprints, maps and data assets decoded
 from binary .uasset/.umap files (no editor needed).
+Normal analysis requires a numeric EngineAssociation in the current UE 5.7/5.8 project window.
+For a refused legacy, newer or unconfirmed project, explicitly request analyze_repo with best_effort=true
+only when exploratory analysis is intended. Read the support notice; opt-in does not establish compatibility.
 Workflow: call analyze_repo with the URL (it waits up to ~45 s; if it reports 'running', call wait_for_analysis
 until done). Read the returned INDEX.md fully: coverage, configured entry points and PageRank reading links.
 Ranks and context headers use saved references/name mentions, not proven runtime dependencies. CATALOG.md
@@ -424,14 +452,18 @@ READ_ONLY = ToolAnnotations(readOnlyHint=True, destructiveHint=False, idempotent
 
 @mcp.tool(title="Analyze Unreal repo", annotations=READ_ONLY)
 @bounded_response
-def analyze_repo(repo_url: str, ref: str | None = None, project: str | None = None, refresh: bool = False) -> str:
+def analyze_repo(repo_url: str, ref: str | None = None, project: str | None = None, refresh: bool = False, best_effort: bool = False) -> str:
     """Analyze an Unreal Engine git repository and return its digest index (INDEX.md).
 
     repo_url: https URL of the repo (GitHub/GitLab/Bitbucket) or 'owner/repo' for GitHub.
     ref: optional branch, tag or full 40-character commit SHA (a /tree/<branch> URL also works).
     project: optional .uproject name when the repo contains several projects.
     refresh: re-analyze even if this exact commit was analyzed before.
+    best_effort: explicit exploratory opt-in for legacy, unconfirmed or newer-than-tested project declarations.
+    Normal mode refuses those declarations; best_effort=true requests exploration while preserving that status.
     Returns the digest_id used by the other tools, or a job_id to pass to wait_for_analysis while it runs."""
+    if type(best_effort) is not bool:
+        return "error: best_effort must be a boolean"
     try:
         repo = parse_repo(repo_url, ref)
     except ValueError as e:
@@ -439,7 +471,7 @@ def analyze_repo(repo_url: str, ref: str | None = None, project: str | None = No
     if ALLOWED_OWNERS and repo.owner.lower() not in ALLOWED_OWNERS:
         return f"error: this server only analyzes repositories of: {', '.join(sorted(ALLOWED_OWNERS))}"
     try:
-        job = start_or_get(repo, project, refresh)
+        job = start_or_get(repo, project, refresh, best_effort)
     except Exception as e:  # noqa: BLE001
         return "error: " + scrub(str(e)) + ("\n(Private repo? The server needs GITHUB_TOKEN with access to it.)"
                                              if "not found" in str(e).lower() or "authentication" in str(e).lower() else "")

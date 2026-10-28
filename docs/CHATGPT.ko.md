@@ -31,13 +31,17 @@ python scripts/ue_repo_digest.py https://github.com/owner/Project --out Project_
 
 처음 실행 시 고정 버전 파서를 내려받습니다. 완료 후 `INDEX.md`의 읽기 순위·커버리지와 `CATALOG.md`의 전체 Parse report를 확인하세요.
 
+프로젝트 대상은 UE 5.7+이며 현재 기본 범위는 숫자 5.7/5.8 선언입니다. 버전 미확정·구버전·미검증 신버전을 명시적으로
+탐색할 때만 CLI의 `--best-effort` 또는 MCP `analyze_repo`의 `best_effort=true`를 사용합니다. **Project support**의 범위 밖/
+미확정 상태는 계속 보고하며, 오래된 저장 에셋이 섞였다는 이유로 현대 프로젝트를 제외하지 않습니다.
+
 ## 2. 원격 MCP 도구 사용하기 (선택 사항)
 
 서버가 git clone과 Python 분석을 수행하고, ChatGPT가 결과를 읽습니다. 대상 저장소를 수정하지 않는 도구 6개를 제공합니다.
 
 | 도구 | 하는 일 |
 |---|---|
-| `analyze_repo` | URL 분석, INDEX.md 반환; 같은 버전·커밋·프로젝트의 완료 결과 재사용 |
+| `analyze_repo` | URL 분석, INDEX.md 반환; 같은 버전·커밋·프로젝트·분석 모드의 완료 결과 재사용 |
 | `wait_for_analysis` | 실행 중인 분석 상태 확인 |
 | `list_digest_files` / `read_digest_file` | 요약본 목록·내용 읽기; 긴 파일은 페이지로 반환 |
 | `search_digest` | 요약본 검색; 선택적으로 C++·설정 파일 포함 |
@@ -110,7 +114,7 @@ GPT 만들기 / GPT Actions를 설정할 필요는 없습니다. 현재 공식 �
 - 서버는 github.com / gitlab.com / bitbucket.org의 HTTPS 저장소를 받으며 저장소 밖과 `.git` 내부 파일 읽기를 거부합니다.
 - 같은 MCP 주소를 Streamable HTTP 지원 클라이언트에서도 사용할 수 있습니다.
 - `UE_READER_TIMEOUT`은 분석 실행의 초 단위 제한입니다(기본 1800). 큐 대기는 제외하며 초과 시 자식 프로세스도 종료합니다.
-- 캐시는 도구/캐시 버전·저장소·커밋·프로젝트별로 구분합니다. 이전 캐시는 재사용하지 않으며 `refresh=true`로 재분석합니다.
+- 캐시는 도구/캐시 버전·저장소·커밋·프로젝트·명시적 탐색 모드별로 구분합니다. 이전 캐시는 재사용하지 않으며 `refresh=true`로 재분석합니다.
 - MCP의 `ref`에는 브랜치·태그 또는 전체 40자 커밋 SHA를 사용합니다. CLI의 짧은 SHA 지원은 그대로 유지됩니다.
 - 도구는 기존 6개를 유지합니다. 모든 텍스트 응답은 최대 20,000자이며, 목록은 호출당 최대 200개입니다.
   파일 읽기는 문자 offset, 목록/원본 glob은 항목 offset을 사용합니다. 반환된 다음 offset으로 이어 읽으세요.

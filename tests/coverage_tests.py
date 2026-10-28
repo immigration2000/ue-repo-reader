@@ -84,7 +84,8 @@ def _pinned_digest(exp: dict) -> dict:
         return [{"stage": s[0], "context": s[1], "message": s[2]}
                 for s in ((known.get(collection) or {}).get(gp) or [])]
 
-    digest = {"blueprints": {}, "data_assets": {}, "maps_detail": {},
+    digest = {"source": {"project_support": exp.get("project_support", {})},
+              "blueprints": {}, "data_assets": {}, "maps_detail": {},
               "failures": {}, "data_failures": {}, "map_failures": {}, "lfs": {}}
     for gp, (ok, total) in exp["blueprint_nodes"].items():
         found = issues("blueprints", gp)
@@ -111,6 +112,22 @@ def _write_pinned(root: Path, digest: dict) -> None:
 def _bt_expect() -> dict:
     """The real bt fixture's expectations, without its file-content checks (no documents here)."""
     return json.loads(regress.FIXTURES.read_text(encoding="utf-8"))["bt"]["expect"]
+
+
+def test_regress_project_support_must_match_pinned_declaration():
+    exp = _bt_expect()
+    with _scratch() as tmp:
+        root = Path(tmp)
+        baseline = _pinned_digest(exp)
+        _write_pinned(root, baseline)
+        assert regress.check({"expect": exp}, root) == []
+        for field, wrong in (("declared_version", "5.8"), ("classification", "target"),
+                             ("best_effort_requested", False), ("best_effort_used", 1),
+                             ("project_file", "Other.uproject")):
+            actual = json.loads(json.dumps(baseline))
+            actual["source"]["project_support"][field] = wrong
+            _write_pinned(root, actual)
+            assert any(f"project support {field}" in e for e in regress.check({"expect": exp}, root)), field
 
 
 def test_regress_accepts_only_pinned_parse_issues():

@@ -22,7 +22,7 @@ def check_changed_asset(base):
     project, out = base / "tiny-project", base / "tiny-out"
     content = project / "Content"
     content.mkdir(parents=True)
-    (project / "Tiny.uproject").write_text("{}", encoding="utf-8")
+    (project / "Tiny.uproject").write_text('{"EngineAssociation":"5.8"}', encoding="utf-8")
     shutil.copyfile(fetch_file(manifest, manifest["license"], fixture_cache), project / "LICENSE")
     bp, data = content / "BP_Keys.uasset", content / "ST_LegacyText.uasset"
     shutil.copyfile(fetch_file(manifest, cases["pins-5.6"]["asset"], fixture_cache), bp)

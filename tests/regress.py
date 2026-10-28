@@ -48,6 +48,8 @@ def build(name: str, fx: dict, local: Path | None, out: Path, log: Path) -> tupl
         cmd = [sys.executable, str(DIGEST), str(local), "--out", str(out)]
     else:
         cmd = [sys.executable, str(DIGEST), fx["url"], "--ref", fx["sha"], "--workdir", str(CACHE / name), "--out", str(out)]
+    if fx.get("best_effort"):
+        cmd.append("--best-effort")
     t = time.time()
     with log.open("w", encoding="utf-8") as fh:
         rc = subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT,
@@ -135,6 +137,10 @@ def check(fx: dict, out: Path) -> list[str]:
                 errors.append(f"{doc}: missing document/context header")
             if (set(record.get("incoming") or ()) | set(record.get("outgoing") or ())) - documents.keys():
                 errors.append(f"{doc}: unresolved navigation link")
+    support = digest.get("source", {}).get("project_support", {})
+    for field, expected in exp.get("project_support", {}).items():
+        if support.get(field) != expected or type(support.get(field)) is not type(expected):
+            errors.append(f"project support {field} {support.get(field)!r} != expected {expected!r}")
     for key in ("failures", "data_failures", "map_failures"):
         if not isinstance(digest.get(key), dict):
             errors.append(f"digest.json: missing or invalid {key}")

@@ -170,8 +170,11 @@ def test_server_cache_key_collisions_and_version():
         assert key == server.digest_key(server.RepoRef("github.com", "owner", "repo", "tag"), commit, "")
         with patch.object(server, "DIGEST_VERSION", "next"):
             assert key != server.digest_key(repo, commit, None), "tool version omitted"
-        with patch.object(server, "CACHE_SCHEMA", 2):
+        with patch.object(server, "CACHE_SCHEMA", server.CACHE_SCHEMA + 1):
             assert key != server.digest_key(repo, commit, None), "cache schema omitted"
+        for field, value in (("POLICY_VERSION", 99), ("MIN_PROJECT", (5, 8)), ("MAX_TESTED_PROJECT", (5, 9))):
+            with patch.object(server.PROJECT_POLICY, field, value):
+                assert key != server.digest_key(repo, commit, None), f"{field} omitted from identity"
         assert "test-secret-token" not in key and len(key) < 120
         with patch.object(server, "git", return_value=""):
             assert server.resolve_commit(server.RepoRef("github.com", "owner", "repo", commit)) == commit
@@ -183,14 +186,19 @@ def test_server_cache_key_collisions_and_version():
                 raise AssertionError("unresolved short SHA accepted as immutable cache identity")
 
 
-def _cache_job(server, project=None):
+def _support_record(best_effort=False):
+    return {"policy_version": 1, "allowed": True, "best_effort_requested": best_effort,
+            "best_effort_used": best_effort, "classification": "below_minimum" if best_effort else "target"}
+
+
+def _cache_job(server, project=None, best_effort=False):
     repo = server.RepoRef("github.com", "owner", "repo", None)
     commit = "a" * 40
-    job = server.Job("cache", server.digest_key(repo, commit, project), repo, commit, project)
+    job = server.Job("cache", server.digest_key(repo, commit, project, best_effort), repo, commit, project, best_effort=best_effort)
     (job.dir / "digest").mkdir(parents=True)
     (job.dir / "digest/INDEX.md").write_text("# cached", encoding="utf-8")
     (job.dir / "digest/digest.json").write_text(json.dumps({"tool": f"ue-repo-reader {server.DIGEST_VERSION}",
-                                                          "source": {"commit": commit}}), encoding="utf-8")
+                                                          "source": {"commit": commit, "project_support": _support_record(best_effort)}}), encoding="utf-8")
     return job
 
 
@@ -219,6 +227,9 @@ def test_server_cache_requires_completion_and_identity():
         marker.write_text(valid, encoding="utf-8")
         with patch.object(server, "DIGEST_VERSION", "next"):
             assert not server.completed_cache(job.dir), "old producer cache accepted"
+        for field, value in (("POLICY_VERSION", 99), ("MIN_PROJECT", (5, 8)), ("MAX_TESTED_PROJECT", (5, 9))):
+            with patch.object(server.PROJECT_POLICY, field, value):
+                assert not server.completed_cache(job.dir), f"stale {field} cache accepted"
         (job.dir / "digest/INDEX.md").unlink()
         assert not server.completed_cache(job.dir)
         job.status = "done"
@@ -248,6 +259,66 @@ def test_server_cache_reuse_refresh_and_deduplication():
             assert restart.status == "queued" and worker.call_count == 2
 
 
+def test_server_project_support_modes_never_share_cached_results():
+    with server_fixture() as server:
+        strict, exploratory = _cache_job(server), _cache_job(server, best_effort=True)
+        assert strict.key != exploratory.key
+        server.publish_cache(strict)
+        server.publish_cache(exploratory)
+        with patch.object(server, "resolve_commit", return_value=strict.commit), patch.object(server.threading, "Thread") as worker:
+            a = server.start_or_get(strict.repo, None, False)
+            b = server.start_or_get(strict.repo, None, False, True)
+            assert a.key == strict.key and b.key == exploratory.key and a is not b
+            assert a.best_effort is False and b.best_effort is True
+            worker.assert_not_called()
+        # Even a successful producer cannot publish a mode contradictory to this job.
+        path = strict.dir / "digest/digest.json"
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        for record in (None, _support_record(True), dict(_support_record(), best_effort_requested=0),
+                       dict(_support_record(), allowed=False)):
+            payload["source"]["project_support"] = record
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            try:
+                server.publish_cache(strict)
+            except RuntimeError as e:
+                assert "project-support policy" in str(e)
+            else:
+                raise AssertionError("contradictory project policy was published")
+
+
+def test_server_project_support_opt_in_reaches_cli_and_public_tool():
+    with server_fixture() as server:
+        repo = server.RepoRef("github.com", "owner", "repo", None)
+        commit = "a" * 40
+        script = server.DATA / "policy_producer.py"
+        for exploratory in (False, True):
+            payload = {"tool": f"ue-repo-reader {server.DIGEST_VERSION}",
+                       "source": {"commit": commit, "project_support": _support_record(exploratory)}}
+            script.write_text("import sys; from pathlib import Path; "
+                              f"assert ('--best-effort' in sys.argv) is {exploratory!r}; "
+                              "out=Path(sys.argv[sys.argv.index('--out')+1]); out.mkdir(); "
+                              "(out/'INDEX.md').write_text('# result',encoding='utf-8'); "
+                              f"(out/'digest.json').write_text({json.dumps(payload)!r},encoding='utf-8')", encoding="utf-8")
+            server.DIGEST_SCRIPT = script
+            job = server.Job("mode", server.digest_key(repo, commit, None, exploratory), repo, commit, None, best_effort=exploratory)
+            server.run_job(job)
+            assert job.status == "done", job.error
+        with patch.object(server, "start_or_get", return_value=job) as start, patch.object(server, "job_report", return_value="done"):
+            assert server.analyze_repo("owner/repo", best_effort=True) == "done"
+            assert start.call_args.args[-1] is True
+        with patch.object(server, "start_or_get") as start:
+            assert "must be a boolean" in server.analyze_repo("owner/repo", best_effort="false")
+            start.assert_not_called()
+        for marker in (False, True):
+            script.write_text("import sys; " + ("print('[project-support-refused] unconfirmed'); " if marker else "") +
+                              "print('bad input'); sys.exit(2)", encoding="utf-8")
+            refused = server.Job("refused", "refused", repo, commit, None)
+            server.run_job(refused)
+            assert refused.status == "error", refused.error
+            report = server.job_report(refused, 0)
+            assert ("best_effort=true" in report) is marker, report
+
+
 def test_server_job_publishes_only_current_success():
     with server_fixture() as server:
         script = Path(server.DATA) / "fake_digest.py"
@@ -257,7 +328,7 @@ def test_server_job_publishes_only_current_success():
         for version, source_commit, exit_code, expected in (
                 (server.DIGEST_VERSION, commit, 0, "done"), ("old", commit, 0, "error"),
                 (server.DIGEST_VERSION, "b" * 40, 0, "error"), (server.DIGEST_VERSION, commit, 7, "error")):
-            payload = {"tool": f"ue-repo-reader {version}", "source": {"commit": source_commit}}
+            payload = {"tool": f"ue-repo-reader {version}", "source": {"commit": source_commit, "project_support": _support_record()}}
             script.write_text("import sys,json; from pathlib import Path; "
                               "out=Path(sys.argv[sys.argv.index('--out')+1]); out.mkdir(); "
                               "(out/'INDEX.md').write_text('# result',encoding='utf-8'); "
