@@ -93,6 +93,6 @@
 | X5 | todo | - | 함수 MetaData(툴팁·카테고리·CallInEditor) 표시 | S |
 | X6 | done | claude | 맵 배치 인스턴스의 변수·태그 오버라이드가 요약본에 나오는지 확인(AR LeverBP KeyCard → GameplayTags "미사용" 오판 가능) | S–M |
 | X7 | done | claude | InputAction 에셋 자체의 트리거·모디파이어(IA 단위 설정) 표시 | S |
-| X8 | todo | - | 위젯 Property bindings 출력 실데이터 검증(테스트 3개 저장소엔 바인딩 없음) — 바인딩 쓰는 공개 저장소로 확인 | S |
+| X8 | doing | claude | 위젯 Property bindings 출력 실데이터 검증(테스트 3개 저장소엔 바인딩 없음) — 바인딩 쓰는 공개 저장소로 확인 | S |
 | X9 | todo | - | AnimSequence 노티파이(시퀀스는 크고 LFS 한도에 걸리기 쉬움 → 헤더/노티파이만 읽는 방법 검토) | M |
 
