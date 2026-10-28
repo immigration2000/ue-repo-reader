@@ -193,3 +193,12 @@
   새 의존성·전역 권한 변경·전체 권한 우회 없음. Codex 턴 종료 후 지속 감시는 별도 요청이 있어야 한다.
   CLI 실행/재개 방식: https://code.claude.com/docs/en/headless
 
+## D-022 맵 표와 전체 저장 프로퍼티 분리 (2026-10-28, codex)
+- 결정: v1.11.0. 기존 맵 표의 짧은 미리보기와 별도로 maps_detail[map_path].actors에 모든 디코딩된 액터·루트 컴포넌트
+  저장 프로퍼티를 JSON으로 보존한다. source_package/export_index로 같은 이름의 외부 액터도 구분한다.
+- 이유: 길이 120자·8개 표시뿐 아니라 중첩 값 렌더러 자체도 원소/깊이를 제한하므로, 표시 문자열을 저장하면 원래 값을 잃는다(Q4).
+- 영향: 문자열·배열·딕셔너리·네이티브 dataclass 필드를 표시용 정리 없이 보존한다. 바이너리는 base64, 비문자열 키는 entries,
+  미지원 객체/순환/깊이 64 초과는 unavailable과 actor_values issue로 보고한다. 실패한 프로퍼티는 partial이며 기본값으로 추측하지 않는다.
+  별도 컴포넌트 export 추가 해석과 클래스 기본값 복원은 범위 밖이다. INDEX/CATALOG/두 SKILL과 MCP 캐시 버전을 함께 갱신한다.
+  새 의존성·외부 코드 복사 없음.
+

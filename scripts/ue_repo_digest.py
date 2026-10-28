@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -914,6 +914,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- `Parse warnings` lists property/graph/actor failures. Node coverage counts decoded pins only;",
            "  check these warnings too. A failed Level Blueprint is unknown, not an empty graph or 0/0 success.",
            "- Maps are rendered under `maps/`: Level Blueprint, placed actors with per-instance overrides, game mode.",
+           "  Map tables are compact previews. Full decoded actor/root-component saved properties are in",
+           "  `digest.json` → `maps_detail[map_path].actors` (native fields and opaque bytes retained; missing values stay unknown).",
            "  Blueprint files end with `Placed in levels` when instances of them are placed in a map.",
            "- Data assets (DataTables, structs, enums, Behavior Trees, StateTrees, input mappings, montages, DataAssets) are",
            "  rendered under `data/` — see the Data assets table below.",

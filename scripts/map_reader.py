@@ -11,7 +11,11 @@ by export index / outer index, never by name alone.
 """
 from __future__ import annotations
 
+import base64
+import dataclasses
+import json
 import logging
+import math
 import re
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -38,6 +42,61 @@ _ACTOR_META = {
     "bIsEditorOnlyActor", "ExternalDataLayerAsset", "ParentComponent", "BrushType", "PolyFlags", "FolderGuid",
     "ActorInstanceGuid", "LandscapeGuid", "LandscapeActor",
 }
+
+
+def _saved_value(value, ctx, context, active=None, depth=0):
+    """JSON-safe decoded values, without Markdown's string/item/depth truncation.
+
+    Preserve native dataclass fields and opaque payloads rather than rendering reprs or guessing defaults.
+    """
+    if isinstance(value, B.ObjRef):
+        return {"kind": "object_reference", "index": int(value), "name": ctx.obj_name(int(value)) or None}
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else {"kind": "float", "value": str(value)}
+    if isinstance(value, bytes):
+        return {"kind": "bytes", "encoding": "base64", "data": base64.b64encode(value).decode("ascii")}
+    active = set() if active is None else active
+    if depth > 64 or id(value) in active:
+        reason = "decoded value exceeds nesting limit" if depth > 64 else "cyclic decoded value"
+        B.record_issue(ctx.issues, "actor_values", context, reason)
+        return {"kind": "unavailable", "reason": reason}
+    active.add(id(value))
+    def child(item, key):
+        return _saved_value(item, ctx, context + "." + str(key), active, depth + 1)
+    try:
+        if isinstance(value, dict):
+            if all(isinstance(key, str) for key in value):
+                return {key: child(item, key) for key, item in value.items()}
+            return {"kind": "mapping", "entries": [{"key": child(key, "key"), "value": child(item, key)}
+                                                    for key, item in value.items()]}
+        if isinstance(value, (list, tuple)):
+            # EnumArray may override iteration for Markdown spans. Save its underlying values.
+            items = list.__iter__(value) if isinstance(value, list) else iter(value)
+            return [child(item, index) for index, item in enumerate(items)]
+        if isinstance(value, (set, frozenset)):
+            items = [child(item, "element") for item in value]
+            return {"kind": "set", "elements": sorted(items, key=lambda item: json.dumps(item, sort_keys=True))}
+        if dataclasses.is_dataclass(value) and not isinstance(value, type):
+            return {"kind": type(value).__name__, "fields": {
+                field.name: child(getattr(value, field.name), field.name) for field in dataclasses.fields(value)}}
+        reason = "unsupported decoded value type " + type(value).__name__
+        B.record_issue(ctx.issues, "actor_values", context, reason)
+        return {"kind": "unavailable", "reason": reason}
+    finally:
+        active.remove(id(value))
+
+
+def _external_package(path, game_path):
+    """A stable source identity, including the full hashed path for external actor packages."""
+    parts = Path(path).with_suffix("").parts
+    if "__ExternalActors__" in parts:
+        suffix = parts[parts.index("__ExternalActors__"):]
+        mount = game_path.strip("/").split("/", 1)[0]
+        return "/" + "/".join((mount, *suffix))
+    # Direct read_map callers can supply arbitrary package paths. Preserve the path without guessing a mount.
+    return Path(path).as_posix()
 
 
 def _num(v) -> str:
@@ -168,10 +227,19 @@ class PackageActors:
                 continue
             overrides.append(f"{k}={s if len(s) <= 120 else s[:117] + '…'}")
         folder = p.get("FolderPath")
+        before_values = len(self.ctx.issues)
+        saved = {"source_package": getattr(self, "package_path", Path(self.path).as_posix()), "export_index": idx,
+                 "name": name, "label": p.get("ActorLabel") or name, "class": cls,
+                 "saved_properties": _saved_value(p, self.ctx, name)}
+        if root:
+            saved["root_component"] = {"name": self.name(root), "export_index": root,
+                                       "saved_properties": _saved_value(rp, self.ctx, name + "." + self.name(root))}
+        saved["properties_status"] = "partial" if (idx in self.failed_props or (root and root in self.failed_props)
+                                                     or len(self.ctx.issues) > before_values) else "ok"
         return {"name": name, "label": p.get("ActorLabel") or name, "class": cls, "loc": loc, "rot": rot,
                 "scale": scale if scale and scale != "(1, 1, 1)" else None, "mesh": mesh,
                 "folder": B.fmt_value(folder) if folder not in (None, "None", "") else "",
-                "overrides": overrides, "hidden": p.get("bHidden") is True, "tags": sorted(tags)}
+                "overrides": overrides, "hidden": p.get("bHidden") is True, "tags": sorted(tags), "saved": saved}
 
 
 def _world_info(pkg: PackageActors) -> dict:
@@ -216,6 +284,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
         raise FileNotFoundError(path)
     stem = Path(path).stem
     pkg = PackageActors(path)
+    pkg.package_path = game_path
     ext_errors = 0
     issues = []
     try:
@@ -231,6 +300,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
     for f in ext[:max_external]:
         try:
             ep = PackageActors(f)
+            ep.package_path = _external_package(f, game_path)
             try:
                 actors.extend(ep.actors())
             finally:
@@ -292,6 +362,8 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
     md += [f"## Gameplay actors ({len(gameplay)})", "",
            "_Location is the root component's relative location (world location unless the actor is attached)._",
            "_Overrides are the values changed on this placed instance — for Blueprint actors, typically instance-editable variables._", "",
+           "_Compact preview only (up to 8 overrides, shortened values). Full decoded actor/root-component saved properties: "
+           f"`digest.json` → `maps_detail[\"{game_path}\"].actors`; opaque bytes remain marked, class defaults are not inferred._", "",
            "| Actor | Class | Location | Rotation | Overrides |", "|---|---|---|---|---|"]
     for a in sorted(gameplay, key=lambda a: (a["folder"], a["class"], a["label"])):
         label = f"{a['folder']}/{a['label']}" if a["folder"] else a["label"]
@@ -321,6 +393,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
                "world_partition": info["world_partition"], "external_actors": len(ext),
                "external_actor_errors": ext_errors, "external_actors_truncated": truncated,
                "actor_count": len(actors), "gameplay_count": len(gameplay), "placed_classes": dict(placed),
+               "actors": [a["saved"] for a in actors if "saved" in a],
                "gameplay_tags": sorted({t for a in actors for t in a.get("tags") or []}),
                "issues": issues, "parse_status": "partial" if issues else "ok",
                "level_bp_status": "error" if lb_summary is None else lb_summary.get("parse_status", "ok"),

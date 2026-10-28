@@ -59,7 +59,11 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment
    summary (meshes, lights, landscape…). World Partition external actors are merged in. Blueprint files
-   end with `Placed in levels`.
+   end with `Placed in levels`. Map tables are compact previews (up to eight overrides, shortened values).
+   Scripts can obtain complete decoded actor/root-component saved properties from
+   `digest.json` → `maps_detail[map_path].actors`: source package/export index identify each actor;
+   native values retain their fields, opaque bytes use base64, and unavailable values stay explicitly unknown.
+   Other component exports and unsaved class defaults are not expanded into these records.
 4. `<out>/data/<content path>.md` — data assets: DataTables (every row), UserDefinedStructs (fields, types,
    defaults), UserDefinedEnums (values and display names), StringTables, Behavior Trees (full tree with
    decorators, services and blackboard keys), Blackboards, StateTrees (state hierarchy), EQS queries,

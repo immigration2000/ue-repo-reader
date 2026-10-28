@@ -44,6 +44,10 @@ from claude_delegate_tests import (test_claude_job_success_requires_manager_revi
                                    test_claude_job_failures_and_denials_never_complete,
                                    test_claude_job_silent_deadline_and_stop,
                                    test_claude_job_tool_scope_and_overlap_guards)
+from map_values_tests import (test_map_saved_values_preserve_nested_literals_and_types,
+                             test_map_saved_values_unknowns_are_explicit_and_reported,
+                             test_map_actor_full_values_do_not_reuse_compact_preview,
+                             test_map_full_values_reach_summary_and_cache_with_external_identity)
 from enum_tests import (test_enum_arrays_only_use_explicit_type_identity, test_enum_spans_preserve_literals_numbers_and_unknown_values,
                        test_enum_catalog_ambiguity_partial_and_aliases, test_enum_sparse_serialized_values_are_not_display_order,
                        test_enum_large_arrays_render_lazily_and_cache_raw_values, test_enum_unresolved_limits_visible_in_indexes,
