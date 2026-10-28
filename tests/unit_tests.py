@@ -40,6 +40,10 @@ from function_metadata_tests import (test_function_metadata_fields_and_explicit_
                                     test_function_metadata_opaque_fallback_uses_exact_export_and_closes,
                                     test_function_metadata_invalid_fields_never_become_false_defaults,
                                     test_function_metadata_reaches_markdown_summary_and_parse_report)
+from claude_delegate_tests import (test_claude_job_success_requires_manager_review,
+                                   test_claude_job_failures_and_denials_never_complete,
+                                   test_claude_job_silent_deadline_and_stop,
+                                   test_claude_job_tool_scope_and_overlap_guards)
 from enum_tests import (test_enum_arrays_only_use_explicit_type_identity, test_enum_spans_preserve_literals_numbers_and_unknown_values,
                        test_enum_catalog_ambiguity_partial_and_aliases, test_enum_sparse_serialized_values_are_not_display_order,
                        test_enum_large_arrays_render_lazily_and_cache_raw_values, test_enum_unresolved_limits_visible_in_indexes,
