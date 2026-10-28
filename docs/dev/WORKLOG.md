@@ -36,7 +36,8 @@
 - 남은 일·주의: Q10/Q11 done. 선언 일치는 핀 전체·게임플레이 의미 정확도의 보증이 아니다. 현재 검증된 기본 창은 5.7/5.8이며
   소스 빌드 ID/빈 선언은 실제 UE5.7+여도 탐색 모드가 필요하다. 원격 clone은 메타데이터 확인 전에 수행될 수 있다.
   다음 우선순위는 Q1/W1 독립 에디터 의미 정답 확보·자동 대조이며, Q9 IR의 현재 핀 ID/텍스트 정답 범위는 그대로다.
-  등록 개인 스킬과 원래 main checkout의 1.14.0 동기화·설치 경로 검증은 main 반영 직후 확인한다.
+  등록 개인 스킬(C:/Users/user1/.codex/skills/ue-repo-reader)과 원래 main checkout을 1.14.0 main으로 fast-forward 동기화함.
+  실제 설치 경로의 5.7/5.8 독립 핀 정답 대조·CLI 구버전/빌드 ID/미검증 미래 선언 3건의 출력 보존 거부·정상/탐색 상태 전파 PASS(17:37 KST).
 
 ## 2026-10-28 16:35 KST · codex · Q9 (W3/W1 공통 핀 구조·정답 비교 기반)
 - 한 일: v1.13.0. scripts/graph_ir.py의 스키마 1을 BP graph_ir / 맵 level_bp_graph_ir에 연결.
