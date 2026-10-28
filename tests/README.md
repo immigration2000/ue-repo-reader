@@ -24,6 +24,9 @@ T4 검사에서는 PageRank의 순위/정규화/설정 진입점 가중치·고�
 실제 참조와 이름 언급의 구분, 300문서/긴 한글 설정의 INDEX 예산, 모든 문서의 머리말/링크와 부분 실패 표시,
 분할된 CATALOG의 Parse report 링크·출력 재사용을 확인한다. 상세 문자열 기대값은 CATALOG로 이동했고 BP/노드 수는 동일하다.
 
+X2는 실제 NewVar의 저장된 None terminal과 합성 VarType/그래프 핀/구조체 기술자에서 Map 값 타입을 확인한다.
+미지정은 ?로 표시하고 잘린 타입 선언만 파싱 문제로 보고한다. int/double/struct/object 및 비-Map 타입도 검사한다.
+
 스킬 설치 검사(`skill_install_tests.py`)는 세 도구의 개인/프로젝트 경로 6개에 실제 파일을 복사한다.
 한글·공백·대괄호·쉼표 경로에서 다른 작업 폴더를 cwd로 설치본의 CLI 도움말과 네 리더의 로컬 import를 실행하고,
 기존 파일 보존·존재하지 않는 프로젝트·탐색 경로의 symlink/Windows junction 거부를 확인한다.

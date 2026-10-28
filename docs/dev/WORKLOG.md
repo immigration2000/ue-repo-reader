@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-10-28 10:34 KST · codex · X2
+- 한 일: PDA_PlayerData.NewVar의 101바이트 VarType 확인. container=3, offset 21의 terminal category/subcategory가
+  실제 FName None/None이고 object=0이었다. 구체적인 값 타입을 추측하지 않고 Map<E_Crates, ?> + 미지정 설명으로 표시.
+  그래프 핀은 고정 파서의 map_key_terminal_*가 실제 UE PinValueType(값 타입)임을 반영해 primitive/struct/object 값을 전달.
+  잘린 VarType은 variable_type issue로 보고. 두 SKILL/INDEX/CATALOG 범례와 v1.7.1, D-017 기록.
+- 검증: 전체 regress 단위 53/53 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. 합성 byte map의 int/double/struct/object/None,
+  배열/Set/스칼라 보존, 잘린 terminal의 구조화 경고, 구조체 기술자/그래프 핀/툴팁 유무 검사. 실제 NewVar 문자열 회귀 추가.
+  최초 단위 실행의 서버 시간 제한 검사 3개는 시작 지연으로 실패했으나 독립 전체 재실행에서 모두 통과.
+  BP/노드/데이터/맵 수량 변경 없음, git diff --check PASS.
+- 남은 일·주의: X2 done, X1 doing. None은 저장된 미지정 타입이며 None 객체 타입으로 단정하지 않는다.
+  X1은 DA_PlayerData.Stashinfo의 ArrayProperty(ByteProperty(E_Crates, 정확한 /Game 경로))와 실제 UEnum 값 표를 연결 예정.
+  양 작업 완료 후 main 통합/push 예정.
+
 ## 2026-10-28 09:25 KST · codex · T3 통합 성능 보완 / T4 완료
 - 한 일: 분류 캐시 제거. 분류는 기존 작은 헤더 병렬 스캔, BP/data/map 본문만 실제 SHA 캐시로 재사용한다.
   미지원 아트 전체 해시·개별 캐시 I/O를 없애고 분류 코드도 단순화. 본문 내용·버전·경로·외부 액터 무효화와

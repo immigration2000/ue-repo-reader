@@ -200,6 +200,7 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             "animation to finish; `when never` is constant False. Flags describe saved function/variable settings.",
             "- Saved data is static. Missing values after a parse failure are unknown; an unreadable Level Blueprint "
             "is unknown, not empty. Node N/N counts decoded pins only. Read Parse warnings even at N/N.",
+            "- `Map<K, V>` shows key/value types; `?` in a type means unspecified or unreadable, with no concrete type inferred.",
             "- [Full legend](<CATALOG.md#how-to-read-this-digest>) · [C++ index](<cpp/CLASSES.md>): "
             "read real C++ sources for implementations. Skip `digest.json` when reading; it repeats facts for scripts.", ""]
     shown = 0

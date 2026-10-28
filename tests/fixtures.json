@@ -12,6 +12,12 @@
     },
     "checks": [
       {
+        "bug": "X2",
+        "file": "blueprints/Game/DeltaForce/Data/DataAsset/PDA_PlayerData.md",
+        "must_contain": ["| NewVar | Map<E_Crates, ?> |", "unspecified in the saved declaration"],
+        "must_not_contain": ["Map<E_Crates, None>"]
+      },
+      {
         "bug": "B1",
         "file": "blueprints/Game/DeltaForce/Blueprints/UI/Grid/WBP_GridSlot.md",
         "must_contain": [

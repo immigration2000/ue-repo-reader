@@ -30,6 +30,7 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
 3. `blueprints/…md` — components, variables, class defaults, event dispatchers, and every graph as
    execution-flow pseudo-code (`event X`, `[true]:`, `#N = Func()`, `→ goto #N` jumps to the line labelled `[#N]`, `return <value>`, `Pin=∅` = unconnected input,
    `when auto (...)` = automatic anim transition, `⚠ disconnected` = dead code).
+   `Map<K, V>` includes key/value types; `?` in a type is unspecified or unreadable, not a concrete type.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
 5. `cpp/CLASSES.md`, then real C++ via `read_source_file` (a glob like `Source/**/*.h` lists files).
 

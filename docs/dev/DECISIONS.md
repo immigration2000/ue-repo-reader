@@ -138,3 +138,13 @@
   CATALOG.partN도 생성 출력으로만 허용하며 report/legend 링크는 실제 분할 파일로 보정한다. 두 SKILL 2절/범례/MCP 지침 갱신.
   VERSION 변화로 MCP 완성 캐시는 자동 무효화. 원시 에셋 캐시에는 순위/머리말을 저장하지 않아 교차 맥락은 매번 계산.
   새 실행 의존성 없음; 개발용 tiktoken은 gitignore 캐시에만 설치해 토큰 수를 비교했다.
+
+## D-017 Map의 값 타입과 저장된 미지정 타입 구분 (2026-10-28, codex)
+- 결정: UE PinValueType을 Map 값 타입으로 출력한다. 고정 파서의 map_key_terminal_*는 이름과 달리 그 값 타입이다.
+  Category=None은 구체 타입으로 출력하지 않고 ?로 표시하며, 잘린 선언은 variable_type issue로 보고한다(v1.7.1).
+- 이유: NewVar의 terminal은 실제로 None/None/object=0으로 저장됐다. 이를 다른 타입으로 추측하면 잘못된 사실이 된다(X2).
+  반면 그래프 핀은 파서가 읽어 둔 정상 값 타입을 출력기에 전달하지 않아 항상 ?가 되던 경로가 있었다.
+- 영향: 타입 ?의 의미를 INDEX/CATALOG와 두 SKILL에 명시. 변수의 의도된 미지정은 파싱 실패와 구분한다.
+  새 의존성/상위 파서 코드 복사 없음. 공식 필드 의미:
+  https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/FEdGraphPinType
+  https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/FEdGraphTerminalType

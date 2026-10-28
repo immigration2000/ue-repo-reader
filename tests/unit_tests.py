@@ -33,6 +33,8 @@ from cache_tests import (test_asset_cache_hash_and_dependency_invalidation, test
                          test_asset_cache_only_changed_assets_start_workers, test_asset_cache_preflight_preserves_previous_digest)
 from navigation_tests import (test_pagerank_order_seeds_and_dangling_nodes, test_navigation_resolves_unique_and_explicit_references,
                               test_navigation_budget_context_and_warnings, test_navigation_split_catalog_anchors_and_rerun)
+from type_tests import (test_map_declaration_value_types_and_unknown, test_map_graph_and_struct_descriptor_value_types,
+                       test_map_unset_type_note_with_and_without_tooltip)
 from search_tests import (test_search_literal_unicode_and_index_reuse, test_search_fallback_and_coverage_limits,
                           test_mcp_response_limits_and_lossless_pagination, test_search_and_source_globs_contain_links,
                           test_cache_refresh_waits_for_open_readers)

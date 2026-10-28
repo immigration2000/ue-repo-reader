@@ -655,7 +655,7 @@ _CAT_NAMES = {
 
 
 def _type_str(category, subcat, subobj_name, container=0, value_type=None):
-    category = category or ""
+    category = "" if category in (None, "None") else category
     sub = subobj_name or ""
     if category == "object":
         base = f"{sub}*" if sub else "Object*"
@@ -686,10 +686,16 @@ def pin_type_str(pin) -> str:
     pt = pin.pin_type
     if pt is None:
         return "?"
-    return _type_str(pt.pin_category, pt.pin_subcategory, pt.pin_subcategory_object_name, pt.container_type or 0)
+    value = None
+    if pt.container_type == 3:
+        # The pinned parser calls these map_key_terminal_*; UE's PinValueType is the VALUE.
+        value = _type_str(getattr(pt, "map_key_terminal_category", None),
+                          getattr(pt, "map_key_terminal_sub_category", None),
+                          getattr(pt, "map_key_terminal_sub_category_object_name", None))
+    return _type_str(pt.pin_category, pt.pin_subcategory, pt.pin_subcategory_object_name, pt.container_type or 0, value)
 
 
-def _decode_var_type(ctx: Ctx, raw: bytes) -> str:
+def _decode_var_type(ctx: Ctx, raw: bytes, context="variable") -> str:
     """Decode an FEdGraphPinType blob (BPVariableDescription.VarType)."""
     try:
         ci, cn, si, sn, obj = struct.unpack_from("<iiiii", raw, 0)
@@ -697,11 +703,12 @@ def _decode_var_type(ctx: Ctx, raw: bytes) -> str:
         cat, subcat = ctx.fname(ci, cn), ctx.fname(si, sn)
         subobj = ctx.obj_name(obj) if obj else ""
         vtype = None
-        if container == 3 and len(raw) >= 41:
+        if container == 3:
             vci, vcn, vsi, vsn, vobj = struct.unpack_from("<iiiii", raw, 21)
             vtype = _type_str(ctx.fname(vci, vcn), ctx.fname(vsi, vsn), ctx.obj_name(vobj) if vobj else "")
         return _type_str(cat, subcat, subobj, container, vtype)
-    except Exception:
+    except (IndexError, TypeError, struct.error) as error:
+        record_issue(ctx.issues, "variable_type", context, error)
         return "?"
 
 
@@ -1578,7 +1585,7 @@ def _variable_metadata(path: str, result, ctx: Ctx, asset_name: str) -> dict:
 
 def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
     var_meta = var_meta or {}
-    rows, names, tips = [], set(), {}
+    rows, names, tips, unknown_type = [], set(), {}, False
     for v in bp_props.get("NewVariables") or []:
         f = _fields(v)
         name = f.get("VarName")
@@ -1586,7 +1593,8 @@ def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
             continue
         names.add(name)
         vt = f.get("VarType")
-        tstr = _decode_var_type(ctx, vt.get("raw_data")) if isinstance(vt, dict) and vt.get("raw_data") else "?"
+        tstr = _decode_var_type(ctx, vt.get("raw_data"), name) if isinstance(vt, dict) and vt.get("raw_data") else "?"
+        unknown_type = unknown_type or "?" in tstr
         flags = f.get("PropertyFlags") or 0
         tags = []
         if isinstance(flags, int):
@@ -1619,10 +1627,11 @@ def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
         rows.append((name, f"| {name} | {tstr} | {cat_s or ''} | {' '.join(tags)} | {str(dflt).replace('|', '/')} |"))
     if not rows:
         return [], names
+    note = ["", "_`?` in a type means unspecified in the saved declaration or unreadable; no concrete type was inferred._"] if unknown_type else []
     if tips:
         return (["| Name | Type | Category | Flags | Default | Tooltip |", "|---|---|---|---|---|---|"]
-                + [r + f" {tips.get(n, '')[:160]} |" for n, r in rows]), names
-    return ["| Name | Type | Category | Flags | Default |", "|---|---|---|---|---|"] + [r for _, r in rows], names
+                + [r + f" {tips.get(n, '')[:160]} |" for n, r in rows] + note), names
+    return ["| Name | Type | Category | Flags | Default |", "|---|---|---|---|---|"] + [r for _, r in rows] + note, names
 
 
 # widget properties worth showing in the tree (only saved = non-default values appear)

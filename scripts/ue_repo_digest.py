@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.7.0"
+VERSION = "1.7.1"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -888,6 +888,7 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  - `return <value>` / `return (A=.., B=..)` — a function's output values at that exit",
            "  - `[pure, const, private, RunOnServer, Reliable …]` after a function header — its flags; the Variables",
            "    table's Flags column lists InstanceEditable, ExposeOnSpawn, Private, Replicated, Condition=…, SaveGame …",
+           "  - `Map<K, V>` shows key and value types; `?` inside a type means unspecified or unreadable, never an inferred type",
            "  - one statement per executed node; data inputs are inlined as expressions (`Target.Func(Arg=value)`)",
            "  - `#N = Func(...)` — an impure node whose output is used later as `#N` / `#N.PinName`",
            "  - `$N` — a long pure expression used in several places, spelled out once in the graph's `// where` block",
