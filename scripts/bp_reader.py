@@ -1661,6 +1661,10 @@ def _function_metadata(ctx: Ctx, node, path: str, result, context: str) -> dict:
     return info
 
 
+class _FunctionMetadataComment(str):
+    """Saved author text must bypass the struct-field GUID/name cleanup."""
+
+
 def _function_metadata_comments(info: dict, entry: str) -> list[str]:
     def literal(text):
         return (json.dumps(text, ensure_ascii=False).replace("\u0085", "\\u0085")
@@ -1677,7 +1681,7 @@ def _function_metadata_comments(info: dict, entry: str) -> list[str]:
         lines.append(f"// Function tooltip [{entry}]: " + literal(info["tooltip"]))
     if info.get("unreadable"):
         lines.append(f"// Function metadata [{entry}] unknown: " + ", ".join(info["unreadable"]))
-    return lines
+    return [_FunctionMetadataComment(line) for line in lines]
 
 
 def _variable_metadata(path: str, result, ctx: Ctx, asset_name: str) -> dict:
@@ -2163,7 +2167,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
     md += issue_markdown(ctx.issues)
     summary["parse_status"] = "partial" if ctx.issues or ok_nodes < total_nodes else "ok"
     summary["calls"] = sorted(summary["calls"])
-    return {"markdown": clean_member_names("\n".join(md) + "\n"), "summary": summary}
+    markdown = "\n".join(line if isinstance(line, _FunctionMetadataComment) else clean_member_names(line) for line in md) + "\n"
+    return {"markdown": markdown, "summary": summary}
 
 
 if __name__ == "__main__":

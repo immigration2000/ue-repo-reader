@@ -88,7 +88,8 @@ def test_function_metadata_reaches_markdown_summary_and_parse_report():
         path.write_bytes(b"")
         graph = NS(graph_name="Action", nodes=[entry], subgraphs=[])
         result = NS(summary=NS(), blueprint=None, graphs=[graph])
-        for fields, partial in (({"Category": "Tools", "ToolTip": NS(source_string="Do work"), "bCallInEditor": False}, False),
+        original = "Do work GridWidth_18_EF302CA945656BC9DD62659509343FD0"
+        for fields, partial in (({"Category": "Tools", "ToolTip": NS(source_string=original), "bCallInEditor": False}, False),
                                 ({"ToolTip": {"kind": "opaque"}}, True)):
             ctx = context(fields)
             ctx.obj_name, ctx.export_by_name = lambda ref: "", lambda name: None
@@ -111,4 +112,5 @@ def test_function_metadata_reaches_markdown_summary_and_parse_report():
                 assert "everything decoded cleanly" not in _index(root, bps={"/Game/Test": rendered})
             else:
                 assert metadata[0]["call_in_editor"] is False and "CallInEditor=false" in rendered["markdown"]
-                assert 'Function tooltip [K2Node_FunctionEntry_0]: "Do work"' in rendered["markdown"]
+                assert 'Function tooltip [K2Node_FunctionEntry_0]: "' + original + '"' in rendered["markdown"]
+                assert metadata[0]["tooltip"] == original, "author text was changed by struct-name cleanup"
