@@ -114,4 +114,6 @@
 | Q5 | todo | - | 함수 메타데이터 CallInEditor=true 실데이터 검증(지금은 합성 바이트만) — Q1 정답 또는 공개 저장소로 확인 | S |
 | Q6 | todo | - | 구버전 엔진(UE 4.12, bt) 노드 해석 26/98 — 우선순위 낮음(사용자 프로젝트는 5.8) | M |
 | Q7 | done | claude | bt 전역 allow_issues 제거, 알려진 issue 다중집합·개별 BP/Level BP 해석 수 고정; 새 오류·null 상태 거부, Codex 검토·수정 지시·통합 완료(D-023) | S |
+| Q8 | doing | claude | W0 첫 단계: BP/데이터의 값 표시 상한과 추가 CDO 제외를 명시해 무고지 생략 제거; 합성 경계 검사·Codex 독립 검증 | S |
+| Q9 | doing | codex | W3/W1 첫 단계: BP·Level BP 노드/핀/저장 연결의 정규화 IR, 정확한 식별자·불확실성·검증 계약 및 의미 변경 검사 기반; Claude 교차 검토 | S–M |
 
