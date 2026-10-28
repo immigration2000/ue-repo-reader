@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-10-28 10:52 KST · codex · X1 / X2 완료
+- 한 일: v1.8.0. X1은 표시만의 문제가 아니라 enum FName 배열을 uint8로 읽던 오독이었다. Stashinfo의 size=44/count=5,
+  4+8×5 바이트와 NameMap을 직접 대조해 저장 이름을 확인. 실제 값은 [5,6,8,10,11]이며 기존 [7,0,0,0,0]은 잘못된 출력.
+  TaggedReader에 명시 타입/정확한 payload 폭/이름 범위를 검증하는 enum 배열 디코더 추가. 일반 byte 배열은 그대로.
+  실제 UEnum Names(int64 값) + DisplayNameMap을 summary.enum_values로 제공해 내부 이름/실제 숫자/표시 이름을 함께 출력.
+  같은 이름/명시 경로 불일치/unknown 값/부분 실패 enum은 추측하지 않고 저장 이름·숫자 및 INDEX/CATALOG 한계를 유지.
+  enum_values.py의 지연 원소/정확한 렌더 span으로 일반 텍스트·숫자를 치환하지 않으며, 원시 캐시 이후 이름을 연결한다.
+  enum 수정/삭제가 의존 데이터 캐시 hit에도 반영됨. 두 SKILL 2절/범례/README/테스트 안내, D-018 갱신.
+- 검증: 최종 전체 regress 단위 60/60 + 외부 에셋 6/6 + 프로젝트 3/3 PASS; BP/노드/데이터/맵 수량 동일.
+  실제 DA_PlayerData 5개 + DT_GridLayoutData 138개 enum 값 모두 이름/숫자 연결, 미해결 0. 실제 문자열 회귀 추가.
+  FName 인덱스≠enum 값(1→42), compact byte, sparse/alias/동명/경로/잘린 배열/일반 값 보존/20만 원소 지연 처리 검사 PASS.
+  실제 eg 3에셋을 공백·한글·대괄호·쉼표 임시 경로로 복사해 cold/warm byte-identical, enum만 수정하면 2 hit/1 miss,
+  enum 삭제하면 2 hit/0 miss 및 미해결 5개 표시 PASS. 원본 fixture 파일은 변경하지 않음.
+  전체 eg cold/warm/disabled 101개 Markdown/JSON byte-identical(97 warm hits), 실제 MCP HTTP의 수정 데이터 읽기/
+  6도구/캐시·검색·refresh·재시작 PASS. 두 skill quick_validate·문서/생성 링크·내부 토큰 미노출·diff --check PASS.
+- 남은 일·주의: X1/X2 모두 done. 타입 없는 legacy byte 배열에 enum을 추측하지 않는다. 숫자 값은 저장 FName을 enum 정의에
+  대응해 확인하며, enum 정의 없이 숫자를 지어내지 않는다. 새 의존성/상위 파서 코드 복사 없음.
+  원격 X6 담당 변경(claude doing)은 보존해 합친 뒤 main push 예정. 후속 후보 X3/X5/X7/F5; X6는 다른 담당 작업 중.
+
 ## 2026-10-28 10:34 KST · codex · X2
 - 한 일: PDA_PlayerData.NewVar의 101바이트 VarType 확인. container=3, offset 21의 terminal category/subcategory가
   실제 FName None/None이고 object=0이었다. 구체적인 값 타입을 추측하지 않고 Map<E_Crates, ?> + 미지정 설명으로 표시.

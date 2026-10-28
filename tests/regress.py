@@ -107,6 +107,8 @@ def check(fx: dict, out: Path) -> list[str]:
                 errors.append(f"{gp}: {len(summary['issues'])} parse/render issues")
             if summary.get("parse_status") not in (None, "ok"):
                 errors.append(f"{gp}: parse status {summary['parse_status']}")
+            if summary.get("enum_resolution", {}).get("unresolved"):
+                errors.append(f"{gp}: unresolved enum labels")
             if key == "maps_detail":
                 nodes = summary.get("level_bp_nodes")
                 if nodes is None or nodes[0] != nodes[1] or summary.get("level_bp_status") != "ok":

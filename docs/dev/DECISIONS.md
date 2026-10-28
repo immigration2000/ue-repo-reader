@@ -148,3 +148,17 @@
   새 의존성/상위 파서 코드 복사 없음. 공식 필드 의미:
   https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/FEdGraphPinType
   https://dev.epicgames.com/documentation/en-us/unreal-engine/API/Runtime/Engine/FEdGraphTerminalType
+
+## D-018 enum 배열은 저장 FName부터 읽고 이름 연결은 캐시 뒤에서 수행 (2026-10-28, codex)
+- 결정: v1.8.0. 명시적 enum 타입이 있는 tagged 배열은 payload/count와 FName 범위·enum 이름을 검증해 직접 읽는다.
+  compact byte는 정확히 count 바이트인 ByteProperty만 허용. 알 수 없는 배치는 properties issue로 보고한다.
+  UEnum의 실제 (FName,int64) 값 표와 DisplayNameMap을 연결해 Enum::Enumerator(number, display="Label")로 표시한다.
+- 이유: DA_PlayerData.Stashinfo는 n=5/size=44, 즉 5개의 FName이었으나 고정 파서가 첫 이름 인덱스의 바이트를
+  [7,0,0,0,0]으로 읽었다. 이것에 숫자→이름 치환만 하면 잘못된 사실을 확정한다. 저장 이름의 실제 enum 값은
+  [5,6,8,10,11]이며 DataTable의 같은 오독도 확인했다(X1). 레이아웃은 고정 eg 에셋/NameMap 대조로 검증하고 직접 구현.
+- 영향: enum 정의는 순번이 아닌 실제 int64 값만 신뢰한다. 동명·잘못된 명시 경로·누락 enum·unknown 값은 저장 이름/숫자를
+  보존하고 미해결 수를 INDEX/CATALOG에 표시한다. plain byte/타입 없는 legacy 배열은 enum으로 추측하지 않는다.
+  지연 EnumArray와 렌더 span만 후처리해 일반 문자열/숫자를 바꾸지 않는다. 원시 캐시는 이름/숫자와 span을 저장하고,
+  이름 연결은 매 실행 수행하므로 enum만 변경/삭제해도 의존 데이터의 재파싱 없이 새 상태를 반영한다.
+  새 실행 의존성·상위/타 제품 코드 복사 없음. 필드 의미 참고:
+  https://dev.epicgames.com/documentation/unreal-engine/API/Runtime/CoreUObject/FByteProperty

@@ -33,7 +33,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
-VERSION = "1.7.1"
+VERSION = "1.8.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -889,6 +889,8 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  - `[pure, const, private, RunOnServer, Reliable …]` after a function header — its flags; the Variables",
            "    table's Flags column lists InstanceEditable, ExposeOnSpawn, Private, Replicated, Condition=…, SaveGame …",
            "  - `Map<K, V>` shows key and value types; `?` inside a type means unspecified or unreadable, never an inferred type",
+           "  - typed data-asset enum arrays show `Enum::Enumerator(number, display=\"Label\")`; names/numbers match the enum definition.",
+           "    Unresolved values keep their saved name/number; ordinary byte arrays stay numeric.",
            "  - one statement per executed node; data inputs are inlined as expressions (`Target.Func(Arg=value)`)",
            "  - `#N = Func(...)` — an impure node whose output is used later as `#N` / `#N.PinName`",
            "  - `$N` — a long pure expression used in several places, spelled out once in the graph's `// where` block",
@@ -1110,7 +1112,12 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
         md.append(f"- failed Blueprints ({len(failures)}):")
         for gp, err in sorted(failures.items()):
             md.append(f"  - `{gp}` — {err[:200]}")
-    if not partial and not warned and not newer and not failures and not data_failures and not map_failures and not (lfs and lfs.get("failed")):
+    unresolved_enums = [(gp, r["summary"].get("enum_resolution", {}).get("unresolved", 0)) for gp, r in datas.items()]
+    unresolved_enums = [(gp, count) for gp, count in unresolved_enums if count]
+    if unresolved_enums:
+        md.append("- ⚠ enum labels unresolved (saved names/numbers retained; missing/ambiguous enum or unknown value):")
+        md.extend(f"  - `{gp}` — {count} rendered values" for gp, count in sorted(unresolved_enums))
+    if not partial and not warned and not newer and not failures and not data_failures and not map_failures and not unresolved_enums and not (lfs and lfs.get("failed")):
         md.append("- everything decoded cleanly")
     md.append("")
     (out / "INDEX.md").write_text("\n".join(md) + "\n", encoding="utf-8")
@@ -1330,6 +1337,10 @@ def main(argv=None):
     t0 = time.time()
     datas, data_failures = process_blueprints(data_items, a.workers, a.timeout, worker=_data_worker, label="data", cache=cache)
     log(f"[data] rendered {len(datas)} in {time.time() - t0:.1f}s, {len(data_failures)} failed")
+    from enum_values import EnumCatalog, resolve_asset_enums
+    enum_catalog = EnumCatalog(datas)
+    for result in datas.values():
+        resolve_asset_enums(result, enum_catalog)
     # who uses each data asset: Blueprints mentioning it + data assets referencing it
     used_by = defaultdict(set)
     names = {gp.rsplit("/", 1)[-1]: gp for gp in datas}

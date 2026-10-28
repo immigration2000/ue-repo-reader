@@ -19,6 +19,7 @@ import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from enum_values import EnumScalar
 
 UASSET_READ_REPO = "https://github.com/soatori/uasset_read.git"
 UASSET_READ_COMMIT = "b10a83a592e43156d17b9cdc0948790b1ab486f9"  # v0.5.4.44, MIT (v0.5.4.45 only removed the LICENSE file)
@@ -477,6 +478,8 @@ def fmt_value(v, depth=0) -> str:
     """Compact, human readable rendering of a decoded property value."""
     if depth > 3:
         return "…"
+    if isinstance(v, EnumScalar):
+        return v.token()
     if v is None:
         return "None"
     if isinstance(v, bool):

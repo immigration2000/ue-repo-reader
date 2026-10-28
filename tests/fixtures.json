@@ -12,6 +12,16 @@
     },
     "checks": [
       {
+        "bug": "X1",
+        "file": "data/Game/DeltaForce/Data/DataAsset/DA_PlayerData.md",
+        "must_contain": [
+          "- [0] E_Crates::NewEnumerator21(5, display=\"MainStash_5\")",
+          "- [1] E_Crates::NewEnumerator10(6, display=\"GTIWeaponCrate\")",
+          "- [4] E_Crates::NewEnumerator22(11, display=\"GTIItemCrate\")"
+        ],
+        "must_not_contain": ["Stashinfo = [7, 0, 0, 0, 0]", "; unresolved"]
+      },
+      {
         "bug": "X2",
         "file": "blueprints/Game/DeltaForce/Data/DataAsset/PDA_PlayerData.md",
         "must_contain": ["| NewVar | Map<E_Crates, ?> |", "unspecified in the saved declaration"],

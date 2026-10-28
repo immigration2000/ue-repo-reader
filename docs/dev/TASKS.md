@@ -86,7 +86,7 @@
 
 | ID | 상태 | 담당 | 내용 | 규모 |
 |---|---|---|---|---|
-| X1 | doing | codex | 바이트 열거형 배열이 숫자로 나옴(`Stashinfo = [7, 0, …]`, Array<E_Crates>) → 같은 저장소의 UserDefinedEnum 문서로 이름 매핑 | S |
+| X1 | done | codex | enum 배열의 FName 바이트 오독 수정 + UserDefinedEnum 실제 값/표시 이름 연결; 숫자/이름 보존·캐시 후처리 | S |
 | X2 | done | codex | Map 값 타입 표시 수정; NewVar는 실제 저장 terminal None → Map<E_Crates, ?>로 미지정 명시 | S |
 | X3 | todo | - | UE 4.25 저장 몽타주(AR 스파이더) 섹션 이름이 `0`, `1` — 실제 이름인지 FName 해석 문제인지 확인 | S |
 | X4 | done | codex | 기존 클론 재사용 + `--ref`가 `git checkout ref`로 빠진 큰 blob을 lazy fetch → T2의 materialize 재사용 | S |

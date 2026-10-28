@@ -114,6 +114,12 @@ INDEX는 최대 약 9KB로 제한하며 토큰 수는 언어·토크나이저에
 노드 `N/N`은 핀 디코딩 수치이므로 이 경고도 함께 확인해야 합니다. 레벨 BP를 읽지 못한 경우는 빈 그래프와 구분하고,
 실패로 누락된 값은 클래스 기본값이라고 단정하지 않습니다. `digest.json`의 에셋별 `issues`와 `parse_status`에도 같은 상태가 저장됩니다.
 
+데이터 에셋의 명시적 enum 배열은 같은 프로젝트의 실제 enum 값 표와 연결합니다.
+예: `E_Crates::NewEnumerator10(6, display="GTIWeaponCrate")`. 저장 이름·숫자를 보존하고 이름의 숫자 값은 enum 정의에서 확인합니다.
+이름 배열의 FName 인덱스를 enum 숫자로 오해하지 않습니다. 동명 enum이나 알 수 없는 값은 저장 이름·숫자를 남기고
+INDEX/Parse report에 한계를 표시합니다.
+enum 이름은 원시 본문 캐시를 읽은 뒤 연결하므로 enum만 변경해도 새 표시 이름이 반영됩니다.
+
 **BP 파일** 예시(ActionRoguelike의 실제 출력):
 
 ```text

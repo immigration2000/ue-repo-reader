@@ -144,12 +144,13 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
     issues = sum(len(s.get("issues") or []) for s in summaries)
     partial = sum(s.get("parse_status", "ok") != "ok" for s in summaries)
     newer = sum(bool(s.get("newer_format")) for s in summaries)
+    enum_unknown = sum(s.get("enum_resolution", {}).get("unresolved", 0) for s in summaries)
     level_bad = sum(s["summary"].get("level_bp_status") != "ok" for s in levels.values())
     external_bad = sum(sum(s["summary"].get(field, 0) for field in
                           ("external_actor_errors", "external_actors_truncated", "external_actors_not_downloaded"))
                        for s in levels.values())
     coverage = re.search(r"Coverage: .*", catalog).group(0)
-    parse_bad = issues or partial or newer or level_bad or external_bad or failures or data_failures or map_failures or lfs.get("failed")
+    parse_bad = issues or partial or newer or level_bad or external_bad or failures or data_failures or map_failures or lfs.get("failed") or enum_unknown
     clean = not parse_bad and all(r["summary"].get("nodes_ok") == r["summary"].get("nodes_total") for r in bps.values())
     md = [short(catalog.splitlines()[0], 140), "", "Read this map first, then follow links for the question at hand.",
           short(next((line for line in catalog.splitlines() if line.startswith("source:")), ""), 240),
@@ -159,6 +160,7 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
           f"- Failed: {len(failures)} Blueprints, {len(data_failures)} data assets, {len(map_failures)} maps.",
           f"- Partial assets: {partial}; parse/render issues: {issues}; newer formats: {newer}; "
           f"incomplete Level Blueprints: {level_bad}; missing/failed/truncated external actors: {external_bad}.",
+          f"- Unresolved enum labels: {enum_unknown} rendered values (saved names/numbers retained).",
           ("- everything decoded cleanly (rendered assets)." if clean else
            "- ⚠ Coverage is incomplete. Read the full parse report and each affected document's Parse warnings."),
           f"- LFS: {lfs.get('failed', 0)} download failures, {lfs.get('skipped_large', 0)} skipped large/non-asset files; "
@@ -201,6 +203,8 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             "- Saved data is static. Missing values after a parse failure are unknown; an unreadable Level Blueprint "
             "is unknown, not empty. Node N/N counts decoded pins only. Read Parse warnings even at N/N.",
             "- `Map<K, V>` shows key/value types; `?` in a type means unspecified or unreadable, with no concrete type inferred.",
+            '- Typed data-asset enum arrays use `Enum::Enumerator(number, display="Label")`. '
+            'Unresolved values retain their saved name/number; ordinary byte arrays stay numeric.',
             "- [Full legend](<CATALOG.md#how-to-read-this-digest>) · [C++ index](<cpp/CLASSES.md>): "
             "read real C++ sources for implementations. Skip `digest.json` when reading; it repeats facts for scripts.", ""]
     shown = 0

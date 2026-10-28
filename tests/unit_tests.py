@@ -35,6 +35,10 @@ from navigation_tests import (test_pagerank_order_seeds_and_dangling_nodes, test
                               test_navigation_budget_context_and_warnings, test_navigation_split_catalog_anchors_and_rerun)
 from type_tests import (test_map_declaration_value_types_and_unknown, test_map_graph_and_struct_descriptor_value_types,
                        test_map_unset_type_note_with_and_without_tooltip)
+from enum_tests import (test_enum_arrays_only_use_explicit_type_identity, test_enum_spans_preserve_literals_numbers_and_unknown_values,
+                       test_enum_catalog_ambiguity_partial_and_aliases, test_enum_sparse_serialized_values_are_not_display_order,
+                       test_enum_large_arrays_render_lazily_and_cache_raw_values, test_enum_unresolved_limits_visible_in_indexes,
+                       test_enum_fname_arrays_decode_names_not_name_index_bytes)
 from search_tests import (test_search_literal_unicode_and_index_reuse, test_search_fallback_and_coverage_limits,
                           test_mcp_response_limits_and_lossless_pagination, test_search_and_source_globs_contain_links,
                           test_cache_refresh_waits_for_open_readers)

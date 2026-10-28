@@ -15,6 +15,7 @@ import struct as _struct
 from pathlib import Path
 
 import bp_reader as B
+from enum_values import EnumArray, EnumSpans, reference_from_tag
 
 MAX_ROWS = 300
 NATIVE_BINARY_STRUCTS = {  # structs serialized as raw binary, not as tagged properties
@@ -34,13 +35,14 @@ def clean_name(n: str) -> str:
 class TaggedReader:
     """Reads tagged-property streams straight from the package file."""
 
-    def __init__(self, path: str, result, ctx: B.Ctx):
+    def __init__(self, path: str, result, ctx: B.Ctx, enum_spans=None):
         from uasset_read.archive import FArchive
         from uasset_read.parsers.property_parser import parse_property_value
         from uasset_read.serializers.property_tags import read_property_tag
         self.r = result
         self.ctx = ctx
         self.issues = ctx.issues
+        self.enum_spans = enum_spans
         self.fv5 = result.summary.file_version_ue5
         self.ar = FArchive(path, tolerant=True)
         self.ar._file_version_ue5 = self.fv5
@@ -85,7 +87,9 @@ class TaggedReader:
             try:
                 checkpoint = len(self.issues)
                 if tag.type == "ArrayProperty":
-                    val = self._struct_array(tag, depth)
+                    val = self._enum_array(tag)
+                    if val is None:
+                        val = self._struct_array(tag, depth)
                 elif tag.type == "StructProperty":
                     val = self._tagged_struct(tag, depth)
                 if val is None:
@@ -180,6 +184,34 @@ class TaggedReader:
                 return None
             out.append({"struct_type": sname, "fields": dict(self.stream(tag.value_end_offset, depth + 1))})
         return out
+
+    def _enum_array(self, tag):
+        reference = reference_from_tag(tag)
+        if reference is None:
+            return None
+        self.ar.seek(tag.value_start_offset)
+        count = self.ar.read_i32()
+        remaining = tag.value_end_offset - self.ar.tell()
+        if count < 0:
+            raise ValueError("negative enum-array count")
+        if remaining == 8 * count:
+            # Editor tagged enum arrays serialize FNames, NOT byte values/name indices.
+            # Validate every name before accepting this layout; never reinterpret it as bytes.
+            values = []
+            for _ in range(count):
+                index, number = self.ar.read_i32(), self.ar.read_i32()
+                if not 0 <= index < len(self.names) or number < 0:
+                    raise ValueError("invalid FName in enum array")
+                name = self.ctx.fname(index, number)
+                if name != "None" and not name.startswith(reference["name"] + "::"):
+                    raise ValueError("enum-array FName does not match its declared enum")
+                values.append(name)
+        elif remaining == count and tag.type_name.children[0].name == "ByteProperty":
+            values = list(self.ar.read(count))  # explicitly bounded compact byte encoding
+        else:
+            raise ValueError(f"unsupported enum-array layout: {count} elements, {remaining} payload bytes")
+        collector = getattr(self, "enum_spans", None)
+        return EnumArray(values, reference, collector) if collector is not None else values
 
     def _resolve(self, tag, val):
         if tag.type in ("ObjectProperty", "ClassProperty", "InterfaceProperty", "WeakObjectProperty") and isinstance(val, int):
@@ -332,7 +364,7 @@ def _enum_names(reader: TaggedReader, end_of_props: int, enum_name: str):
                 name = reader.read_fname()
                 value = _struct.unpack("<q", reader.ar.read(8))[0]
                 out.append((name, value))
-            if out and all("::" in nm or nm.endswith("_MAX") for nm, _ in out):
+            if out and all(nm.startswith(enum_name + "::") or nm == enum_name + "_MAX" for nm, _ in out):
                 return out
         except Exception:
             continue
@@ -352,18 +384,20 @@ def _render_enum(reader, export, items, end):
     names = _enum_names(reader, end, export.object_name)
     rows = ["| Value | Enumerator | Display name |", "|---|---|---|"]
     count = 0
+    values = {}
     if names:
         for nm, value in names:
             short = nm.split("::")[-1]
             if short.endswith("_MAX"):
                 continue
             rows.append(f"| {value} | {short} | {display.get(short, '')} |")
+            values.setdefault(str(value), []).append({"name": nm, "display": display.get(short, "")})
             count += 1
     else:
         for i, (k, v) in enumerate(display.items()):
             rows.append(f"| {i} | {k} | {v} |")
             count += 1
-    return rows, f"enum with {count} values"
+    return rows, f"enum with {count} values", values
 
 
 def _render_struct(reader, ctx, export, items):
@@ -638,6 +672,8 @@ def expand_subobjects(items, ep, main_name, depth=0, seen=None):
     out = []
 
     def conv(v, key):
+        if isinstance(v, EnumArray):
+            return v  # enum integers are not local object references; keep lazy typed elements
         if depth > 3 or key in _NO_EXPAND:
             return v
         if isinstance(v, str) and v in ep.by_name and v != main_name and v not in seen:
@@ -732,7 +768,8 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
         next((e for e in result.export_map if getattr(e, "b_is_asset", False)), None)
     if export is None:
         raise ValueError("main export not found")
-    reader = TaggedReader(path, result, ctx)
+    enum_spans = EnumSpans()
+    reader = TaggedReader(path, result, ctx, enum_spans)
     try:
         items, end = reader.export_stream(export)
         ev = getattr(result.summary, "saved_by_engine_version", None)
@@ -746,7 +783,7 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
         extra = {}
         body = None
         if asset_class == "UserDefinedEnum":
-            body, headline = _render_enum(reader, export, items, end)
+            body, headline, extra["enum_values"] = _render_enum(reader, export, items, end)
             md += ["## Values", *body, ""]
         elif asset_class == "UserDefinedStruct":
             body, headline = _render_struct(reader, ctx, export, items)
@@ -835,7 +872,8 @@ def read_data_asset(path: str, game_path: str, asset_class: str) -> dict:
         md += B.issue_markdown(ctx.issues)
         summary = {"path": game_path, "class": asset_class, "headline": headline, "references": refs,
                    "issues": ctx.issues, "parse_status": "partial" if ctx.issues else "ok", "newer_format": _newer, **extra}
-        return {"markdown": B.clean_member_names("\n".join(md) + "\n"), "summary": summary}
+        markdown, spans = enum_spans.finish(B.clean_member_names("\n".join(md) + "\n"))
+        return {"markdown": markdown, "summary": summary, **({"enum_spans": spans} if spans else {})}
     finally:
         reader.close()
 

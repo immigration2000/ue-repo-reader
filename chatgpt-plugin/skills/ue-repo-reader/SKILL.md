@@ -32,6 +32,9 @@ Digests include the output version in their identity; re-run `analyze_repo` afte
    `when auto (...)` = automatic anim transition, `⚠ disconnected` = dead code).
    `Map<K, V>` includes key/value types; `?` in a type is unspecified or unreadable, not a concrete type.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
+   Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.
+   Saved names/numbers are preserved; integers for serialized names come from that enum's value table.
+   Unresolved names/numbers flag missing/ambiguous enums or unknown values.
 5. `cpp/CLASSES.md`, then real C++ via `read_source_file` (a glob like `Source/**/*.h` lists files).
 
 Read **Parse warnings** in each document, INDEX coverage and the CATALOG Parse report. Property/graph-render/Level Blueprint/

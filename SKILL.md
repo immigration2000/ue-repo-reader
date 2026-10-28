@@ -63,6 +63,10 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    decorators, services and blackboard keys), Blackboards, StateTrees (state hierarchy), EQS queries,
    input mapping contexts and actions, anim montages (slots, sections, notifies by time), curves (keys), and DataAssets of project C++ types (saved values).
    Each file ends with **Used by** (Blueprints/data assets that reference it).
+   Arrays with explicit enum type metadata use `Enum::Enumerator(number, display="Label")`, resolved from
+   this project's decoded UserDefinedEnums. Serialized names/numbers are preserved; numeric values for saved
+   names come from that enum's value table. An unresolved name/number means an unknown value or a missing/
+   ambiguous enum; ordinary byte arrays remain numeric.
 5. `<out>/config/GameplayTags.md` (when the project uses tags) — every tag, where it is defined (ini, tag
    DataTable or native C++), who uses it, tags used but never defined, redirects.
 6. `<out>/cpp/CLASSES.md` to locate C++ types, then read the **real** C++ sources in the clone for details.

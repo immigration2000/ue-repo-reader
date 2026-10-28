@@ -110,6 +110,9 @@ def main():
                     assert "ExtractionGame" in await call("read_digest_file", digest_id=digest_id, path="INDEX.md")
                     assert "PageRank" in await call("read_digest_file", digest_id=digest_id, path="INDEX.md")
                     assert "How to read this digest" in await call("read_digest_file", digest_id=digest_id, path="CATALOG.md")
+                    enums = await call("read_digest_file", digest_id=digest_id,
+                                       path="data/Game/DeltaForce/Data/DataAsset/DA_PlayerData.md")
+                    assert 'NewEnumerator21(5, display="MainStash_5")' in enums and 'display="GTIWeaponCrate"' in enums
                     assert "BP_" in await call("search_digest", digest_id=digest_id, query="BeginPlay")
                     database = work / "data/work" / digest_id / "search.sqlite"
                     assert database.is_file()
