@@ -21,6 +21,8 @@ python tools/claude_delegate.py start Q7 --workdir "D:/worktrees/claude-q7" --pr
 python tools/claude_delegate.py status "D:/repo/.ue-repo-reader/claude-jobs/Q7-xxxxxxxx"
 python tools/claude_delegate.py stop "D:/repo/.ue-repo-reader/claude-jobs/Q7-xxxxxxxx"
 python tools/claude_delegate.py continue "D:/repo/.ue-repo-reader/claude-jobs/Q7-xxxxxxxx" --prompt-file "D:/jobs/Q7-rework.txt"
+# 관리자가 비정상 종료된 경우: 기존 관리자와 작업자가 모두 종료된 뒤 명시적으로 잠금을 복구한다.
+python tools/claude_delegate.py recover "D:/repo/.ue-repo-reader/claude-jobs/Q7-xxxxxxxx"
 ```
 
 `start`/`continue`는 실행이 끝날 때까지 동작한다. Codex의 명령 실행 세션으로 돌리고, 다른 호출에서 상태를 읽으며 독립 작업을 계속한다.
@@ -29,6 +31,9 @@ CLI를 자동 탐색하며 npm Windows shim 옆의 native `claude.exe`도 지원
 
 파일 도구(Read/Glob/Grep/Edit/Write)만 열고 `dontAsk`를 사용한다. 셸·MCP·브라우저·추가 에이전트는 도구 목록에 없다.
 일반 권한 거절은 `needs_attention`으로 남으며 전체 권한 우회로 재시도하지 않는다.
+실제 transcript의 전체 도구 이름도 검사하고, 모드 밖 도구가 관찰되면 `needs_attention`으로 막는다.
+`recover`는 기존 관리자나 작업자가 살아 있으면 거부한다. 기존 프로세스를 임의로 종료하지 않으며,
+종료가 확인된 뒤 변경 내용을 검토하고 `continue`한다. PID가 재사용된 경우에도 보수적으로 복구를 거부한다.
 파일 범위는 작업 지시와 Codex의 diff 검토로 확인한다. 결과·로그는 작업 자료를 포함하므로 공개하지 않는다.
 
 ## 교차 검토와 완료

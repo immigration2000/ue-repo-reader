@@ -1,6 +1,8 @@
 """Supervised Claude jobs: subprocess outcomes, deadlines and review separation; no API calls."""
 import io
 import json
+import os
+import subprocess
 import sys
 import tempfile
 from contextlib import redirect_stdout
@@ -115,3 +117,54 @@ def test_claude_job_tool_scope_and_overlap_guards():
             else:
                 raise AssertionError("initial state write failure ignored")
         assert not (path / "running.lock").exists(), "startup failure left a stale running lock"
+    with tempfile.TemporaryDirectory() as tmp:
+        path = job(tmp)
+        state = C.load(path)
+        state["read_only"] = True
+        C.save(path, state)
+        # An early Write must not disappear behind the recent-tools display's eight-item limit.
+        code = ("import json,sys; sys.stdin.read(); "
+                "[print(json.dumps({'type':'assistant','message':{'content':[{'type':'tool_use','name':tool}]}})) "
+                "for tool in ['Write']+['Read']*10]; "
+                "print(json.dumps({'type':'result','is_error':False}))")
+        state = C.run(path, "review", [sys.executable, "-c", code], 10)
+        assert state["phase"] == "needs_attention" and state["tool_scope_violations"] == ["Write"]
+        assert state["observed_tools"] == ["Read", "Write"]
+        try:
+            C.main(["review", str(path), "--outcome", "accepted", "--note", "must be refused"])
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("read-only tool violation accepted")
+    with tempfile.TemporaryDirectory() as tmp:
+        path = job(tmp)
+        assert C.pid_alive(os.getpid()), "current manager must be detected without signalling it"
+        child = subprocess.Popen([sys.executable, "-c", "pass"])
+        child.wait(timeout=10)
+        assert not C.pid_alive(child.pid)
+        state = C.load(path)
+        state.update(worker_pid=None, phase="running")
+        C.save(path, state)
+        (path / "running.lock").write_text(str(os.getpid()), encoding="utf-8")
+        try:
+            C.recover(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("live manager lock cleared")
+        (path / "running.lock").write_text(str(child.pid), encoding="utf-8")
+        state["worker_pid"] = os.getpid()
+        C.save(path, state)
+        try:
+            C.recover(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("live orphan worker allowed to overlap")
+        state["worker_pid"] = child.pid
+        C.save(path, state)
+        assert C.recover(path)["phase"] == "needs_attention"
+        assert not (path / "running.lock").exists()
+        with redirect_stdout(io.StringIO()):
+            C.main(["review", str(path), "--outcome", "rework", "--note", "Recovered; review saved changes"])
+        assert C.load(path)["phase"] == "rework"

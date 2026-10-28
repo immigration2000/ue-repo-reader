@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import re
@@ -97,7 +98,50 @@ def summarize(path: Path):
                 for content in (event.get("message") or {}).get("content", []):
                     if isinstance(content, dict) and content.get("type") == "tool_use":
                         tools.append(content.get("name", "?"))
-    return session, result, tools[-8:]
+    return session, result, tools[-8:], sorted(set(tools))
+
+
+def pid_alive(pid):
+    """Conservatively query liveness; never signal a Windows process to test it."""
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if os.name == "nt":
+        try:
+            probe = subprocess.run(["tasklist", "/FI", f"PID eq {pid}", "/FO", "CSV", "/NH"],
+                                   capture_output=True, encoding="utf-8", errors="replace", timeout=5)
+            if probe.returncode:
+                return True  # cannot prove it is dead
+            return any(len(row) > 1 and row[1] == str(pid) for row in csv.reader(probe.stdout.splitlines()))
+        except (OSError, subprocess.TimeoutExpired):
+            return True
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+
+
+def recover(job: Path):
+    """Explicitly clear a crashed manager's lock only after both original processes exited."""
+    lock = job / "running.lock"
+    try:
+        manager = int(lock.read_text(encoding="utf-8"))
+    except ValueError as error:
+        raise ValueError("Lock identity is invalid; inspect the job before recovering it") from error
+    state = load(job)
+    if manager <= 0 or (state.get("manager_pid") is not None and state["manager_pid"] != manager):
+        raise ValueError("Lock identity disagrees with the job record; inspect before recovering")
+    if pid_alive(manager):
+        raise ValueError("The original manager is still alive; recovery refused")
+    if pid_alive(state.get("worker_pid")):
+        raise ValueError("The original worker is still alive; wait for it to exit before recovery")
+    state.update(phase="needs_attention", recovered_at=timestamp(), stale_manager_pid=manager,
+                 recovery_note="Both original processes exited; review existing changes before continuing")
+    save(job, state)
+    lock.unlink()
+    return state
 
 
 def run(job: Path, prompt: str, argv: list[str], timeout: float):
@@ -164,13 +208,19 @@ def _run_locked(job: Path, prompt: str, argv: list[str], timeout: float):
             if state["phase"] == "running" and (writer.is_alive() or delivery_errors):
                 state.update(phase="needs_attention", error="Prompt delivery did not complete")
             state["exit_code"] = process.returncode
-        session, result, _ = summarize(job / state["stdout"])
+        session, result, _, observed = summarize(job / state["stdout"])
+        state["observed_tools"] = observed
         if session:
             state["session_id"] = session
         if state["phase"] == "running":
             state["phase"] = "awaiting_review" if process.returncode == 0 and result and not result.get("is_error") else "needs_attention"
             if result and result.get("permission_denials"):
                 state["phase"] = "needs_attention"
+        allowed = {"Read", "Glob", "Grep"} if state.get("read_only") else set(TOOLS.split(","))
+        # TodoWrite is internal task bookkeeping, not a filesystem write.
+        violations = sorted(set(observed) - allowed - {"TodoWrite"})
+        if violations:
+            state.update(phase="needs_attention", tool_scope_violations=violations)
         state["result"] = str((result or {}).get("result", ""))[:16000]
     except KeyboardInterrupt:
         state["phase"] = "stopped"
@@ -211,17 +261,19 @@ def main(argv=None):
         sub.add_argument("--claude")
         sub.add_argument("--timeout", type=float, default=1800)
         sub.add_argument("--read-only", action="store_true", help="Review with Read/Glob/Grep only")
-    for name in ("status", "stop", "review"):
+    for name in ("status", "stop", "review", "recover"):
         sub = subs.add_parser(name)
         sub.add_argument("job", type=Path)
         if name == "review":
             sub.add_argument("--outcome", choices=("accepted", "rework", "rejected"), required=True)
             sub.add_argument("--note", required=True)
     args = parser.parse_args(argv)
-    if args.action in ("status", "stop", "review"):
+    if args.action in ("status", "stop", "review", "recover"):
         job = args.job.resolve()
         state = load(job)
-        if args.action == "stop":
+        if args.action == "recover":
+            state = recover(job)
+        elif args.action == "stop":
             if state["phase"] != "running":
                 raise ValueError("The job is not running")
             (job / "stop.request").write_text(timestamp(), encoding="utf-8")
@@ -232,7 +284,8 @@ def main(argv=None):
                 raise ValueError("Only a successful, completed worker run can be accepted")
             state.update(phase=args.outcome, review_note=args.note, reviewed_at=timestamp())
             save(job, state)
-        _, _, tools = summarize(job / state.get("stdout", "missing.jsonl"))
+        _, _, tools, observed = summarize(job / state.get("stdout", "missing.jsonl"))
+        state["observed_tools"] = observed
         print(json.dumps({**state, "recent_tools": tools, "job": str(job)}, ensure_ascii=False, indent=2))
         return 0
     if not 0 < args.timeout <= 43200:
