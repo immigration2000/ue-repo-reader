@@ -102,10 +102,8 @@ def test_asset_cache_only_changed_assets_start_workers():
         cache = C.AssetCache(base / "cache", base, "v1", fingerprint="decoder")
         for item in items:
             cache.store(cache.key("bp", item), result(item[1]))
-            cache.store(cache.key("class", item[0]), "Blueprint")
         with patch.object(D.mp, "get_context") as context:
             assert len(D.process_blueprints(items, 1, 1, cache=cache)[0]) == 2
-            assert len(D.classify_assets([item[0] for item in items], 1, cache=cache)) == 2
             context.assert_not_called()
         paths[0].write_bytes(b"changed")
         class Job:

@@ -121,6 +121,10 @@
 - 영향: 새 의존성 없음. JSON/gzip + checksum + atomic replace, 한 항목 32MB·완료 시 LRU 256MB/10,000개.
   실패/부분 결과는 재시도, 손상/권한 오류는 정상 해석으로 복귀. --no-asset-cache로 끄고 --asset-cache-dir로 이동 가능.
   읽기·쓰기·정리에 링크/정션을 허용하지 않으며 캐시와 출력의 겹침은 기존 출력 삭제 전 거부. 포맷/VERSION 유지.
+- 통합 실측 후 보완: 분류 헤더는 기존 병렬 스캔으로 매번 읽고 BP/data/map 본문만 캐시한다. 헤더 수백 개를 대신해
+  미지원 아트 전체 바이트를 해시/개별 캐시 파일로 읽으면 eg warm 11.16s가 캐시 끈 9.58s보다 느려졌다.
+  본문만 캐시하면 같은 PC의 격리된 실측 cold 10.28s/warm 5.09s/disabled 9.62s, 97 hits/0 misses/0 writes/0 errors.
+  원시 내용 SHA 검증은 유지한다. OS 캐시·프로젝트 크기에 따라 속도는 달라지며 보편적인 성능 보장은 아니다.
 
 ## D-016 INDEX는 읽기 지도, 완전한 목록은 CATALOG로 보존 (2026-10-28, codex)
 - 결정: v1.7.0. 기존 전체 INDEX 내용은 CATALOG.md, 새 INDEX는 진입점·커버리지/경고·PageRank 링크·짧은 범례를 담는다.

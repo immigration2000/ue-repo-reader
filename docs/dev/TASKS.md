@@ -29,7 +29,7 @@
 | H7 | done | claude | Windows 점검: LFS 패턴·Python 선택·UTF-8 처리; codex가 실제 PowerShell 5.1/LFS/설치 가이드 추가 검증 완료(V2) | S |
 | T1 | done | claude | `digest.json`을 "전부 읽기" 대상에서 제외, 큰 DataTable 상한 | S |
 | T2 | done | claude | 부분 클론(`--filter=blob:limit` 또는 `blob:none` 후 필요한 것만) — 콜드 실행의 85~90%가 클론 | M |
-| T3 | doing | codex | 에셋별 blob SHA 캐시(바뀐 것만 재파싱); 통합 실측 후 분류 캐시 비용 조정 중 | S–M |
+| T3 | done | codex | 에셋별 blob SHA 캐시(BP/data/map 본문만 재사용, 분류 헤더는 병렬 재검사) | S–M |
 | T4 | done | codex | INDEX 순위 지도(PageRank, 2~4k 토큰), 파일별 머리말 | M |
 
 ## P2 — 기능 격차

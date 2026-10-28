@@ -13,7 +13,8 @@ Windows smoke는 이미 있는 Python/Git/git-lfs를 사용하며 소프트웨�
 
 T3 에셋 캐시: 기본 단위 검사에서 실제 Git blob SHA, 같은 크기/mtime의 내용 변경, 도구/디코더/콘텐츠 경로,
 외부 액터 추가·변경·순서, 부분 실패 재시도, 손상/체크섬, 변경분만 워커 실행, 정션 밖 파일 보존을 확인한다.
-실제 프로젝트에서 cold/warm/캐시 끄기의 모든 Markdown/JSON 바이트와 시간·hit 수를 비교하려면:
+분류 헤더는 매번 검사하며 본문만 캐시한다. smoke는 실제 BP 5.6→5.7 교체 시 그 BP 본문만 다시 파싱하는지도 확인한다.
+실제 프로젝트에서 cold/warm/캐시 끄기의 모든 Markdown/JSON 바이트와 시간·hit 수를 비교하는 명령:
 
 ```bash
 python tests/cache_smoke.py tests/.cache/eg

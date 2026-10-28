@@ -545,28 +545,18 @@ def _classify(path):
         return path, "?"
 
 
-def classify_assets(paths, workers, cache=None):
+def classify_assets(paths, workers):
     if not paths:
         return {}
-    out, keys, pending = {}, {}, []
-    for path in paths:
-        key = cache.key("class", path) if cache else None
-        value = cache.load(key) if cache else None
-        if value is None:
-            pending.append(path)
-            keys[path] = key
-        else:
-            out[path] = value
-    if not pending:
-        return out
+    # Classification reads only headers. Hashing entire art packages costs more
+    # than re-reading those headers; cache the expensive decoded bodies below.
+    out = {}
     import bp_reader
     bp_reader.ensure_uasset_read()  # finish installation in the parent, before spawning any workers
     ctx = mp.get_context("spawn")
     with ctx.Pool(processes=workers, initializer=_worker_init) as pool:
-        for i, (p, cls) in enumerate(pool.imap_unordered(_classify, pending, chunksize=16), 1):
+        for i, (p, cls) in enumerate(pool.imap_unordered(_classify, paths, chunksize=16), 1):
             out[p] = cls
-            if cache:
-                cache.store(keys[p], cls)
             if i % 500 == 0:
                 log(f"[scan] classified {i}/{len(paths)}")
     return out
@@ -1313,7 +1303,7 @@ def main(argv=None):
     log(f"[cpp] {len(cpp['classes'])} reflected types in {len(cpp['modules'])} modules")
     project_types = {re.sub(r"^[AUF](?=[A-Z])", "", c["name"]) for c in cpp["classes"]}
 
-    classes = classify_assets([str(p) for p in local], a.workers, cache=cache)
+    classes = classify_assets([str(p) for p in local], a.workers)
     # instances of this project's Blueprint classes saved as assets (e.g. a DataAsset made from PDA_PlayerData)
     bp_class_names = {Path(str(q)).stem + "_C" for q in local if is_blueprint_class(classes.get(str(q), "?"))}
     data_items = []

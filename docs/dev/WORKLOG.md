@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-10-28 09:25 KST · codex · T3 통합 성능 보완 / T4 완료
+- 한 일: 분류 캐시 제거. 분류는 기존 작은 헤더 병렬 스캔, BP/data/map 본문만 실제 SHA 캐시로 재사용한다.
+  미지원 아트 전체 해시·개별 캐시 I/O를 없애고 분류 코드도 단순화. 본문 내용·버전·경로·외부 액터 무효화와
+  실패 재시도/손상 복구/경로 보호는 유지. README/테스트 안내/D-015에 실측과 선택 이유 기록. T3/T4 모두 done.
+- 검증: 최종 전체 regress 단위 50/50 + 외부 에셋 6/6 + 프로젝트 3/3 PASS. BP/노드/데이터/맵/외부 액터 수량 동일.
+  격리된 실제 eg cold 10.28s / warm 5.09s / disabled 9.62s; warm 97 hits/0 misses/0 writes/0 errors.
+  모든 Markdown/JSON 101개 byte-identical, 실제 BP 5.6→5.7 교체 시 본문 1개만 재파싱(불변 데이터 hit) PASS.
+  최종 실제 PowerShell 5.1 설치·복사 스킬 eg 49 BP/1779 nodes·LFS 2경로·사용자 Git 설정 보존 PASS.
+  최종 실제 MCP 1.30.0 HTTP 6도구/INDEX/CATALOG/캐시·검색·refresh·서버 재시작 PASS.
+  두 skill quick_validate, 문서 링크/fence, 모든 생성 Markdown 링크/섹션, git diff --check PASS.
+- 남은 일·주의: v1.7.0. INDEX 약 2~4k 토큰은 목표이며 토크나이저/언어에 따라 다르고 작은 ves는 약 1.1k.
+  원시 캐시는 파서 캐시 아래에 남고 상한 내에서 정리된다. 전체 분류 헤더와 C++/사용처/배치/순위는 매번 갱신.
+  단일 PC 속도 수치는 일반 성능 보장이 아니다. 기존 symlink 권한 하위 검사만 skip, 실제 junction 검사는 PASS.
+  main fast-forward 통합/push 예정; 다음 후보 X1/X2/X6 또는 F5/F9/F10. 사용자 배포/공개 설정은 변경하지 않음.
+
 ## 2026-10-28 09:20 KST · codex · T4
 - 한 일: v1.7.0. 짧은 INDEX + 전체 CATALOG 분리. 저장 참조/고유 이름 언급의 결정적 PageRank(damping .85,
   설정 진입점 seed 5배)로 읽기 링크 최대 30개/9KB. 실제 호출·의존성·게임 중요도의 증거가 아닌 탐색 힌트라고 명시.

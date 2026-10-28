@@ -27,7 +27,7 @@ def check_changed_asset(base):
     bp, data = content / "BP_Keys.uasset", content / "ST_LegacyText.uasset"
     shutil.copyfile(fetch_file(manifest, cases["pins-5.6"]["asset"], fixture_cache), bp)
     shutil.copyfile(fetch_file(manifest, cases["strings-4.27"]["asset"], fixture_cache), data)
-    for phase, expected in (("cold", (0, 4, 4, 0)), ("warm", (4, 0, 0, 0)), ("changed", (2, 2, 2, 0))):
+    for phase, expected in (("cold", (0, 2, 2, 0)), ("warm", (2, 0, 0, 0)), ("changed", (1, 1, 1, 0))):
         if phase == "changed":
             shutil.copyfile(fetch_file(manifest, cases["pins-5.7"]["asset"], fixture_cache), bp)
         run = subprocess.run([sys.executable, str(ROOT / "scripts/ue_repo_digest.py"), str(project), "--out", str(out),
@@ -41,7 +41,7 @@ def check_changed_asset(base):
         assert summary["nodes_ok"] == summary["nodes_total"] == 9
         assert summary["saved_with"].startswith("5.7" if phase == "changed" else "5.6")
         assert not digest["failures"] and not digest["data_failures"]
-    print("PASS: replacing one real BP reparses only its classification/graphs; untouched data stays cached", flush=True)
+    print("PASS: replacing one real BP reparses only its graphs; untouched data stays cached (headers rescanned)", flush=True)
 
 
 def main():

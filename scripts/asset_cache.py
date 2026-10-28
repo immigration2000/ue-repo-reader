@@ -79,15 +79,14 @@ class AssetCache:
 
     def key(self, stage: str, item):
         try:
-            if stage == "class":
-                paths, parameters = [Path(item)], [Path(item).name]
-            else:
-                paths = [Path(item[0])]
-                parameters = [item[1]]
-                if stage == "data":
-                    parameters.append(item[2])
-                elif stage == "map":
-                    paths += [Path(path) for path in item[2]]
+            if stage not in ("bp", "data", "map"):
+                raise ValueError("unknown asset-cache stage")
+            paths = [Path(item[0])]
+            parameters = [item[1]]
+            if stage == "data":
+                parameters.append(item[2])
+            elif stage == "map":
+                paths += [Path(path) for path in item[2]]
             blobs = [blob_sha(path) for path in paths]
             # External actor identity/order matters (including the decoder's cap).
             external = [path.resolve().relative_to(self.repo).as_posix() for path in paths[1:]]
@@ -118,7 +117,7 @@ class AssetCache:
             encoded = json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
             if hashlib.sha256(encoded).hexdigest() != entry["checksum"]:
                 raise ValueError("cache checksum mismatch")
-            if not self.valid(identity["stage"], value):
+            if not clean(value):
                 raise ValueError("cache result is not clean")
             os.utime(path)
         except FileNotFoundError:
@@ -130,12 +129,8 @@ class AssetCache:
         self.stats["hits"] += 1
         return value
 
-    @staticmethod
-    def valid(stage, value):
-        return isinstance(value, str) and bool(value) and value != "?" if stage == "class" else clean(value)
-
     def store(self, key, value):
-        if key is None or not self.valid(key[0]["stage"], value):
+        if key is None or not clean(value):
             return
         identity, paths, destination = key
         try:
