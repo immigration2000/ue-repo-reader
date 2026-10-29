@@ -44,7 +44,8 @@
 - 남은 일·주의: Q1/Q12는 독립 수집/비교 기반 완료이며 모든 레포 의미 정확도의 완료가 아님. 다음 우선순위 Q13/Q14.
   snapshot은 native loaded state다. 파일이 같아도 엔진 로드 보정이 있을 수 있으며 차이를 없애려 GUID/기본값을 추정하지 않는다.
   native/graph 및 all의 미확정·제외와 정확한 회귀 경계를 docs/EDITOR_ORACLE.md, GRAPH_IR.md, 두 SKILL과 tests/README에 명시.
-  개인 스킬과 원래 checkout의1.15.0 동기화·설치 경로 검증은 main 반영 직후 확인한다.
+  등록 개인 스킬(C:/Users/user1/.codex/skills/ue-repo-reader)과 원래 checkout을1.15.0 main으로 fast-forward 동기화함.
+  실제 설치 경로에서 리더/비교기/engine 없이 lazy exporter import, native 정답3개 재생·BFL_Util CLI graph 대조 PASS(09:04 KST).
 
 ## 2026-10-28 17:35 KST · codex/claude · Q10/Q11 (W0 프로젝트 지원 경계)
 - 한 일: v1.14.0. UE 5.7+ 프로젝트를 목표로 숫자 EngineAssociation 5.7/5.8만 기본 분석 허용.
