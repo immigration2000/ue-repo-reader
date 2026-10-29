@@ -37,6 +37,8 @@
 - 남은 일·주의: 전체 eg52개 all 대조는125128개 관측·차이7개 에셋을 계속 보고하며, 부재 태그/non-map terminal 등으로52개 모두 미확정이 있음.
   이전124319개보다809개 가용 관측이 늘었지만 전체 의미 정확도의 완료/점수로 보지 않는다. 다음 우선순위 Q14(저장/로드 보정과 리더 오독 구분).
   Q5 실데이터 CallInEditor=true, 새 Q16 비어 있지 않은 위젯 바인딩의 native 정답은 남음. 관리 실행은 이 턴에서 종료하며 자동 감시 없음.
+  등록 개인 스킬(C:/Users/user1/.codex/skills/ue-repo-reader)과 원래 checkout을1.16.0 main으로 fast-forward 동기화함.
+  실제 설치 경로의6개 모듈 import 경로·버전 및 native 정답7개 재생 PASS(16:53 KST).
 
 ## 2026-10-29 09:00 KST · codex/claude · Q1/Q12 (독립 에디터 정답 수집·대조)
 - 한 일: v1.15.0. Claude가 자체 editor-only RepoReaderOracle C++ 모듈과 Python exporter를 작성하고 Codex가 독립 비교기·회귀를 구현.
