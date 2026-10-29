@@ -114,6 +114,8 @@ Cross-check both directions: when a Blueprint calls project C++ (`CATALOG.md` li
 when C++ declares a `BlueprintImplementableEvent`/`BlueprintNativeEvent`, grep `blueprints/` for the event
 name to find its Blueprint implementation.
 
+The saved declaration projection is `digest.json` → `blueprints[path].declaration_ir` (schema 1). Use it for structured variable types/flags/authored defaults, parent and function graph references, and widget bindings. Check `saved_fields`, `status` and unknown reasons: absent tags, non-map terminal types and unsupported older saved layouts remain unknown; CDO, inherited/runtime defaults and map Level Blueprint declarations are outside this projection. Display text is not a substitute for these fields.
+
 ## 3. Be honest about coverage
 
 State the limits that apply, briefly:

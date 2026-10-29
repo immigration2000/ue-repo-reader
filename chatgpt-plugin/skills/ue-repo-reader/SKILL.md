@@ -79,6 +79,8 @@ Tool text responses are capped at 20,000 characters. Follow returned offsets: re
 while file lists/globs use item offsets (up to 200 entries per call). Narrow the query/folder when a response is
 truncated. Large files are streamed in pages; do not treat a first page or an empty search as complete coverage.
 
+The saved declaration projection is `digest.json` → `blueprints[path].declaration_ir` (schema 1). Use it for structured variable types/flags/authored defaults, parent and function graph references, and widget bindings. Check `saved_fields`, `status` and unknown reasons: absent tags, non-map terminal types and unsupported older saved layouts remain unknown; CDO, inherited/runtime defaults and map Level Blueprint declarations are outside this projection. Display text is not a substitute for these fields.
+
 ## 3. Answer well
 
 - Quote the Blueprint/asset path and the relevant pseudo-code lines for every claim.

@@ -11,6 +11,33 @@
 
 ---
 
+## 2026-10-29 16:51 KST · codex/claude · Q13/Q15 (저장 선언 API·native 비교 확장)
+- 한 일: v1.16.0. Codex가 scripts/declaration_ir.py schema1을 만들고 BP summary/digest의 declaration_ir로 노출.
+  변수 raw EdGraphPinType·참조/const/weak/container/Map 값 타입, uint64 flags·FText source category·선언 default를 직접 보존.
+  부모·함수 그래프의 패키지 인덱스와 위젯 바인딩을 구조화하고 saved_fields로 태그 부재와 명시적 빈 값/0/null을 구분(D-028).
+  ObjRef int 서브클래스·정확한 객체 경로를 처리하며 새 tagged 모드에서 표시용 short-name 변환과 중복 필드 덮어쓰기를 막음.
+  non-map terminal과 지원 밖 구버전 저장 레이아웃은 raw bytes/unknown 유지. CDO/상속·런타임 값과 맵 선언은 범위 밖.
+- 실제 Claude 분담/검토: 세션3c776e68-c003-4f6c-87e2-e5b64288e1ca, Q15-4ea467e8 작업자가 비교기와 독립 검사9개 작성.
+  Codex는 별도 worktree diff/허용 파일2개와 파일 도구(Read/Glob/Grep/Edit/Write)만 사용했음을 확인하고 직접 실행·통합.
+  top-level 부재 parent=null을 확정값으로 인정하던 경계·native binding kind/uint64 검증을 같은 세션에 수정 지시.
+  테스트 helper가 null terminal 대신 정상 terminal을 만들던 반례를 실제 실패로 입증해 재지시했고 진짜 null/누락 모두 거부하도록 고침.
+  Claude는 Codex의 API/호출부/tagged 모드 및 맵 조기 guard를 읽기 전용 교차검토. raw_hex가 보고서에 노출된다는 가정도 정정·수용.
+  작업자 결과는 기본 LF로 정규화해 통합본과 일치 확인(Git checkout의 CRLF 차이만 있음). 통합 worker commit 5c6492b.
+- 독립 정답: Q1의 native52개 캡처에서 eg4개(BPC_InventorySystem/PDA_Stash/WBP_KeyBtn/WBP_PlayerInventory)를 변형 없이 선택.
+  변수7개에 Map 값/객체·텍스트·구조체 배열 포함. package SHA-256·고정 commit/path의 Git blob까지 확인.
+  기존3개 snapshot/출처는 그대로, 부재 NewVariables를 빈 선언으로 통과시키던 경계를 unknown1개씩 추가해 4/4/12 갭으로 정정.
+  신규4개의 정확한 미확정 갭은 2/4/4/3개. graph 관측6636개와 all의 가용 값 일치, 어떤 추가/변경/누락 갭도 회귀에서 실패.
+- 발견/수정: B.read_blueprint가 맵 Level Script 렌더에도 재사용되므로 선언 객체 부재/이름 중복을 새 오류로 기록하던 문제가 있었음.
+  맵 선언은 원래 공개 API 대상이 아니므로 .umap에서 명시적 범위 밖 unknown을 반환하고 기존 맵 해석 상태를 보존.
+  no-export/동명 export guard 합성 검사와 eg 실제 맵5개 전체의 issues0/Level BP ok를 확인. .uasset의 실제 stream/바이트 오류는 계속 보고.
+- 검증: 최종 전체 regress 단위135/135 + 외부 에셋6/6 + native 정답7/7 + 고정 프로젝트4/4 PASS. 기존 BP/노드/issue 기준 완화 없음.
+  eg cold/warm/disabled 출력101개 byte-identical, warm97 hits/0 misses/오류0; 한 BP 교체 시 그 BP만 재해석 PASS.
+  실제 MCP HTTP6도구·warm/restart/refresh·일반/탐색 캐시 분리 PASS. 두 skill quick_validate·diff --check PASS.
+  설치된 엔진을 다시 빌드하지 않고 보관된 독립 캡처를 재사용, 제품 의존성 추가 없음.
+- 남은 일·주의: 전체 eg52개 all 대조는125128개 관측·차이7개 에셋을 계속 보고하며, 부재 태그/non-map terminal 등으로52개 모두 미확정이 있음.
+  이전124319개보다809개 가용 관측이 늘었지만 전체 의미 정확도의 완료/점수로 보지 않는다. 다음 우선순위 Q14(저장/로드 보정과 리더 오독 구분).
+  Q5 실데이터 CallInEditor=true, 새 Q16 비어 있지 않은 위젯 바인딩의 native 정답은 남음. 관리 실행은 이 턴에서 종료하며 자동 감시 없음.
+
 ## 2026-10-29 09:00 KST · codex/claude · Q1/Q12 (독립 에디터 정답 수집·대조)
 - 한 일: v1.15.0. Claude가 자체 editor-only RepoReaderOracle C++ 모듈과 Python exporter를 작성하고 Codex가 독립 비교기·회귀를 구현.
   stock Python에서 Blueprint graph/variable 배열과 graph.nodes를 읽을 수 없음을 실제5.8 probe로 확인해 native 공개 API를 직접 읽음.

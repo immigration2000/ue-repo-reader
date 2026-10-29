@@ -277,3 +277,22 @@
   전체 게임플레이 의미 정확도의 완료로 보고하지 않는다. 저장 안 된 상태와 별개인 엔진 로드 보정도 Q14에서 조사한다.
   변수 타입/일부 선언값은 어댑터 미확정(Q13), CallInEditor=true 실데이터 정답(Q5), CDO/상속 유효값과 런타임 동작은 남는다.
 
+
+## D-028 저장 선언 구조를 표시 문자열과 분리 (2026-10-29, codex/claude)
+- 결정: v1.16.0. Q13/Q15에서 `blueprints[path].declaration_ir` schema1을 추가하고 native 비교기의 선언 입력으로 사용한다.
+  변수 타입은 raw EdGraphPinType, 플래그는 uint64 십진 문자열, category는 FText source, 기본값은 선언에 저장된 문자열이다.
+  부모·함수 그래프는 패키지 인덱스로 정확한 객체 경로를 찾는다. 선언 전용 tagged 읽기에서 표시용 짧은 이름 변환을 끈다.
+- 부재 계약: 저장되지 않은 NewVariables/FunctionGraphs/Bindings를 빈 배열로 간주하지 않는다. `saved_fields`와 unknown 이유를 남긴다.
+  명시적 빈 배열/빈 문자열/0/null을 구분하며, non-map terminal은 저장되지 않아 미확정이다. CDO/상속·실행 값은 추정하지 않는다.
+  변수/바인딩 정체성 누락·중복은 컬렉션을 미확정으로 만든다. 맵 Level Blueprint 선언은 이 API 범위 밖이다. tagged 오류와 잘못된 현대 타입 바이트는 parse report에 남긴다.
+- 타입 범위: 검증한 현대 저장 게이트(UE4>=518, Framework>=37, Release>=31, UE5 Release Stream>=36)만 새로 디코딩한다.
+  구버전 저장 레이아웃의 타입 구조는 raw bytes+unknown으로 남기며 기존 표시용 호환 리더는 유지한다.
+  새 디코더는 표준 struct로 직접 작성했고 엔진 구현·고정 버전 이후 uasset_read 소스를 복사하지 않았다.
+  필드 순서·게이트는 설치된 UE5.7/5.8의 EdGraphPin/Node 소스와 공개 FEdGraphTerminalType API 사실을 확인했다.
+- 비교 범위: 표시 문자열/별도 tagged 재해석 대신 공개 선언 IR의 가용 값을 비교한다. 선언 Map 값 const/weak 플래그도 비교한다.
+  graph 핀의 해당 플래그는 기존 제외 범위를 유지한다. projection/stream 문제와 미확정 필드는 완전 일치로 승격하지 않는다.
+- 회귀 정답: Q1의 독립 eg52개 native 캡처에서 에셋4개(변수7개)를 변형 없이 선택한다. Map 값/객체·텍스트·구조체 배열을 포함한다.
+  기존 정답3개의 native snapshot/출처commit/패키지 해시를 바꾸지 않으며, 부재 NewVariables를 미확정으로 정정한 1개 갭씩만 추가한다.
+  각 새 정답의 출처 Git blob도 고정 commit/path와 대조한다. 전체 graph 비교와 all의 가용 값 일치 및 정확한 미확정 다중집합 검사, 기존 BP/노드/issue 기대값을 유지한다.
+- 캐시: declaration_ir.py를 fingerprint에 포함하고 출력 버전을 1.16.0으로 올린다. 제품 의존성 추가와 신규 native 빌드는 없다.
+  남은 saved/loaded 차이 원인 조사는 Q14, 실데이터 CallInEditor=true는 Q5, 실제 비어 있지 않은 위젯 바인딩의 native 정답은 별도 검증 공백이다.

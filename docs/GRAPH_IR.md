@@ -69,7 +69,7 @@ Reciprocal link observations remain separate. These are saved structural links, 
 that an execution path runs. Non-finite or unsupported scalar values become an explicit
 unknown record and an issue instead of invalid JSON or invented text.
 
-The asset-result cache fingerprint includes `graph_ir.py`. Output versions invalidate server
+The asset-result cache fingerprint includes `graph_ir.py` and `declaration_ir.py`. Output versions invalidate server
 and asset caches; changing only the projection module must also invalidate asset results.
 
 ## Current verification
@@ -85,7 +85,8 @@ node/pin names, directions, types, defaults, flags and saved links. The two pin 
 9 nodes/59 pins each; eg BFL_Util adds 39 nodes/109 pins/82 nonempty reciprocal link observations.
 Native source text, object paths and exact owner/GUID identities are compared independently of Markdown.
 Available function tooltip/category fields also compare; absent metadata remains explicitly unknown
-(3/3/11 exact known gaps), rather than becoming inferred empty/false values.
+(3/3/11 exact metadata gaps; plus one absent NewVariables tag in each original fixture), rather than becoming inferred empty/false values. Four additional eg captures exercise structured
+variable declarations through [declaration_ir](DECLARATION_IR.md), bringing the native replay set to seven.
 See [the editor oracle workflow](EDITOR_ORACLE.md) for profiles, package hashes and exclusions.
 
 Runtime execution, function member-reference semantics, arbitrary node properties and effective

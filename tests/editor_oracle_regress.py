@@ -3,6 +3,7 @@ from collections import Counter
 import hashlib
 import json
 import re
+import subprocess
 from pathlib import Path
 import sys
 
@@ -54,4 +55,27 @@ def check_eg(project, commit):
     package = oracle["fixture_source"]["package_file"]
     assert oracle["engine_version"].startswith("5.8."), "wrong eg native editor provenance"
     assert package == "Content/DeltaForce/Blueprints/Core/BFL_Util.uasset"
+    check_git_blob(project, commit, package, oracle["fixture_source"]["git_blob"])
     return check_capture(capture, Path(project) / package, repository="immigration2000/ExtractionGame_Fin", commit=commit)
+
+
+def check_git_blob(project, commit, package, expected):
+    actual = subprocess.run(["git", "-C", str(project), "rev-parse", commit + ":" + package],
+                            check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+    assert actual == expected, "native fixture source Git blob does not match the pinned commit/path"
+
+
+def check_eg_declarations(project, commit):
+    """Native scalar/object/text, struct array and map-value declarations, not reader-made expectations."""
+    results = []
+    for name in ("bpc-inventorysystem", "pda-stash", "wbp-keybtn", "wbp-playerinventory"):
+        capture = ROOT / "tests/editor_oracles" / ("eg-" + name + ".json")
+        oracle = C.load_json(capture.read_text(encoding="utf-8"))
+        assert oracle["engine_version"].startswith("5.8.")
+        package = oracle["fixture_source"]["package_file"]
+        assert oracle["assets"][0]["package_file"] == package
+        check_git_blob(project, commit, package, oracle["fixture_source"]["git_blob"])
+        graph, full = check_capture(capture, Path(project) / package,
+                                    repository="immigration2000/ExtractionGame_Fin", commit=commit)
+        results.append((name, graph, full))
+    return results

@@ -128,7 +128,7 @@ def main() -> int:
             continue
         try:
             graph, full = check_shed(case, cache, source)
-            print(f"PASS native {case['id']}: {graph['checked']} graph observations; {len(full['unavailable'])} exact declared metadata gaps", flush=True)
+            print(f"PASS native {case['id']}: {graph['checked']} graph observations; {len(full['unavailable'])} exact declared gaps", flush=True)
         except Exception as e:
             failed += 1
             print(f"FAIL native {case['id']}: {type(e).__name__}: {e}", flush=True)

@@ -43,6 +43,8 @@ class TaggedReader:
         self.ctx = ctx
         self.issues = ctx.issues
         self.enum_spans = enum_spans
+        # Declaration IR needs package identity, while display readers use short names.
+        self.preserve_object_indices = False
         self.fv5 = result.summary.file_version_ue5
         self.ar = FArchive(path, tolerant=True)
         self.ar._file_version_ue5 = self.fv5
@@ -129,7 +131,15 @@ class TaggedReader:
         if not self._looks_tagged(tag.value_end_offset):
             return None
         fields = self.stream(tag.value_end_offset, depth + 1)
-        return {"struct_type": sname, "fields": dict(fields)} if fields else None
+        return {"struct_type": sname, "fields": self._field_dict(fields)} if fields else None
+
+    def _field_dict(self, items):
+        fields = {}
+        for key, value in items:
+            if getattr(self, "preserve_object_indices", False) and key in fields:
+                raise ValueError(f"duplicate saved struct field: {key}")
+            fields[key] = value
+        return fields
 
     def _looks_tagged(self, limit) -> bool:
         pos = self.ar.tell()
@@ -182,7 +192,7 @@ class TaggedReader:
         for _ in range(n):
             if not self._looks_tagged(tag.value_end_offset):
                 return None
-            out.append({"struct_type": sname, "fields": dict(self.stream(tag.value_end_offset, depth + 1))})
+            out.append({"struct_type": sname, "fields": self._field_dict(self.stream(tag.value_end_offset, depth + 1))})
         return out
 
     def _enum_array(self, tag):
@@ -214,6 +224,8 @@ class TaggedReader:
         return EnumArray(values, reference, collector) if collector is not None else values
 
     def _resolve(self, tag, val):
+        if getattr(self, "preserve_object_indices", False):
+            return val
         if tag.type in ("ObjectProperty", "ClassProperty", "InterfaceProperty", "WeakObjectProperty") and isinstance(val, int):
             return self.ctx.obj_name(val) or ("None" if val == 0 else val)
         if tag.type == "ArrayProperty" and isinstance(val, list) and val and all(isinstance(x, int) for x in val):

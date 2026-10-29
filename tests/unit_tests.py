@@ -17,6 +17,20 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from declaration_compare_tests import (test_declaration_compare_consumes_the_public_api_without_reparsing,
+                                        test_declaration_compare_missing_is_never_empty_or_default,
+                                        test_declaration_compare_duplicate_or_malformed_identity_is_not_a_partial_list,
+                                        test_declaration_compare_structured_types_and_unknown_leaves,
+                                        test_declaration_compare_binding_kind_and_function_graph_changes,
+                                        test_declaration_compare_editor_utility_widget_bindings_are_not_optional,
+                                        test_declaration_compare_native_declaration_shapes_are_validated_not_trusted,
+                                        test_declaration_compare_unsupported_or_missing_ir_fails_closed,
+                                        test_declaration_compare_report_is_incomplete_rather_than_passed)
+from declaration_ir_tests import (test_declaration_native_type_decodes_map_object_flags_and_exact_bytes,
+                                  test_declaration_native_type_rejects_truncation_bad_names_flags_and_extra_bytes,
+                                  test_declaration_presence_never_infers_empty_defaults_flags_or_binding_kind,
+                                  test_declaration_reader_keeps_indices_and_rejects_duplicate_nested_fields,
+                                  test_declaration_malformed_and_duplicate_records_preserve_unknown_and_stream_errors)
 from editor_compare_tests import (test_editor_compare_dirty_display_text_and_profile_exclusions_are_explicit,
                                  test_editor_compare_duplicate_and_malformed_identity_refused,
                                  test_editor_compare_hash_binding_and_binary_read_race,

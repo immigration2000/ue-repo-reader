@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from enum_values import EnumScalar
 from graph_ir import build_graph_ir
+from declaration_ir import build_declaration_ir
 
 UASSET_READ_REPO = "https://github.com/soatori/uasset_read.git"
 UASSET_READ_COMMIT = "b10a83a592e43156d17b9cdc0948790b1ab486f9"  # v0.5.4.44, MIT (v0.5.4.45 only removed the LICENSE file)
@@ -2188,7 +2189,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
     summary = {"path": game_path, "kind": kind, "parent": parent, "interfaces": interfaces,
                "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
                "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [],
-               "function_metadata": [], "graph_ir": graph_ir, "issues": ctx.issues,
+               "function_metadata": [], "graph_ir": graph_ir,
+               "declaration_ir": build_declaration_ir(path, result, ctx, bp_obj, bp_cls), "issues": ctx.issues,
                "gameplay_tags": sorted(collect_gameplay_tags(list(cdo_props.values())))}
 
     dispatchers = []
@@ -2258,6 +2260,13 @@ def read_blueprint(path: str, game_path: str) -> dict:
            "Machine-readable nodes, pin types/defaults and saved references: `digest.json` → `blueprints[path].graph_ir` "
            "(maps: `maps_detail[path].level_bp_graph_ir`). This excludes node properties, class defaults and runtime semantics; "
            "complete means coverage of decoder-exposed pins, not verified gameplay behavior or detection of truncated pin lists."]
+    declarations = summary["declaration_ir"]
+    md += ["", "## Saved declaration coverage", "",
+           f"Saved declaration projection: **{declarations['status']}** · schema {declarations['schema_version']}. "
+           "Structured variable types/flags/authored defaults, parent/function references and widget bindings: "
+           "`digest.json` → `blueprints[path].declaration_ir`. Check saved_fields and unknown reasons. "
+           "Absent tags and non-map terminal types remain unknown; older saved layouts may be unsupported. "
+           "Effective CDO/inherited defaults and runtime values are outside this projection."]
     md += issue_markdown(ctx.issues)
     summary["parse_status"] = "partial" if ctx.issues or ok_nodes < total_nodes else "ok"
     summary["calls"] = sorted(summary["calls"])

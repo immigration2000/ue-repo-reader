@@ -36,7 +36,7 @@ def blob_sha(path: Path) -> str:
 def decoder_fingerprint() -> str:
     here = Path(__file__).resolve().parent
     digest = hashlib.sha256()
-    for name in ("asset_cache.py", "ue_repo_digest.py", "bp_reader.py", "data_reader.py", "map_reader.py", "enum_values.py", "graph_ir.py"):
+    for name in ("asset_cache.py", "ue_repo_digest.py", "bp_reader.py", "data_reader.py", "map_reader.py", "enum_values.py", "graph_ir.py", "declaration_ir.py"):
         digest.update(name.encode("utf-8"))
         digest.update((here / name).read_bytes())
     import bp_reader
