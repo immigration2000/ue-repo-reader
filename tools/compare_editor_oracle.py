@@ -2,6 +2,10 @@
 
 No digest is accepted as an oracle or reused as the actual result. Package hashes
 bind both reads to the same saved bytes. A scoped match is not gameplay validation.
+
+Declarations (parent class, variables, function graphs, widget bindings) come from
+the reader's public ``summary["declaration_ir"]`` projection; this adapter re-parses
+nothing to obtain them and never turns an absent saved property into an empty value.
 """
 from __future__ import annotations
 
@@ -11,6 +15,18 @@ import json
 from pathlib import Path, PurePosixPath
 import re
 import sys
+
+DECLARATION_SCHEMA_VERSION = 1
+DECLARATION_BASIS = "saved-tagged-properties"
+# Native field names, in the shape the editor bridge writes them.
+_VARIABLE_FIELDS = ("name", "type", "flags", "category", "default_value")
+_BINDING_FIELDS = ("object_name", "property_name", "function_name", "kind")
+_TYPE_FIELDS = ("category", "subcategory", "object_path", "container",
+                "is_reference", "is_const", "is_weak_pointer")
+_TERMINAL_FIELDS = ("category", "subcategory", "object_path")
+# Compared for declarations, where both sides report them; still excluded for graph pins.
+_TERMINAL_FLAG_FIELDS = ("is_const", "is_weak_pointer")
+_MISSING = object()
 
 
 class OracleError(ValueError):
@@ -60,6 +76,24 @@ def unknown(reason):
     return {"$unavailable": str(reason)}
 
 
+def _is_unknown(value):
+    """Both unknown markers: this adapter's $unavailable and the reader IR's status/reason."""
+    return isinstance(value, dict) and ("$unavailable" in value or value.get("status") == "unknown")
+
+
+def _identity(value, label):
+    """An identity is a usable nonempty string (or tuple of them); never an unknown marker."""
+    if isinstance(value, tuple):
+        if not value:
+            raise OracleError(f"{label} identity is empty")
+        for item in value:
+            _identity(item, label)
+        return value
+    if type(value) is not str or not value:
+        raise OracleError(f"{label} identity is missing or not a nonempty string: {value!r}")
+    return value
+
+
 def _indexed(records, key, label):
     if not isinstance(records, list):
         raise OracleError(f"{label} must be an array")
@@ -67,38 +101,73 @@ def _indexed(records, key, label):
     for record in records:
         if not isinstance(record, dict):
             raise OracleError(f"{label} contains a non-object")
-        identity = key(record)
+        try:
+            identity = _identity(key(record), label)
+        except (KeyError, TypeError) as error:
+            raise OracleError(f"{label} identity is unusable: {type(error).__name__}: {error}") from error
         if identity in result:
             raise OracleError(f"duplicate {label} identity: {identity}")
         result[identity] = record
     return result
 
 
-def _canonical_type(value):
-    if isinstance(value, dict) and ("$unavailable" in value or value.get("status") == "unknown"):
+def _select(record, keys, label):
+    """Exactly the agreed native fields: provenance and editor-only extras are ignored."""
+    if not isinstance(record, dict):
+        raise OracleError(f"{label} must be an object")
+    missing = [key for key in keys if key not in record]
+    if missing:
+        raise OracleError(f"{label} is missing {', '.join(missing)}")
+    return {key: record[key] for key in keys}
+
+
+def _canonical_type(value, *, terminal_flags=False):
+    if _is_unknown(value):
         return dict(value)
-    result = dict(value)
+    result = _select(value, _TYPE_FIELDS, "type")
     for key in ("category", "subcategory"):
         result[key] = _fname(result[key])
-    terminal = result.get("terminal")
-    if terminal is not None:
-        if isinstance(terminal, dict) and ("$unavailable" in terminal or terminal.get("status") == "unknown"):
-            result["terminal"] = dict(terminal)
-        else:
-            result["terminal"] = {k: terminal[k] for k in ("category", "subcategory", "object_path")}
-            for key in ("category", "subcategory"):
-                result["terminal"][key] = _fname(terminal[key])
+    terminal = value.get("terminal", _MISSING)
+    if terminal is _MISSING:
+        raise OracleError("type is missing terminal")
+    if _is_unknown(terminal):
+        result["terminal"] = dict(terminal)
+    else:
+        fields = _TERMINAL_FIELDS + (_TERMINAL_FLAG_FIELDS if terminal_flags else ())
+        result["terminal"] = _select(terminal, fields, "terminal type")
+        for key in ("category", "subcategory"):
+            result["terminal"][key] = _fname(result["terminal"][key])
     return result
 
 
 def validate_native_snapshot(snapshot):
     """Do not turn malformed/partial expected observations into a scoped pass."""
+    try:
+        _validate_native_snapshot(snapshot)
+    except (KeyError, IndexError, TypeError, AttributeError) as error:
+        raise OracleError(f"native snapshot is malformed: {type(error).__name__}: {error}") from error
+
+
+def _validate_native_snapshot(snapshot):
     def scalar(value, kind, label, nullable=False):
         if nullable and value is None:
             return
         if type(value) is not kind:
             raise OracleError(f"native {label} must be {kind.__name__}")
-    def type_record(value):
+    def records(value, label, nullable=False):
+        if nullable and value is None:
+            return []
+        if not isinstance(value, list) or any(not isinstance(item, dict) for item in value):
+            raise OracleError(f"native {label} must be an array of objects")
+        return value
+    def uint64_decimal(value, label):
+        # The bridge prints uint64 flags with %llu; anything else is not that observation.
+        scalar(value, str, label)
+        if not re.fullmatch(r"0|[1-9][0-9]*", value) or int(value) >= 1 << 64:
+            raise OracleError(f"native {label} must be a canonical uint64 decimal string")
+    def type_record(value, terminal_flags=False):
+        if not isinstance(value, dict):
+            raise OracleError("native type must be an object")
         for key in ("category", "subcategory"):
             scalar(value[key], str, key)
         scalar(value["object_path"], str, "type object path", True)
@@ -108,9 +177,13 @@ def validate_native_snapshot(snapshot):
         for key in ("is_reference", "is_const", "is_weak_pointer"):
             scalar(value[key], bool, key)
         terminal = value["terminal"]
+        if not isinstance(terminal, dict):
+            raise OracleError("native terminal type must be an object")
         for key in ("category", "subcategory"):
             scalar(terminal[key], str, "terminal " + key)
         scalar(terminal["object_path"], str, "terminal object path", True)
+        for key in _TERMINAL_FLAG_FIELDS if terminal_flags else ():
+            scalar(terminal[key], bool, "terminal " + key)
     if snapshot.get("text_values") != "source":
         raise OracleError("native text fields must be authored source text")
     if snapshot.get("package_dirty") is not False:
@@ -119,13 +192,28 @@ def validate_native_snapshot(snapshot):
     scalar(snapshot["parent_class"], str, "parent class", True)
     if not isinstance(snapshot.get("issues"), list) or any(type(i) is not str for i in snapshot["issues"]):
         raise OracleError("native snapshot issues must be strings")
-    for variable in snapshot["variables"]:
-        for key in ("name", "flags", "category", "default_value"):
+    for variable in records(snapshot["variables"], "variables"):
+        for key in ("name", "category", "default_value"):
             scalar(variable[key], str, "variable " + key)
-        type_record(variable["type"])
-    for graph in snapshot["graphs"]:
+        _identity(variable["name"], "native variable")
+        uint64_decimal(variable["flags"], "variable flags")
+        type_record(variable["type"], terminal_flags=True)
+    if not isinstance(snapshot["function_graphs"], list):
+        raise OracleError("native function graphs must be an array")
+    for declared in snapshot["function_graphs"]:
+        # object_path() refuses anything that is not a native '/...' object path.
+        object_path(declared)
+    for binding in records(snapshot["widget_bindings"], "widget bindings", nullable=True):
+        for key in ("object_name", "property_name", "function_name"):
+            scalar(binding[key], str, "binding " + key)
+        _identity((binding["object_name"], binding["property_name"]), "native widget binding")
+        # A bool is not an acceptable native binding kind, and type() is what rules it out.
+        scalar(binding["kind"], int, "binding kind")
+        if binding["kind"] not in (0, 1):
+            raise OracleError("native widget binding kind must be EBindingKind Function(0) or Property(1)")
+    for graph in records(snapshot["graphs"], "graphs"):
         scalar(graph["name"], str, "graph name")
-        for node in graph["nodes"]:
+        for node in records(graph["nodes"], "graph nodes"):
             scalar(node["class"], str, "node class")
             metadata = node["function_metadata"]
             if metadata is not None:
@@ -149,20 +237,32 @@ def canonical_snapshot(snapshot):
     if not isinstance(snapshot, dict):
         raise OracleError("snapshot must be an object")
     result = {"asset_class": snapshot["asset_class"], "parent_class": snapshot["parent_class"]}
-    result["variables"] = {}
-    for name, var in _indexed(snapshot["variables"], lambda v: v["name"], "variable").items():
-        result["variables"][name] = {key: var[key] for key in ("type", "flags", "category", "default_value")}
-        result["variables"][name]["type"] = _canonical_type(var["type"])
-    if isinstance(snapshot["function_graphs"], dict) and "$unavailable" in snapshot["function_graphs"]:
-        result["function_graphs"] = snapshot["function_graphs"]
+    # A whole declaration collection may be unknown (the saved property is absent or
+    # undecodable). It stays unknown here: an empty collection is a different claim.
+    variables = snapshot["variables"]
+    if _is_unknown(variables):
+        result["variables"] = dict(variables)
     else:
+        result["variables"] = {}
+        for name, var in _indexed(variables, lambda v: v["name"], "variable").items():
+            record = _select(var, ("type", "flags", "category", "default_value"), f"variable {name}")
+            record["type"] = _canonical_type(record["type"], terminal_flags=True)
+            result["variables"][name] = record
+    if _is_unknown(snapshot["function_graphs"]):
+        result["function_graphs"] = dict(snapshot["function_graphs"])
+    else:
+        if not isinstance(snapshot["function_graphs"], list):
+            raise OracleError("function graphs must be an array or an unknown marker")
         result["function_graphs"] = sorted(object_path(p) for p in snapshot["function_graphs"])
         if len(set(result["function_graphs"])) != len(result["function_graphs"]):
             raise OracleError("duplicate function graph")
-    result["widget_bindings"] = snapshot["widget_bindings"]
-    if isinstance(result["widget_bindings"], list):
-        bindings = _indexed(result["widget_bindings"], lambda b: (b["object_name"], b["property_name"]), "widget binding")
-        result["widget_bindings"] = {json.dumps(key): value for key, value in bindings.items()}
+    bindings = snapshot["widget_bindings"]
+    if bindings is None or _is_unknown(bindings):
+        result["widget_bindings"] = None if bindings is None else dict(bindings)
+    else:
+        indexed = _indexed(bindings, lambda b: (b["object_name"], b["property_name"]), "widget binding")
+        result["widget_bindings"] = {json.dumps(key, ensure_ascii=False): _select(value, _BINDING_FIELDS, "widget binding")
+                                     for key, value in indexed.items()}
     result["graphs"] = {}
     graphs = _indexed(snapshot["graphs"], lambda g: object_path(g["object_path"]), "graph")
     for path, graph in graphs.items():
@@ -178,15 +278,15 @@ def canonical_snapshot(snapshot):
                                            "default_object", "default_text_value", "hidden", "orphaned_pin",
                                            "not_connectable", "advanced_view")}
                 value["type"] = _canonical_type(pin["type"])
-                if isinstance(pin["links"], dict) and "$unavailable" in pin["links"]:
-                    value["links"] = pin["links"]
+                if _is_unknown(pin["links"]):
+                    value["links"] = dict(pin["links"])
                 else:
                     links = [(object_path(link["owner_path"]), display_guid_to_serialized(link["guid"])) for link in pin["links"]]
                     value["links"] = sorted(links)  # Preserve duplicate observations.
                 pins[guid] = value
             metadata = node["function_metadata"]
-            if isinstance(metadata, dict) and "$unavailable" not in metadata:
-                metadata = {k: metadata[k] for k in ("tooltip", "category", "call_in_editor")}
+            if isinstance(metadata, dict) and not _is_unknown(metadata):
+                metadata = _select(metadata, ("tooltip", "category", "call_in_editor"), "function metadata")
             nodes[node_path] = {"class": node["class"], "pins": pins, "function_metadata": metadata}
         result["graphs"][path] = {"name": graph["name"], "nodes": nodes}
     return result
@@ -194,7 +294,10 @@ def canonical_snapshot(snapshot):
 
 EXCLUSIONS = ["Empty graphs; graph/node/variable GUIDs and editor layout",
               "Control Rig/RigVM graphs are outside this native-oracle comparison adapter's scope",
-              "Map terminal const/weak flags, FText localization identity and effective inherited/CDO values",
+              "Graph-pin map terminal const/weak flags (compared for variable declarations), "
+              "FText localization identity and effective inherited/CDO values",
+              "Declarations are the asset's own saved properties: inherited variables, "
+              "ubergraph/macro/interface graph lists and component/widget-tree declarations",
               "Function keywords/compact title/flags; widget SourcePath segments",
               "Runtime reachability, compiled behavior and gameplay correctness"]
 
@@ -216,7 +319,7 @@ def compare_snapshots(expected, actual, *, profile="all"):
             return {"checked": 0, "mismatches": [], "unavailable": [{"path": "snapshot/graphs", "reason": "no nonempty native graph to compare"}]}
     result = {"checked": 0, "mismatches": [], "unavailable": []}
     def walk(want, got, path):
-        if isinstance(got, dict) and ("$unavailable" in got or got.get("status") == "unknown"):
+        if _is_unknown(got):
             result["unavailable"].append({"path": path, "reason": got.get("$unavailable", got.get("reason", "decoder field is unknown"))})
         elif isinstance(want, dict) and isinstance(got, dict):
             for key in sorted(want.keys() | got.keys()):
@@ -314,28 +417,144 @@ def compare_oracle(oracle, project_root, *, reader=None, profile="all"):
     return report
 
 
+def _declaration_ir(summary):
+    """The reader's public declaration projection, refused outright when it is not the agreed one."""
+    ir = summary.get("declaration_ir")
+    if not isinstance(ir, dict):
+        raise OracleError("the reader exposes no declaration_ir; declarations cannot be compared")
+    version = ir.get("schema_version")
+    if type(version) is not int or version != DECLARATION_SCHEMA_VERSION or ir.get("basis") != DECLARATION_BASIS:
+        raise OracleError(f"unsupported declaration_ir: schema {version!r}, basis {ir.get('basis')!r}")
+    return ir
+
+
+def _project(record, fields, context):
+    """Native fields only, keeping every unknown the IR reported and dropping its provenance.
+
+    ``saved_fields`` says whether each native key was saved, absent or unknown. An
+    absent saved value is an unknown value here; it is never read as a default.
+    """
+    saved = record.get("saved_fields")
+    saved = saved if isinstance(saved, dict) else {}
+    result = {}
+    for name in fields:
+        value = record.get(name, _MISSING)
+        state = saved.get(name)
+        if value is _MISSING:
+            result[name] = unknown(f"{context} {name} is absent from the reader's declaration projection")
+        elif _is_unknown(value):
+            result[name] = dict(value)
+        elif state is not None and state != "saved":
+            result[name] = unknown(f"{context} {name} is reported {state} in the saved package")
+        else:
+            result[name] = value
+    return result
+
+
+def _declaration_type(value, context):
+    """A declaration's native type record; an undecoded terminal stays unknown, never empty."""
+    if _is_unknown(value):
+        return dict(value)
+    if not isinstance(value, dict):
+        return unknown(f"{context} type is not a decoded record")
+    result = _project(value, _TYPE_FIELDS, context + " type")
+    terminal = value.get("terminal", _MISSING)
+    if _is_unknown(terminal):
+        result["terminal"] = dict(terminal)
+    elif isinstance(terminal, dict):
+        result["terminal"] = _project(terminal, _TERMINAL_FIELDS + _TERMINAL_FLAG_FIELDS,
+                                      context + " terminal type")
+    else:
+        result["terminal"] = unknown(f"{context} terminal type was not decoded; no empty terminal is assumed")
+    return result
+
+
+def _declaration_records(value, fields, identity, context):
+    """One IR collection: unknown stays unknown, and no record is dropped to keep the rest usable.
+
+    A record whose identity is missing or duplicated makes the whole collection
+    unknown, because a partial list would read as a complete one.
+    """
+    if _is_unknown(value):
+        return dict(value)
+    if not isinstance(value, list):
+        return unknown(f"{context} were not projected as a list; the saved collection is unknown")
+    records, seen = [], set()
+    for item in value:
+        if not isinstance(item, dict):
+            return unknown(f"{context} contain a record that is not an object; the collection is unknown")
+        named = item.get(identity[0])
+        label = f"{context} {named}" if isinstance(named, str) and named else context
+        record = _project(item, fields, label)
+        if "type" in record:
+            record["type"] = _declaration_type(record["type"], label)
+        try:
+            key = _identity(tuple(record[name] for name in identity), context)
+        except OracleError as error:
+            return unknown(f"{context} identity is unusable ({error}); the whole collection is unknown")
+        if key in seen:
+            return unknown(f"{context} repeat the identity {key}; the whole collection is unknown")
+        seen.add(key)
+        records.append(record)
+    return records
+
+
+def _declaration_snapshot(ir, *, widget):
+    """The declaration half of a decoded snapshot, straight from the public IR."""
+    saved = ir.get("saved_fields")
+    saved = saved if isinstance(saved, dict) else {}
+    def field(name):
+        value = ir.get(name, unknown(f"declaration_ir has no {name}"))
+        state = saved.get(name)
+        if _is_unknown(value) or state is None or state == "saved":
+            return value
+        if name == "widget_bindings" and value is None and not widget:
+            # A non-widget Blueprint has no binding list to save: class applicability,
+            # not missing data. Every other null stays unknown when the tag was absent.
+            return None
+        return unknown(f"{name} is reported {state} in the saved package")
+    parent = field("parent_class")
+    if not (parent is None or _is_unknown(parent) or isinstance(parent, str) and parent.startswith("/")):
+        parent = unknown("parent class is not a native object path or null")
+    declared = field("function_graphs")
+    if not _is_unknown(declared):
+        if (not isinstance(declared, list)
+                or any(not isinstance(p, str) or not p.startswith("/") for p in declared)):
+            declared = unknown("declared function graph references are unresolved or not native paths")
+        elif len({p.replace(":", ".", 1) for p in declared}) != len(declared):
+            declared = unknown("declared function graphs repeat an object path; the collection is unknown")
+        else:
+            declared = list(declared)
+    bindings = field("widget_bindings")
+    if bindings is None:
+        # Null is the native answer for a non-widget Blueprint; a widget must still report its list.
+        bindings = None if not widget else unknown("widget Blueprint reported no binding list at all")
+    else:
+        bindings = _declaration_records(bindings, _BINDING_FIELDS, ("object_name", "property_name"),
+                                        "widget bindings")
+    return {"parent_class": dict(parent) if _is_unknown(parent) else parent,
+            "variables": _declaration_records(field("variables"), _VARIABLE_FIELDS, ("name",),
+                                              "variable declarations"),
+            "function_graphs": dict(declared) if _is_unknown(declared) else declared,
+            "widget_bindings": bindings}
+
+
 def read_snapshot(path, asset_path, *, native_class=None):
-    """Adapter for our existing parser/public graph IR; never used by the exporter."""
+    """Adapter for our existing parser and public graph/declaration IRs; never used by the exporter."""
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
     import bp_reader as B
-    import data_reader as R
     if native_class == "ControlRigBlueprint":
         raise OracleError("Control Rig/RigVM graphs are outside this oracle adapter's comparison scope")
     rendered = B.read_blueprint(str(path), asset_path)
     summary, ir = rendered["summary"], rendered["summary"]["graph_ir"]
+    declarations = _declaration_ir(summary)
+    # The second parse is only for the raw function-entry nodes the metadata reader needs;
+    # declarations come from the public IR above, not from another property read here.
     parsed, _ = B._parse(str(path))
     ctx = B.Ctx(parsed)
     bp, kind = B._find_blueprint_object(ctx, Path(path).stem)
     if bp is None:
         raise OracleError("Blueprint export is unavailable")
-    raw_props = ctx.props(bp)
-    exp = next(e for e in parsed.export_map if e.object_name == bp.object_name)
-    tagged = R.TaggedReader(str(path), parsed, ctx)
-    try:
-        items, _ = tagged.export_stream(exp)
-        props = dict(items)
-    finally:
-        tagged.close()
     def ref(value):
         if value in (None, 0):
             return None
@@ -355,28 +574,24 @@ def read_snapshot(path, asset_path, *, native_class=None):
             return unknown("object index unavailable")
         obj = ctx.obj(value)
         return ctx.full_name(obj) if obj is not None else unknown("object index unresolved")
-    def pin_type(value, serialized=False):
-        # Struct fields are already decoded; no rendered type-label parsing.
-        f = B._fields(value) if not serialized else value
-        if not f and not serialized:
-            return unknown("declaration pin type is opaque to this adapter; no terminal defaults inferred")
-        names = ({"category": "pin_category", "subcategory": "pin_subcategory", "object_path": "pin_subcategory_object",
-                  "container": "container_type", "is_reference": "is_reference", "is_const": "is_const", "is_weak_pointer": "is_weak_pointer"}
-                 if serialized else {"category": "PinCategory", "subcategory": "PinSubCategory", "object_path": "PinSubCategoryObject",
-                                     "container": "ContainerType", "is_reference": "bIsReference", "is_const": "bIsConst", "is_weak_pointer": "bIsWeakPointer"})
-        result = {}
-        for name, source in names.items():
-            raw = f.get(source, unknown(f"type field {source} absent"))
-            result[name] = ref(raw) if name == "object_path" else raw
-        if serialized:
-            result["terminal"] = {"category": f["map_key_terminal_category"], "subcategory": f["map_key_terminal_sub_category"],
-                                   "object_path": ref(f["map_key_terminal_sub_category_object"])}
-        else:
-            terminal = B._fields(f.get("PinValueType"))
-            result["terminal"] = ({"category": terminal.get("TerminalCategory", unknown("terminal category absent")),
-                                    "subcategory": terminal.get("TerminalSubCategory", unknown("terminal subcategory absent")),
-                                    "object_path": ref(terminal.get("TerminalSubCategoryObject"))}
-                                   if terminal else unknown("declaration terminal type not decoded"))
+    def pin_type(value):
+        """Graph-pin types from the Q9 graph IR; declaration types come from the declaration IR."""
+        if not isinstance(value, dict):
+            return unknown("graph pin type was not projected by the reader")
+        def fields(names):
+            projected = {}
+            for name, source in names.items():
+                raw = value.get(source, unknown(f"type field {source} absent"))
+                projected[name] = ref(raw) if name == "object_path" else raw
+            return projected
+        result = fields({"category": "pin_category", "subcategory": "pin_subcategory",
+                         "object_path": "pin_subcategory_object", "container": "container_type",
+                         "is_reference": "is_reference", "is_const": "is_const",
+                         "is_weak_pointer": "is_weak_pointer"})
+        # Terminal const/weak flags are not projected for graph pins and stay out of scope.
+        result["terminal"] = fields({"category": "map_key_terminal_category",
+                                     "subcategory": "map_key_terminal_sub_category",
+                                     "object_path": "map_key_terminal_sub_category_object"})
         return result
     def native_guid(value):
         raw = re.sub(r"[-]", "", value) if isinstance(value, str) else ""
@@ -411,7 +626,7 @@ def read_snapshot(path, asset_path, *, native_class=None):
                 connections = ([pin_targets[r["target"]] for r in links] if all(r["status"] == "resolved" and r["target"] in pin_targets for r in links)
                                else unknown("saved pin link unresolved or ambiguous"))
                 pins.append({"guid": native_guid(pin["guid"]), "name": pin["pin_name"], "direction": pin["direction"],
-                             "type": pin_type(pin["type"], True), "default_value": pin["defaults"]["default_value"],
+                             "type": pin_type(pin["type"]), "default_value": pin["defaults"]["default_value"],
                              "auto_default_value": pin["defaults"]["auto_default_value"], "default_object": pin["defaults"]["default_object_path"],
                              "default_text_value": pin["defaults"]["default_text_value"],
                              **{k: pin[k] for k in ("hidden", "orphaned_pin", "not_connectable", "advanced_view")}, "links": connections})
@@ -422,30 +637,14 @@ def read_snapshot(path, asset_path, *, native_class=None):
                 meta = {k: found.get(k, unknown("metadata not explicitly decoded")) for k in ("tooltip", "category", "call_in_editor")}
             nodes.append({"object_path": node["object_path"], "class": node["class"], "guid": node["guid_raw"], "pins": pins, "function_metadata": meta})
         graphs.append({"object_path": graph["id"], "name": graph["name"], "nodes": nodes})
-    variables = []
-    for variable in props.get("NewVariables", []):
-        f = B._fields(variable)
-        if not isinstance(f.get("VarName"), str):
-            raise OracleError("variable declaration opaque or missing name")
-        category = f.get("Category")
-        variables.append({"name": f["VarName"], "type": pin_type(f.get("VarType")), "flags": str(f["PropertyFlags"]) if "PropertyFlags" in f else unknown("variable flags absent"),
-                          "category": category if isinstance(category, str) else getattr(category, "source_string", unknown("category absent")),
-                          "default_value": f.get("DefaultValue", unknown("declaration default absent; effective CDO value not inferred"))})
-    bindings = None
-    if kind == "WidgetBlueprint":
-        bindings = []
-        for binding in props.get("Bindings", []):
-            f = B._fields(binding)
-            bindings.append({"object_name": f.get("ObjectName", unknown("binding object absent")),
-                             "property_name": f.get("PropertyName", unknown("binding property absent")),
-                             "function_name": f.get("FunctionName", unknown("binding function absent")),
-                             "kind": f.get("Kind", unknown("binding kind absent"))})
-    functions = raw_props.get("FunctionGraphs", [])
-    function_paths = ([ref(v) for v in functions] if all(isinstance(ref(v), str) for v in functions)
-                      else unknown("declared function graph reference unresolved"))
-    return {"asset_class": kind, "parent_class": ref(raw_props.get("ParentClass")), "variables": variables,
-            "function_graphs": function_paths,
-            "graphs": graphs, "widget_bindings": bindings, "issues": summary["issues"] + ctx.issues}
+    # The native bridge reports a binding list for every UWidgetBlueprint, editor utility ones included.
+    declared = _declaration_snapshot(declarations, widget=kind in ("WidgetBlueprint", "EditorUtilityWidgetBlueprint"))
+    reported = declarations.get("issues") or []
+    if not isinstance(reported, list):
+        reported = [{"stage": "declaration_ir", "context": asset_path,
+                     "message": f"declaration_ir issues is {type(reported).__name__}, not a list"}]
+    return {"asset_class": kind, "graphs": graphs, **declared,
+            "issues": summary["issues"] + ctx.issues + list(reported)}
 
 
 def main(argv=None):
