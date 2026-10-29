@@ -122,6 +122,16 @@ def main() -> int:
         except Exception as e:
             failed += 1
             print(f"FAIL asset {case['id']}: {type(e).__name__}: {e}", flush=True)
+    from editor_oracle_regress import check_shed
+    for case in source["cases"]:
+        if case["id"] not in ("pins-5.7", "pins-5.8"):
+            continue
+        try:
+            graph, full = check_shed(case, cache, source)
+            print(f"PASS native {case['id']}: {graph['checked']} graph observations; {len(full['unavailable'])} exact declared metadata gaps", flush=True)
+        except Exception as e:
+            failed += 1
+            print(f"FAIL native {case['id']}: {type(e).__name__}: {e}", flush=True)
     return 1 if failed else 0
 
 

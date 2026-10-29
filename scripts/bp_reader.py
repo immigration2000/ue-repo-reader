@@ -665,6 +665,22 @@ class Ctx:
 
     def full_name(self, o) -> str:
         try:
+            # The pinned linker's imported native objects can already carry an
+            # absolute object path as their name. Its get_full_name() prepends
+            # the synthetic CoreUObject outer a second time in that case.
+            # Keep the explicit saved path; do not infer a package from a short name.
+            parts, seen, current = [], set(), o
+            while current is not None:
+                if id(current) in seen:
+                    return ""
+                seen.add(id(current))
+                name = getattr(current, "object_name", None)
+                if not isinstance(name, str) or not name:
+                    break
+                if name.startswith("/"):
+                    return name + ("." + ".".join(reversed(parts)) if parts else "")
+                parts.append(name)
+                current = getattr(current, "outer", None)
             return o.get_full_name()
         except Exception:
             return ""

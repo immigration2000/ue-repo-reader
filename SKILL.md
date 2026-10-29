@@ -59,6 +59,10 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    mapping, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
    Read **Project support** before interpreting coverage. The declaration is not independent semantic
    verification; an explicit best-effort run never becomes a confirmed target because parsing succeeded.
+   For an explicit request to verify against an editor, use the optional developer workflow in
+   [the editor-oracle guide](https://github.com/immigration2000/ue-repo-reader/blob/main/docs/EDITOR_ORACLE.md)
+   in a full source checkout. Report its selected profile, unavailable observations
+   and exclusions; a scoped oracle match is not a gameplay accuracy score.
 2. `<out>/blueprints/<content path>.md` — one file per Blueprint: components, widget tree (non-default widget
    properties and `[slot …]` layout), property bindings, widget animations, timelines (length, tracks, curve keys), variables, class defaults,
    event dispatchers, and every graph rendered as execution-flow pseudo-code (anim graphs as pose trees,

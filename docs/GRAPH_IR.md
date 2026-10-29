@@ -80,6 +80,15 @@ incorrect IR text even when parser/Markdown text is correct. Synthetic cases cov
 shared GUIDs, ambiguous/missing/cross-graph references, duplicate identities, full literal text,
 type/default/link mutations and structural pin references.
 
-Independent oracle coverage for execution branches, function input/output semantics,
-node properties and effective defaults is still Q1/W1 work. Existing older-version fixtures
-retain their checks for compatibility; no new legacy project expansion is claimed.
+Q1 now also replays source-pinned native UE 5.7.4/5.8.4 captures against the full collected
+node/pin names, directions, types, defaults, flags and saved links. The two pin fixtures have
+9 nodes/59 pins each; eg BFL_Util adds 39 nodes/109 pins/82 nonempty reciprocal link observations.
+Native source text, object paths and exact owner/GUID identities are compared independently of Markdown.
+Available function tooltip/category fields also compare; absent metadata remains explicitly unknown
+(3/3/11 exact known gaps), rather than becoming inferred empty/false values.
+See [the editor oracle workflow](EDITOR_ORACLE.md) for profiles, package hashes and exclusions.
+
+Runtime execution, function member-reference semantics, arbitrary node properties and effective
+CDO/inherited defaults remain outside this verification. A native loaded graph can also differ
+from saved bytes after engine load fixups; differences need investigation before blaming the reader.
+Existing older-version fixtures retain their checks for compatibility; no new legacy project expansion is claimed.

@@ -282,6 +282,13 @@ def main() -> int:
             worst = max(worst, 2)
             continue
         errors = check(fx, out)
+        if name == "eg":
+            from editor_oracle_regress import check_eg
+            try:
+                graph, full = check_eg(Path(local[name]) if name in local else CACHE / name, fx["sha"])
+                print(f"PASS native eg BFL_Util: {graph['checked']} graph observations; {len(full['unavailable'])} exact declared metadata gaps")
+            except Exception as error:
+                errors.append(f"native editor oracle: {type(error).__name__}: {error}")
         print(f"{'PASS' if not errors else 'FAIL'}  {name} ({info}) — digest: {out}")
         for e in errors:
             print(f"      - {e}")

@@ -37,6 +37,9 @@ do not treat a successful parse as support confirmation. Mode is part of the cac
    complete project settings, maps/Blueprint/data catalogs, C++ ↔ Blueprint mapping, Enhanced Input check,
    GameplayTags, full notation and Parse report; follow continuation parts too.
    Read the prominent **Project support** notice as well as decode coverage before drawing conclusions.
+   An independent editor comparison is a separate optional developer workflow (`docs/EDITOR_ORACLE.md`
+   in the source repo), outside these MCP tools. A reported match covers its selected profile and saved
+   observations; retain unavailable fields and exclusions instead of presenting a gameplay accuracy score.
 2. `maps/…md` — game mode override, Level Blueprint, placed gameplay actors with per-instance overrides.
    Tables are compact previews. Complete decoded actor/root-component saved properties are retained for
    scripts in `digest.json` → `maps_detail[map_path].actors`, with source package/export index identities.

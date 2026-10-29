@@ -254,3 +254,26 @@
   BP/노드/개별 issue 기대값은 완화하지 않으며, 오래된 에셋이 있는 5.8 프로젝트의 실제 캐시 cold/warm 검증을 유지한다.
   새 제품 의존성·외부 구현 복사 없음. Q1의 독립 에디터 의미 정답 확보는 별도 최우선 후속 작업이다.
 
+## D-027 네이티브 에디터 관측과 저장 바이트의 독립 대조 (2026-10-29, codex/claude)
+- 결정: v1.15.0. Q1/Q12에 선택적인 개발용 에디터 수집 모듈·Python exporter·새 바이너리 비교기와 독립 정답3개를 추가.
+  일반 레포 분석의 Python/Git 요구사항은 유지한다. 선택적 oracle 수집에만 UE5.7+·Python Script Plugin·C++ 빌드 도구가 필요하다.
+- 이유: 실제5.8 Python probe에서 Blueprint의 graph/variable 배열과 graph.nodes는 노출되지 않았고,
+  stock list_all_pins는 visible K2 핀만 제공했다. 전체 노드/숨긴 핀을 정답으로 삼으려면 별도 native bridge가 필요하다.
+  에디터의 공개 API/필드를 직접 읽는 자체 코드를 만들었으며 엔진 구현/다른 디코더 코드를 복사하지 않는다.
+- 출처: 캡처는 우리 파서/리더를 import하지 않으며 native FText 원문과 UObject 경로를 반환한다.
+  source text와 package_dirty=false를 요구한다. 해시가 같아도 저장 안 된 메모리 편집은 비교 가능한 저장 상태로 인정하지 않는다.
+  같은 패키지 SHA-256을 캡처/비교 전후에 확인하며 잘못된/미확정 자산도 기록에서 없애지 않는다.
+- 계약: schema1, 명시적 all/graph profile과 제외 범위. GUID는 uint32 워드별 저장 바이트 순서로 변환하고 소유 노드 안에서 식별.
+  타입 category/subcategory만 FName의 대소문자 무관/None 의미를 정규화하며 원문 snapshot은 보존한다.
+  opaque 변수 타입이나 미해석 IR 필드를 빈 타입/기본값으로 만들지 않는다. nonempty graph가 없는 graph 비교는 미확정이다.
+- 정답/검사: 실제5.7.4/5.8.4로 캡처한 고정 UE Shed 패키지와 eg BFL_Util을 tests/editor_oracles에 JSON으로 보존.
+  source commit/패키지 해시와 독립 snapshot은 변경하지 않는다. 리더가 보고하지 않는 메타데이터3/3/11개만 정확한 경계로 별도 고정하며,
+  이것은 그 필드가 검증되었다는 허용 목록이 아니다. 그래프는 일치해야 하고 전체 비교의 가용 값도 불일치가 없어야 한다.
+  새 갭/변경/중복/누락은 실패한다. 엔진 없이 기본 회귀에서 재생하며 바이너리/빌드/큰 전체 캡처 결과는 캐시에만 둔다.
+- 발견/수정: 고정 linker의 Actor→/Script/Engine→/Script/CoreUObject 체인에서 GetFullName이 native 경로를 중복했다.
+  Ctx.full_name이 저장된 절대 package/object 이름에서 경로를 종료하도록 고쳐 실제 pin/object default 경로21개 차이를 제거했다.
+  버전·캐시 fingerprint로 이전 출력의 재사용을 막으며 기존 BP/노드/issue 기대값은 완화하지 않는다.
+- 한계: native loaded state는 저장 바이트와 같지 않을 수 있다. eg52개 전체 캡처는 비교 파이프라인 검증/차이 발견에 사용하며
+  전체 게임플레이 의미 정확도의 완료로 보고하지 않는다. 저장 안 된 상태와 별개인 엔진 로드 보정도 Q14에서 조사한다.
+  변수 타입/일부 선언값은 어댑터 미확정(Q13), CallInEditor=true 실데이터 정답(Q5), CDO/상속 유효값과 런타임 동작은 남는다.
+

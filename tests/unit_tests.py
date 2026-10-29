@@ -17,6 +17,26 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from editor_compare_tests import (test_editor_compare_dirty_display_text_and_profile_exclusions_are_explicit,
+                                 test_editor_compare_duplicate_and_malformed_identity_refused,
+                                 test_editor_compare_hash_binding_and_binary_read_race,
+                                 test_editor_compare_partial_assets_keep_other_results_and_metadata_still_compares,
+                                 test_editor_compare_paths_and_strict_json_cannot_hide_gaps,
+                                 test_editor_compare_provenance_partial_and_empty_inputs_fail_closed,
+                                 test_editor_compare_semantic_mutations_and_loss_are_visible,
+                                 test_editor_compare_unknown_never_becomes_default_or_success,
+                                 test_editor_compare_word_order_owner_scope_and_order_independence,
+                                 test_editor_oracle_absolute_import_paths_are_not_prefixed_twice,
+                                 test_native_replay_rejects_wrong_values_and_new_gaps)
+from editor_export_tests import (test_editor_oracle_captures_requested_assets_in_order_with_pinned_bytes,
+                                test_editor_oracle_pins_nothing_it_cannot_read_but_still_captures_the_asset,
+                                test_editor_oracle_preserves_native_text_source_and_flags_display_text,
+                                test_editor_oracle_records_every_failure_without_dropping_an_asset,
+                                test_editor_oracle_refuses_bad_configuration_before_reading_or_replacing_anything,
+                                test_editor_oracle_reports_package_bytes_that_changed_during_a_capture,
+                                test_editor_oracle_touches_no_editor_mutators_and_shares_no_reader_code,
+                                test_editor_oracle_will_not_read_a_dirty_package_as_the_saved_asset,
+                                test_editor_oracle_write_failure_keeps_the_previous_oracle_and_leaves_no_debris)
 from project_support_tests import (test_project_support_numeric_boundaries_and_patch_strings,
                                    test_project_support_unconfirmed_declarations_and_metadata_errors,
                                    test_project_support_best_effort_requires_real_booleans,

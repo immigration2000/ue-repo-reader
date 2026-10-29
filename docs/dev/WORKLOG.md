@@ -11,6 +11,41 @@
 
 ---
 
+## 2026-10-29 09:00 KST · codex/claude · Q1/Q12 (독립 에디터 정답 수집·대조)
+- 한 일: v1.15.0. Claude가 자체 editor-only RepoReaderOracle C++ 모듈과 Python exporter를 작성하고 Codex가 독립 비교기·회귀를 구현.
+  stock Python에서 Blueprint graph/variable 배열과 graph.nodes를 읽을 수 없음을 실제5.8 probe로 확인해 native 공개 API를 직접 읽음.
+  캡처는 파서를 공유하지 않으며 숨긴 핀/연결·변수·함수 그래프/메타데이터·위젯 바인딩을 보존. FText는 지역화 display 대신 source.
+  파일 SHA-256 전후와 package_dirty=false를 확인해 저장 안 된 메모리 편집을 정답으로 사용하지 않음. 저장/컴파일/dirty 해제 API는 캡처에 없음.
+  비교기는 과거 digest를 재사용하지 않고 새로 읽으며, 명시적 all/graph 범위·모든 미확정/제외·native 수량을 보고. 원자 캡처/기존 보고서 보존 포함(D-027).
+- 실제 분담/검토: Claude 세션3cc862fa-d3ff-48e2-b981-835ae006755f. 첫 시도 API 한도 종료 뒤 같은 세션에서 재개했고
+  Codex가9개 독립 fake-editor 검사·양 엔진 빌드/실행으로 검증. dirty 상태 누락을 지적해 같은 작업자에게 보완 지시.
+  작업자는 Codex 비교기를 읽기 전용으로 교차검토했고, 자산별 최소 관측/한 오류가 다른 자산 결과를 버리는 문제를 보완.
+  잘못된 tooltip과 다른 필드 unknown이 동시에 보고됨을 반례로 입증해 "unknown이면 메타데이터는 비교 안 됨"이라는 검토 가정도 정정·수용.
+  실제 도구는 Read/Glob/Grep/Write/Edit만 관측, 명령/테스트/커밋/통합은 Codex 담당. 작업자7파일을 통합본과 byte 대조함.
+- 발견한 실제 오류: 고정 linker의 native import 경로가 /Script/CoreUObject./Script/Engine.Actor처럼 중복됨.
+  Ctx.full_name이 실제 outer 체인의 절대 이름에서 끝나도록 수정해 native5.8의 pin/default-object 경로21개 차이를 없앰.
+  short-name fallback 유지. 같은 export의 중첩 walk와 진짜 중복 정체성을 구분하고, FName 타입 category 대소문자 차이는 의미대로 정규화.
+  opaque 선언 타입을 빈 map terminal로 만들던 초기 비교 어댑터도 unknown으로 수정. 기존 BP/노드/issue 기대값은 완화하지 않음.
+- 독립 정답: 실제UE5.7.4/5.8.4로 고정 UE Shed9노드/59핀씩과 eg BFL_Util39노드/109핀/연결 관측82개를 캡처.
+  tests/editor_oracles의 JSON3개(합계 약155KB)에 native snapshot·출처commit/패키지 hash·capture code 지문을 보존.
+  기본 회귀에서 에디터 없이 그래프 전체와 all의 가용 값을 대조. 미명시 메타데이터3/3/11개는 정확한 known_reader_gaps로만 고정하며 검증된 값으로 세지 않음.
+  eg 한국어 tooltip "좌측상단 인덱스"와 category 등 가용 메타데이터도 직접 대조. 리더 결과로 native 정답을 만들지 않음.
+- 실제 프로젝트 조사: 원본 eg 고정 캐시를 읽기만 하고 Content 복사본을 별도 호스트에 배치. native AssetRegistry가 찾은
+  /Game Blueprint 파생52개(별도 KeyRepairs 제외)를 전부 수집, 로드/캡처 실패0·dirty0. 기존49개 외 ControlRig3개 포함.
+  전체 graph 대조는40개 일치·5개 차이·7개 미확정(빈 그래프4/ControlRig 어댑터 범위밖3). all은7개 자산 차이·47개 자산 미확정(중복 가능).
+  ErrorTolerance GUID, const/default, category·상태 그래프 소속 차이는 리더 오독이라고 단정하지 않고 Q14에 등록.
+  전체25MB 캡처/비교 결과·빌드/바이너리는 ignore 캐시에만 보존. 구조화 변수 타입 등 어댑터 갭은 Q13, CallInEditor=true 실데이터는 Q5 유지.
+- 검증: 최종 전체 regress 단위121/121 + 기존 독립 외부 에셋6/6 + 새 native oracle3/3 + 고정 프로젝트4/4 PASS.
+  실제5.7/5.8 C++ 빌드·product exporter·graph1251개 관측 일치·같은 파일 바이트로 저장 안 된 변수를 메모리에 추가했을 때 거부 PASS.
+  eg cold/warm/disabled101개 Markdown/JSON byte-identical, warm97 hits/0 misses/오류0; BP교체 시 그 BP만 재해석 PASS.
+  실제 MCP HTTP6도구·재시작/warm/refresh/일반-탐색 캐시 분리 PASS. 두 skill quick_validate·diff --check PASS.
+  초기 UAT BuildPlugin은 설치된 FabToolset rules 오류로 실패했고, 엔진 전역 설정 변경 없이 격리 호스트 플러그인 설정으로 해결.
+  재현용 editor_native_smoke.py는 새 임시 프로젝트에서 필요한 플러그인만 활성화한다.
+- 남은 일·주의: Q1/Q12는 독립 수집/비교 기반 완료이며 모든 레포 의미 정확도의 완료가 아님. 다음 우선순위 Q13/Q14.
+  snapshot은 native loaded state다. 파일이 같아도 엔진 로드 보정이 있을 수 있으며 차이를 없애려 GUID/기본값을 추정하지 않는다.
+  native/graph 및 all의 미확정·제외와 정확한 회귀 경계를 docs/EDITOR_ORACLE.md, GRAPH_IR.md, 두 SKILL과 tests/README에 명시.
+  개인 스킬과 원래 checkout의1.15.0 동기화·설치 경로 검증은 main 반영 직후 확인한다.
+
 ## 2026-10-28 17:35 KST · codex/claude · Q10/Q11 (W0 프로젝트 지원 경계)
 - 한 일: v1.14.0. UE 5.7+ 프로젝트를 목표로 숫자 EngineAssociation 5.7/5.8만 기본 분석 허용.
   scripts/project_support.py에 순수 정책을 분리하고 CLI가 선택 descriptor를 한 번 읽어 출력 교체·에셋 캐시·LFS·디코더 전에 판정.
