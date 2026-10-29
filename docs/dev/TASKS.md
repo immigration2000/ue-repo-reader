@@ -121,6 +121,7 @@ Q1 수집·비교 기반 다음에는 Q13(구조화된 선언/값의 비교 범�
 | Q11 | done | claude | Q10의 순수 정책·출력 보존·best-effort·프로젝트 선택 경계 독립 회귀 검사 작성; Codex가 실행·통합하고 Claude가 구현 교차 검토 | S |
 | Q12 | done | claude | Q1 분담: 에디터 전용 읽기 전용 oracle exporter와 독립 검사; Codex가 실제5.7/5.8 빌드·캡처·저장 안 된 편집 거부를 검증하고 구현 교차검토·통합 | S–M |
 | Q13 | done | codex | native 대조의 구조화된 변수 타입·선언/바인딩 값 비교 갭 보완: raw EdGraphPinType 등을 표시 문자열에서 역추정하지 않고 리더 API로 노출, unknown/저장 여부 유지·native 정답7개 회귀. 실제 비어 있지 않은 바인딩 정답은 Q16 | M |
-| Q14 | todo | - | eg native 대조 차이 원인 구분: 숨긴 ErrorTolerance 핀 GUID·const/default·변수 category·상태 그래프 소속을 재수집하고 저장 바이트/엔진 로드 보정/리더 오독을 분리. 맞추기 위한 GUID 추정·차이 무시 금지 | M |
+| Q14 | doing | codex | eg native 대조 차이 원인 구분: 숨긴 ErrorTolerance 핀 GUID·const/default·변수 category·상태 그래프 소속을 재수집하고 저장 바이트/엔진 로드 보정/리더 오독을 분리. 맞추기 위한 GUID 추정·차이 무시 금지 | M |
 | Q15 | done | claude | Q13 분담: 선언 IR을 native 비교기에 연결하고 변수/함수/바인딩의 부재·중복·오류 반례 검사. Codex가 반례로 재지시·독립 실행·교차검토 후 통합, 전체 회귀 통과 | S–M |
 | Q16 | todo | - | 비어 있지 않은 위젯 바인딩의 UE5.7+ native 독립 정답 확보: function/property binding·누락 Kind·SourcePath 범위를 실제 저장 에셋과 대조(Q13/Q15의 합성 검사와 구분) | S–M |
+| Q17 | doing | claude | Q14 분담: native 반복 캡처의 같은 패키지/dirty 상태·정체성/필드 차이를 독립 검사하는 진단 도구와 반례 검사; 차이를 숨기거나 로드 보정으로 자동 단정하지 않음 | S–M |
