@@ -1,0 +1,21 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Repo Reader Oracle",
+	"Description": "Editor-only, read-only bridge that reports a Blueprint's native editor state as JSON so ue-repo-reader's own binary decoding can be compared against the engine's own truth. Requires Unreal Engine 5.7 or newer. Captures nothing by compiling, saving or modifying assets.",
+	"Category": "Editor",
+	"CreatedBy": "ue-repo-reader",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"EnabledByDefault": true,
+	"Modules": [
+		{
+			"Name": "RepoReaderOracle",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	]
+}
