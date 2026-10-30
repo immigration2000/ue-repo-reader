@@ -34,6 +34,9 @@
   선택적 --no-pch smoke는 실제5.8.4 빌드·1251관측·dirty 거부·원본 해시 보존 PASS. 재수집 호스트0.300GiB/PCH0개.
   첫 재수집은 호스트 AnimationData 누락으로 실패해 증거에서 제외하고 의존 플러그인을 해당 호스트에만 켜 재수집했다.
   두 skill quick_validate·git diff --check PASS. 새 의존성·엔진/후속 파서 구현 복사 없음.
+- 반영/설치: worker18c1ea5와 본체4a13b3e를 main에 push하고 원래 checkout·실제 설치 경로를1.17.0으로 동기화.
+  다른 cwd에서 설치본 모듈 경로/버전, native 정답8개와 eg8+17+2/ar6개 원본 증거 재생을 다시 통과(exit0).
+  Q17 job accepted 기록·worker worktree의 복구 가능한 archive 완료. 이 항목을 추가하는 문서 커밋도 세 checkout에 동기화한다.
 - 남은 일·주의: FText 컬렉션은 종전 경로로 빈 원문을 놓칠 수 있어 Q18을 다음 우선순위로 등록. Q16 실제 비어 있지 않은 위젯 바인딩,
   Q5 CallInEditor=true 정답도 남는다. 자세한 근거는 Q14-LOADED-STATE-2026-10-30.md와 tests/editor_evidence/.
 
