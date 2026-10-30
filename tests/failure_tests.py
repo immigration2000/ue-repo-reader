@@ -47,7 +47,7 @@ def _reader_setup(stack):
     stack.enter_context(patch.object(B, "newer_format_note", return_value=""))
 
 
-def _map(root, broken=False, partial=False):
+def _map(root, broken=False, partial=False, unlisted=None):
     path = root / "Test.umap"
     path.write_bytes(b"")
 
@@ -75,12 +75,22 @@ def _map(root, broken=False, partial=False):
 
     summary = {"nodes_ok": 1 if partial else 0, "nodes_total": 2 if partial else 0,
                "entries": [], "issues": [], "parse_status": "partial" if partial else "ok"}
+    if unlisted is not None:
+        summary["unlisted_graph_nodes"] = unlisted
     with ExitStack() as stack:
         _reader_setup(stack)
         stack.enter_context(patch.object(M, "PackageActors", Package))
         stack.enter_context(patch.object(B, "read_blueprint", side_effect=ValueError("Level BP failure") if broken else None,
                                          return_value={"summary": summary, "markdown": "## Graphs\n(no graphs)"}))
         return M.read_map(str(path), "/Game/Test", ["Bad.uasset", "Skipped.uasset"] if broken else [], max_external=1)
+
+
+def test_map_preserves_unlisted_level_script_exports_separately():
+    with _scratch() as tmp:
+        detail = {"schema_version": 1, "nodes_total": 1, "graphs": [{"nodes": [{"export_index": 17}]}]}
+        summary = _map(Path(tmp), unlisted=detail)["summary"]
+        assert summary["level_bp_unlisted_graph_nodes"] == detail
+        assert summary["level_bp_nodes"] == (0, 0) and summary["level_bp_status"] == "ok"
 
 
 def test_partial_map_reporting():

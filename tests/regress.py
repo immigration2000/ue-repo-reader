@@ -289,8 +289,17 @@ def main() -> int:
                 print(f"PASS native eg BFL_Util: {graph['checked']} graph observations; {len(full['unavailable'])} exact declared gaps")
                 for case, graph, full in check_eg_declarations(Path(local[name]) if name in local else CACHE / name, fx["sha"]):
                     print(f"PASS native eg {case}: {graph['checked']} graph observations; {len(full['unavailable'])} exact declared gaps")
+                from editor_state_evidence import check_eg_loaded_state
+                print(f"PASS eg loaded-state evidence: {check_eg_loaded_state(Path(local[name]) if name in local else CACHE / name, fx['sha'])}")
             except Exception as error:
                 errors.append(f"native editor oracle: {type(error).__name__}: {error}")
+        if name == "ar":
+            from editor_state_evidence import check_ar_saved_membership
+            try:
+                count = check_ar_saved_membership(Path(local[name]) if name in local else CACHE / name, fx["sha"])
+                print(f"PASS ar saved Nodes evidence: {count} members; unlisted export preserved separately")
+            except Exception as error:
+                errors.append(f"saved graph membership evidence: {type(error).__name__}: {error}")
         print(f"{'PASS' if not errors else 'FAIL'}  {name} ({info}) — digest: {out}")
         for e in errors:
             print(f"      - {e}")

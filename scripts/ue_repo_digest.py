@@ -34,7 +34,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from project_support import assess_project, declaration_text, parse_descriptor, support_notice
 
-VERSION = "1.16.0"
+VERSION = "1.17.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -935,6 +935,9 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "  complete means projection coverage, not verified gameplay semantics. Node properties/CDOs are outside this IR.",
            "  `blueprints[path].declaration_ir` contains saved variable types/flags/authored defaults, parent/function references",
            "  and widget bindings. Check saved_fields, status and unknown reasons; absent tags do not establish defaults.",
+           "  graph_ir.saved_membership records checks against bounded saved Nodes arrays. Confirmed unlisted exports are",
+           "  retained in blueprints[path].unlisted_graph_nodes / maps_detail[path].level_bp_unlisted_graph_nodes,",
+           "  outside graph rendering and graph-node coverage. A conflicting saved EntryNode is reported; runtime entry is not inferred.",
            "- `INDEX.md` is a bounded reading map; this full catalog preserves every listed asset and warning.",
            "  Asset context headers link nearby documents ranked by static references/name mentions, not runtime behavior.",
            "- This is a static read of saved assets: it cannot show runtime values, and names are the internal",

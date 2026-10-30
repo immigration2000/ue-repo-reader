@@ -407,6 +407,7 @@ def read_map(path: str, game_path: str, external_actor_files: list[str] | None =
                "level_bp_status": "error" if lb_summary is None else lb_summary.get("parse_status", "ok"),
                "level_bp_entries": (lb_summary or {}).get("entries", []),
                "level_bp_graph_ir": (lb_summary or {}).get("graph_ir"),
+               "level_bp_unlisted_graph_nodes": (lb_summary or {}).get("unlisted_graph_nodes"),
                "level_bp_nodes": (lb_summary.get("nodes_ok", 0), lb_summary.get("nodes_total", 0)) if lb_summary is not None else None}
     return {"markdown": B.clean_member_names("\n".join(md) + "\n"), "summary": summary}
 

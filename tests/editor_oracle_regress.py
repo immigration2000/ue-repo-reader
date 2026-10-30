@@ -68,7 +68,7 @@ def check_git_blob(project, commit, package, expected):
 def check_eg_declarations(project, commit):
     """Native scalar/object/text, struct array and map-value declarations, not reader-made expectations."""
     results = []
-    for name in ("bpc-inventorysystem", "pda-stash", "wbp-keybtn", "wbp-playerinventory"):
+    for name in ("bpc-inventorysystem", "pda-stash", "wbp-keybtn", "wbp-playerinventory", "bp-knife"):
         capture = ROOT / "tests/editor_oracles" / ("eg-" + name + ".json")
         oracle = C.load_json(capture.read_text(encoding="utf-8"))
         assert oracle["engine_version"].startswith("5.8.")

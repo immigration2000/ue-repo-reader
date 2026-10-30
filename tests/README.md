@@ -11,7 +11,7 @@ Python 3.10+와 Git이 필요하다. `python`이 WindowsApps 스텁이면 설치
 Windows smoke는 이미 있는 Python/Git/git-lfs를 사용하며 소프트웨어를 설치하지 않는다.
 생성 결과·외부 바이너리·클론·실행 로그는 모두 gitignore된 `tests/.cache/`에 둔다.
 
-Q1/Q12 독립 에디터 정답: `editor_oracles/`에는 실제 UE 5.7.4/5.8.4가 캡처한 JSON 7개를 둔다(UE Shed 2개와 eg 5개).
+Q1/Q12/Q14 독립 에디터 정답: `editor_oracles/`에는 실제 UE 5.7.4/5.8.4가 캡처한 JSON 8개를 둔다(UE Shed 2개와 eg 6개).
 외부 바이너리와 빌드 결과는 포함하지 않는다. 두 UE Shed 고정 패키지와 eg의 BFL_Util(39노드/109핀/저장 연결 관측82개)을
 새 바이너리 읽기와 대조한다. 기본 regress에서 에디터 없이 이 정답을 재생한다. 동일 파일 SHA-256·출처 commit도 확인한다.
 기존 3개 전체 비교의 미확정은 4/4/12개(함수 메타데이터 3/3/11 + 부재 NewVariables 각각 1)로 정확히 고정한다.
@@ -157,3 +157,14 @@ Q13/Q15는 저장 선언 API의 잘림/잘못된 이름·참조·불리언/중�
 새 eg native 정답은 기존 Q1 52개 독립 캡처에서 변형 없이 선택하며 소스 commit/패키지 SHA-256을 유지한다.
 기존 정답의 `known_reader_gaps` 변경은 저장 태그 부재를 빈 선언으로 간주하던 비교 경계를 정정한 것이며,
 관측된 native snapshot 자체와 BP/노드/issue 기대값을 바꾸지 않는다.
+
+Q14/Q17은 실제 UE5.8.4의 같은 프로세스/새 프로세스 반복 캡처와 원본 바이트를 구분한다.
+`editor_evidence/`와 `editor_state_evidence.py`는 카테고리8개·숨긴 핀17개·저장 const/default 차이2개,
+eg/ar의 저장 Nodes 배열과 목록 밖 export 보존, 비정규 narrow FString 반례를 소스 해시와 함께 재검증한다.
+새 BP_Knife 정답은6139개 graph 관측과 정확한17개 미확정 경계를 고정한다.
+그래프 멤버십 수정으로 eg1779→1778, ar1271→1270이며 BP 수·기존 issue 기준은 유지한다.
+UE4 저장 패키지는 새 멤버십 검증 범위 밖으로 두어 bt의 기존26/98·정확한90개 issue를 유지한다.
+합성 검사는 태그 경계/중복·명시적 빈 배열·미해결 참조·I/O 실패·EntryNode 충돌·영역 간 원시 연결 보존과,
+scalar FText의 UTF16/ASCII·잘림/잘못된 길이·실패 sentinel과 실제 authored 문자열의 구분을 다룬다.
+`native_repeat_tests.py`는 비교에 필요한 출처/해시/dirty 상태·집합·불완전 우선순위와 CLI의 덮어쓰기 거부를 검사한다.
+반복 비교는 실제 엔진의 ID 변화를 기록하며 이름으로 GUID를 재매칭하지 않는다. FText 컬렉션은 후속Q18이다.

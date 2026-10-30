@@ -50,3 +50,9 @@ Serialization facts were checked in installed UE5.7/5.8 `EdGraphPin.cpp`,
 `EdGraphNode.cpp`, and their headers. The implementation is independently written;
 no engine implementation or newer `uasset_read` code was copied. Public API:
 [FEdGraphTerminalType](https://dev.epicgames.com/documentation/unreal-engine/API/Runtime/Engine/FEdGraphTerminalType).
+
+Scalar tagged culture-invariant FText with Editor custom version >=32 now preserves its actual source
+(History=None, optional string). Narrow canonical ASCII and UTF16 strings are checked against the complete
+property payload; malformed/unsupported text becomes an explicit unknown, not a saved placeholder string.
+A plain authored string that resembles an unreadable marker remains a literal. Collection FText still
+uses the earlier path and is a known separate accuracy gap (Q18); blank text there is not confirmed absence.

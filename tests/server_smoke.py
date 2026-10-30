@@ -103,7 +103,7 @@ def main():
                             return text
 
                         text = await asyncio.wait_for(wait_done(text), timeout=90)
-                        assert "status: done" in text and "1779/1779" in text, text[:3000]
+                        assert "status: done" in text and "1778/1778" in text, text[:3000]
                         return re.search(r"digest_id: ([\w.-]+)", text).group(1)
 
                     digest_id = await analyze()
@@ -165,7 +165,7 @@ def main():
                 finally:
                     proc.terminate()
                     proc.wait(timeout=10)
-        print("PASS MCP HTTP: 6 tools, eg 49 BP / 1779 nodes, response limits, warm/restart/refresh and strict/opt-in cache separation")
+        print("PASS MCP HTTP: 6 tools, eg 49 BP / 1778 nodes, response limits, warm/restart/refresh and strict/opt-in cache separation")
 
 
 if __name__ == "__main__":

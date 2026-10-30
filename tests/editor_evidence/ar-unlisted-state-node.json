@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "repository": "tomlooman/ActionRoguelike",
+  "commit": "31bd38491d9dcec99460d85f3084c79441c5ce8b",
+  "package_file": "Content/ControlRig/Characters/Mannequins/Animations/Gideon/GideonManny_AnimBlueprint.uasset",
+  "sha256": "4323e672bf48bf84e8ed3892ba548ca1e29d004346fe825268b88cbf08a94fbf",
+  "git_blob": "503a21de761d7edb9fb94c3e79ecb2eecdefc2ec",
+  "evidence_basis": "saved package bytes only; no native editor capture asserted for this AR asset",
+  "membership": {
+    "graph": "/Game/ControlRig/Characters/Mannequins/Animations/Gideon/GideonManny_AnimBlueprint.GideonManny_AnimBlueprint.AnimGraph.AnimGraphNode_StateMachine_0.Locomotion.AnimStateNode_7.Jumps.AnimGraphNode_StateMachine_88.Jumps",
+    "status": "confirmed",
+    "saved_node_exports": [
+      154,
+      163,
+      164,
+      169,
+      162,
+      168
+    ],
+    "unlisted_node_exports": [
+      155
+    ],
+    "owner_export": 14,
+    "saved_nodes_tag": {
+      "offset": 300949,
+      "raw_hex": "060000009a000000a3000000a4000000a9000000a2000000a8000000"
+    },
+    "unlisted_object_paths": [
+      "/Game/ControlRig/Characters/Mannequins/Animations/Gideon/GideonManny_AnimBlueprint.GideonManny_AnimBlueprint.AnimGraph.AnimGraphNode_StateMachine_0.Locomotion.AnimStateNode_7.Jumps.AnimGraphNode_StateMachine_88.Jumps.AnimStateEntryNode_2"
+    ]
+  }
+}

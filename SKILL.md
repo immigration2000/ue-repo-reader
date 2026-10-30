@@ -116,6 +116,10 @@ name to find its Blueprint implementation.
 
 The saved declaration projection is `digest.json` → `blueprints[path].declaration_ir` (schema 1). Use it for structured variable types/flags/authored defaults, parent and function graph references, and widget bindings. Check `saved_fields`, `status` and unknown reasons: absent tags, non-map terminal types and unsupported older saved layouts remain unknown; CDO, inherited/runtime defaults and map Level Blueprint declarations are outside this projection. Display text is not a substitute for these fields.
 
+Graph membership: check `graph_ir.saved_membership` and `membership_basis`. For UE5-saved packages, a fully validated saved `Nodes` array overrides Outer-based grouping; confirmed unlisted exports are kept separately in `blueprints[path].unlisted_graph_nodes` / `maps_detail[path].level_bp_unlisted_graph_nodes` and excluded from graph rendering and graph-node coverage. Unknown membership keeps the decoded view with a reason; UE4-saved packages retain their legacy view without new membership validation. A saved `EntryNode` pointing outside the array is reported; rendered listed-node links do not establish runtime entry.
+
+Scalar tagged culture-invariant `FText` source strings are decoded from their bounded payload. Unreadable text is unknown, and noncanonical narrow encodings are not assigned a guessed codepage. Text inside arrays/maps/sets still uses the earlier collection path: a blank collection text is not verified absence (follow-up Q18).
+
 ## 3. Be honest about coverage
 
 State the limits that apply, briefly:

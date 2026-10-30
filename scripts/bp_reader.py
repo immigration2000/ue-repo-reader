@@ -23,6 +23,7 @@ from pathlib import Path
 from enum_values import EnumScalar
 from graph_ir import build_graph_ir
 from declaration_ir import build_declaration_ir
+from graph_membership import reconcile_graph_membership, read_saved_node_array
 
 UASSET_READ_REPO = "https://github.com/soatori/uasset_read.git"
 UASSET_READ_COMMIT = "b10a83a592e43156d17b9cdc0948790b1ab486f9"  # v0.5.4.44, MIT (v0.5.4.45 only removed the LICENSE file)
@@ -437,6 +438,15 @@ def _parse(path: str):
     finally:
         _FIELDS.update(source_index=True, single_precision=True, uobject_wrapper=True, terminal_wrapper=True)
         _TEXT["override"] = None
+    if getattr(best, "graphs", None):
+        membership_ctx, membership_cache = Ctx(best), {}
+        def saved_nodes(owner):
+            if id(owner) not in membership_cache:
+                membership_cache[id(owner)] = read_saved_node_array(path, best, membership_ctx, owner)
+            return membership_cache[id(owner)]
+        best._unlisted_graph_nodes, best._graph_membership = reconcile_graph_membership(best.graphs, membership_ctx, saved_nodes)
+        best._membership_issues = list(membership_ctx.issues)
+        best_score = _pin_score(best)
     return best, best_score
 
 
@@ -1647,6 +1657,7 @@ def _function_metadata(ctx: Ctx, node, path: str, result, context: str) -> dict:
     index = getattr(node, "_export_index", None)
     if not index:
         return {}
+    import data_reader as D
     props = ctx.props(index)
     if "MetaData" not in props:
         return {}
@@ -1679,7 +1690,7 @@ def _function_metadata(ctx: Ctx, node, path: str, result, context: str) -> dict:
             if type(value) is bool or type(value) is int and value in (0, 1):
                 info[target] = bool(value)
                 continue
-        else:
+        elif not isinstance(value, D.UnreadableValue):
             text = value if isinstance(value, str) else getattr(value, "source_string", None)
             if isinstance(text, str):
                 info[target] = text
@@ -1741,8 +1752,11 @@ def _variable_metadata(path: str, result, ctx: Ctx, asset_name: str) -> dict:
         return {}
 
 
-def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
+def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None, declarations=None):
     var_meta = var_meta or {}
+    declared = (declarations or {}).get("variables")
+    categories = ({v["name"]: v["category"] for v in declared}
+                  if isinstance(declared, list) else {})
     rows, names, tips, unknown_type = [], set(), {}, False
     for v in bp_props.get("NewVariables") or []:
         f = _fields(v)
@@ -1780,6 +1794,8 @@ def _variables(ctx: Ctx, bp_props, cdo_props, var_meta=None):
             tips[name] = tip
         cat = f.get("Category")
         cat_s = getattr(cat, "source_string", None) if cat is not None else None
+        if name in categories:
+            cat_s = categories[name] if isinstance(categories[name], str) else "?"
         default = cdo_props.get(name)
         dflt = fmt_value(default) if default is not None else (f.get("DefaultValue") or "")
         rows.append((name, f"| {name} | {tstr} | {cat_s or ''} | {' '.join(tags)} | {str(dflt).replace('|', '/')} |"))
@@ -2053,6 +2069,7 @@ def read_blueprint(path: str, game_path: str) -> dict:
     devnotes, devnote_errors = _TEXT.get("devnotes", 0), _TEXT.get("devnote_errors", 0)
     newer = newer_format_note(path)
     ctx = Ctx(result)
+    ctx.issues.extend(getattr(result, "_membership_issues", []))
     asset_name = Path(path).stem
     bp_obj, bp_cls = _find_blueprint_object(ctx, asset_name)
     bp_props = ctx.props(bp_obj) if bp_obj is not None else {}
@@ -2132,6 +2149,9 @@ def read_blueprint(path: str, game_path: str) -> dict:
 
     ordered = sorted(order, key=sort_key)
     graph_ir = build_graph_ir(((key, graphs[key]) for key in ordered), ctx, game_path, ok_nodes, total_nodes)
+    graph_ir["saved_membership"] = getattr(result, "_graph_membership", [])
+    graph_ir["membership_basis"] = "bounded saved Nodes arrays where confirmed; unknown retains decoded view; confirmed unlisted exports are separate"
+    graph_ir["coverage_basis"] = graph_ir.get("coverage_basis", "decoder-exposed pins; source coverage not established") + "; graph-node coverage excludes confirmed unlisted exports"
     ctx.issues.extend({"stage": "graph_ir", **issue} for issue in graph_ir["issues"])
 
     md = [f"# {asset_name}", "",
@@ -2168,7 +2188,8 @@ def read_blueprint(path: str, game_path: str) -> dict:
                 bp_props["NewVariables"] = nv2
         except Exception as e:
             record_issue(ctx.issues, "variable_declarations", asset_name, e)
-    var_table, var_names = _variables(ctx, bp_props, cdo_props, _variable_metadata(path, result, ctx, asset_name))
+    declaration_ir = build_declaration_ir(path, result, ctx, bp_obj, bp_cls)
+    var_table, var_names = _variables(ctx, bp_props, cdo_props, _variable_metadata(path, result, ctx, asset_name), declaration_ir)
     if not var_table:
         inferred = {}
         for gr in renderers.values():
@@ -2190,8 +2211,15 @@ def read_blueprint(path: str, game_path: str) -> dict:
                "nodes_ok": ok_nodes, "nodes_total": total_nodes, "saved_with": saved, "newer_format": newer,
                "entries": [], "calls": set(), "graphs": [], "functions": [], "dispatchers": [],
                "function_metadata": [], "graph_ir": graph_ir,
-               "declaration_ir": build_declaration_ir(path, result, ctx, bp_obj, bp_cls), "issues": ctx.issues,
+               "declaration_ir": declaration_ir, "issues": ctx.issues,
                "gameplay_tags": sorted(collect_gameplay_tags(list(cdo_props.values())))}
+    unlisted = getattr(result, "_unlisted_graph_nodes", [])
+    if unlisted:
+        unlisted_nodes = [n for _, g in unlisted for n in g.nodes if n.class_name != "EdGraphNode_Comment"]
+        summary["unlisted_graph_nodes"] = build_graph_ir(unlisted, ctx, game_path,
+                                                        sum(bool(n.pins) for n in unlisted_nodes), len(unlisted_nodes))
+        summary["unlisted_graph_nodes"]["scope"] = "decoded node exports not listed in the owning graph's saved Nodes array; not graph members"
+        summary["unlisted_graph_nodes"]["membership_basis"] = "confirmed absent from owning saved Nodes array; retained raw exports, not active graph members"
 
     dispatchers = []
     body = []
@@ -2268,6 +2296,21 @@ def read_blueprint(path: str, game_path: str) -> dict:
            "Absent tags and non-map terminal types remain unknown; older saved layouts may be unsupported. "
            "Effective CDO/inherited defaults and runtime values are outside this projection."]
     md += issue_markdown(ctx.issues)
+    unconfirmed_membership = sum(note.get("status") == "unknown" for note in graph_ir["saved_membership"])
+    if unconfirmed_membership:
+        md += ["", f"Saved graph membership is unconfirmed for {unconfirmed_membership} decoded view(s); "
+               "the existing decoded view is retained. See `graph_ir.saved_membership` for each reason."]
+    if any(note.get("entry_node_listed") is False for note in graph_ir["saved_membership"]):
+        md += ["", "A saved EntryNode property references an export outside the saved Nodes array. "
+               "Rendered entries follow listed-node pin links; they do not establish the runtime entry. "
+               "Both references are retained in `graph_ir.saved_membership` / `unlisted_graph_nodes`."]
+    if any(isinstance(note.get("entry_node_listed"), dict) for note in graph_ir["saved_membership"]):
+        md += ["", "A saved EntryNode reference is unknown; no runtime entry is established. See `graph_ir.saved_membership`."]
+    if unlisted:
+        md += ["", "## Unlisted node exports", "",
+               f"{len(unlisted_nodes)} decoded non-comment node export(s) are not listed in the owning graph's saved Nodes array. "
+               "They are excluded from graph rendering/graph-node coverage and retained separately in "
+               "`digest.json` → `blueprints[path].unlisted_graph_nodes`; no runtime membership is inferred."]
     summary["parse_status"] = "partial" if ctx.issues or ok_nodes < total_nodes else "ok"
     summary["calls"] = sorted(summary["calls"])
     markdown = "\n".join(line if isinstance(line, _FunctionMetadataComment) else clean_member_names(line) for line in md) + "\n"

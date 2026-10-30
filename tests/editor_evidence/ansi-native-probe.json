@@ -1,0 +1,14 @@
+{
+  "scope": "disposable copy, one category payload byte changed; original fixture/repo untouched",
+  "engine_version": "5.8.4-58902052+++UE5+Release-5.8",
+  "raw_hex": "02000000ff010000000f000000e96e6e657246756e6374696f6e7300",
+  "native_source": "￩nnerFunctions",
+  "package_dirty": false,
+  "copy_sha256": "86d91c91cbb24f5dc5a23e583fb2148d9cee6b665ec5e6d3ed1ca48d00801695",
+  "asset_path": "/Game/Knife_FPS_Animations/FPWeapon/Blueprints/BP_Knife",
+  "package_file": "Content/Knife_FPS_Animations/FPWeapon/Blueprints/BP_Knife.uasset",
+  "original_sha256": "7d76147c920a8649fe9ff34e5550f784642bfaf46a9aa93d4e4814c7f1e2c774",
+  "changed_byte_offset": 124399,
+  "copy_sha256_after": "86d91c91cbb24f5dc5a23e583fb2148d9cee6b665ec5e6d3ed1ca48d00801695",
+  "expected_decoder_behavior": "unknown: noncanonical narrow-string byte is not assigned an inferred codepage"
+}

@@ -11,6 +11,32 @@
 
 ---
 
+## 2026-10-30 09:28 KST · codex/claude · Q14/Q17 (저장값·에디터 로드 차이 조사)
+- 한 일: v1.17.0. 실제 리더 오류2종 수정: Editor custom version>=32의 scalar tagged FText History=None 원문을
+  bounded ASCII/UTF16로 읽어 eg 카테고리8개 복구. 실패 sentinel과 실제 authored 문자열을 선언/함수 메타데이터에서 구분.
+  UE5 저장 그래프의 top-level Nodes 태그/소유 export/타입/바이트 개수를 검증해 목록 밖 export를 별도 전체 핀 IR로 보존.
+  saved_membership/membership_basis·별도 EntryNode 충돌/unknown·맵 전달·Markdown/INDEX/두 SKILL을 함께 갱신(D-029).
+  eg ABP_Hands39개 밖109, ar GideonManny6개 밖155가 집계에서 빠져 eg1779→1778, ar1271→1270. BP 수·실패 기준은 유지.
+  ar은 원본 바이트 증거이며 native 캡처를 주장하지 않는다. UE4 저장 패키지는 범위 밖 unknown과 기존 view로 두어 bt26/98·정확한90개 issue 유지.
+- 독립 관측: 원본 eg를 임시 호스트에 복사해 UE5.8.4 두 프로세스에서 각각2회 수집(두 번째는 반대 로드 순서).
+  각7개 에셋 issues0/dirty=false/원본·전후 해시 동일. 프로세스 안73318개 관측 동일, 프로세스 사이72961개 가용 관측·숨긴 핀17개 GUID 차이34개.
+  저장 const=false/native=true와 저장 default='0'/native=''2개도 그대로 보존. 전체52개 비교는125128개 관측·차이7→5개 에셋/45→36항목.
+  남은36개를 숨기지 않으며52개 모두 미확정도 남는다. 엔진 보정 호출 경로·런타임 동등성·전체 의미 정확도는 단정하지 않는다.
+  별도 복사본의 narrow0xe9를 엔진이 U+FFE9로 읽는 반례도 확인해 Latin-1/코드페이지 추측을 거부. 원본은 변경하지 않았다.
+- 실제 Claude 분담/검토: 세션0ebdb2e0-1604-4ec0-9898-ead0b27fd3f2·Q17-9d2ecd10. 허용2파일에 반복 캡처 진단과 반례9개 작성.
+  Codex가 incomplete 우선순위를 재지시하고 직접 테스트·diff 검토 후 worker9e955f9를18c1ea5로 통합. 도구는 파일 읽기/편집만 사용.
+  Claude의 읽기 전용 교차 검토에서 함수 sentinel·소스 헤더 깊이/중복·I/O 실패·EntryNode unknown·IR 근거·영역 간 원시 연결 검사를 보완.
+  마지막 검토는 새 차단 문제 없음. 진단 도구의 입력 거부(exit2)와 incomplete(exit1)를 혼동한 문서도 정정했다.
+- 검증: 최종 전체 regress 단위154/154·외부 에셋6/6·native 정답8/8·고정 프로젝트4/4 PASS(exit0).
+  동시 smoke 중 기존 프로세스 종료 fixture가1.2초 안에 시작하지 못한1회 실패는 검사/제품 변경 없이 단독 전체 재실행으로 통과.
+  새 BP_Knife6139개 graph 관측·정확한17개 갭, eg 바이트/관측8+17+2개·ar 배열6개 재생 PASS. 기존 native snapshot은 변경하지 않았다.
+  캐시 cold/warm/disabled 출력101개 byte-identical·warm97hits/0miss, 실제 MCP HTTP6도구·warm/restart/refresh·일반/탐색 분리 PASS.
+  선택적 --no-pch smoke는 실제5.8.4 빌드·1251관측·dirty 거부·원본 해시 보존 PASS. 재수집 호스트0.300GiB/PCH0개.
+  첫 재수집은 호스트 AnimationData 누락으로 실패해 증거에서 제외하고 의존 플러그인을 해당 호스트에만 켜 재수집했다.
+  두 skill quick_validate·git diff --check PASS. 새 의존성·엔진/후속 파서 구현 복사 없음.
+- 남은 일·주의: FText 컬렉션은 종전 경로로 빈 원문을 놓칠 수 있어 Q18을 다음 우선순위로 등록. Q16 실제 비어 있지 않은 위젯 바인딩,
+  Q5 CallInEditor=true 정답도 남는다. 자세한 근거는 Q14-LOADED-STATE-2026-10-30.md와 tests/editor_evidence/.
+
 ## 2026-10-29 16:51 KST · codex/claude · Q13/Q15 (저장 선언 API·native 비교 확장)
 - 한 일: v1.16.0. Codex가 scripts/declaration_ir.py schema1을 만들고 BP summary/digest의 declaration_ir로 노출.
   변수 raw EdGraphPinType·참조/const/weak/container/Map 값 타입, uint64 flags·FText source category·선언 default를 직접 보존.

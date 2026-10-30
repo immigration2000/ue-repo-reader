@@ -17,6 +17,24 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from native_repeat_tests import (test_native_repeats_identical_clean_capture_is_stable_under_reordering,
+                                 test_native_repeats_scalar_guid_and_hidden_changes_are_retained,
+                                 test_native_repeats_package_hash_engine_and_project_drift_fail_closed,
+                                 test_native_repeats_dirty_and_failed_captures_are_never_stable,
+                                 test_native_repeats_asset_membership_gaps_and_duplicates_refused,
+                                 test_native_repeats_one_bad_record_keeps_other_asset_results,
+                                 test_native_repeats_any_gap_outranks_a_proven_mismatch,
+                                 test_native_repeats_empty_and_malformed_input_refused,
+                                 test_native_repeats_cli_preserves_existing_outputs_and_reports_exit_codes)
+from graph_membership_tests import (test_graph_membership_uses_explicit_nodes_and_preserves_unlisted_pin_objects,
+                                    test_graph_membership_never_drops_unknown_missing_or_ambiguous_saved_members,
+                                    test_graph_membership_keeps_cross_boundary_links_unresolved_with_raw_identity,
+                                    test_graph_membership_source_tag_is_top_level_and_entry_unknown_is_preserved,
+                                    test_graph_membership_explicit_empty_is_distinct_and_duplicate_views_count_once)
+from invariant_text_tests import (test_invariant_text_preserves_ansi_utf16_empty_and_exact_source,
+                                  test_invariant_text_refuses_truncation_invalid_lengths_flags_and_boundaries,
+                                  test_invariant_text_uses_saved_editor_gate_and_reaches_tagged_stream_errors,
+                                  test_invariant_category_display_uses_saved_declaration_and_unknown_is_visible)
 from declaration_compare_tests import (test_declaration_compare_consumes_the_public_api_without_reparsing,
                                         test_declaration_compare_missing_is_never_empty_or_default,
                                         test_declaration_compare_duplicate_or_malformed_identity_is_not_a_partial_list,
@@ -74,6 +92,7 @@ from graph_ir_tests import (test_graph_ir_full_pin_literals_and_type_fields,
                             test_graph_ir_object_defaults_and_unknown_reference_fields_are_not_lost,
                             test_graph_ir_partial_decode_and_structural_pin_references)
 from failure_tests import (test_partial_map_reporting, test_empty_and_partial_level_blueprints,
+                          test_map_preserves_unlisted_level_script_exports_separately,
                           test_graph_render_failure_reporting, test_property_failure_reporting,
                           test_data_failure_defaults_unknown, test_regress_checks_non_blueprint_failures,
                           test_native_struct_not_probed_as_tags)

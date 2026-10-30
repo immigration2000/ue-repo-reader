@@ -30,6 +30,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--engine", type=Path, required=True, help="installed UE_5.7 or UE_5.8 folder")
     parser.add_argument("--workdir", type=Path, help="new output directory; must not exist")
+    parser.add_argument("--no-pch", action="store_true", help="avoid large generated PCH caches in the disposable host build")
     args = parser.parse_args(argv)
     engine = args.engine.resolve() / "Engine"
     version = json.loads((engine / "Build/Build.version").read_text(encoding="utf-8"))
@@ -56,9 +57,14 @@ def main(argv=None):
     plugin = base / "Plugins/RepoReaderOracle"
     source = ROOT / "tools/RepoReaderOracle"
     shutil.copytree(source, plugin, ignore=shutil.ignore_patterns("Binaries", "Intermediate"))
+    if args.no_pch:
+        rules = plugin / "Source/RepoReaderOracle/RepoReaderOracle.Build.cs"
+        rules.write_text(rules.read_text(encoding="utf-8").replace("PCHUsageMode.UseExplicitOrSharedPCHs", "PCHUsageMode.NoPCHs"), encoding="utf-8")
     build = [str(binaries[0]), str(engine / "Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll"),
              "UnrealEditor", "Win64", "Development", "-Project=" + str(project),
              "-plugin=" + str(plugin / "RepoReaderOracle.uplugin"), "-NoHotReload", "-NoUBTMakefiles", "-NoUBA", "-MaxParallelActions=2"]
+    if args.no_pch:
+        build += ["-NoPCH", "-NoSharedPCH"]
     run(build, base / "build.log", 900)
     import asset_regress as A
     manifest = json.loads(A.MANIFEST.read_text(encoding="utf-8"))

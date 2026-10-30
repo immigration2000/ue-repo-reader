@@ -141,6 +141,11 @@ def test_declaration_malformed_and_duplicate_records_preserve_unknown_and_stream
     fields = {"VarName": "A", "PropertyFlags": True}
     value = build({"NewVariables": [{"fields": fields}]})
     assert value["variables"][0]["flags"]["status"] == "unknown"
+    damaged = D.UnreadableValue("TextProperty", ValueError("broken invariant text"))
+    value = build({"NewVariables": [{"fields": {"VarName": "A", "Category": damaged}}]})
+    assert value["variables"][0]["category"]["status"] == "unknown"
+    literal = build({"NewVariables": [{"fields": {"VarName": "A", "Category": str(damaged)}}]})
+    assert literal["variables"][0]["category"] == str(damaged), "authored marker-like text was mistaken for failure"
 
 
 def test_declaration_reader_keeps_indices_and_rejects_duplicate_nested_fields():

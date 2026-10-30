@@ -25,6 +25,50 @@ NATIVE_BINARY_STRUCTS = {  # structs serialized as raw binary, not as tagged pro
     "RichCurveKey", "SimpleCurveKey", "NavAgentSelector", "FrameRate", "UniqueNetIdRepl", "Sphere",
 }
 _GUID_SUFFIX = re.compile(r"_\d+_[0-9A-F]{32}$")
+_EDITOR_VERSION_GUID = "ed68b0e4e94294f40bda31a241bb462e"
+
+
+class UnreadableValue(str):
+    """Display-compatible failure marker distinguishable from authored literal text."""
+    def __new__(cls, property_type, error):
+        instance = super().__new__(cls, f"<unreadable {property_type}: {type(error).__name__}>")
+        instance.reason = f"{type(error).__name__}: {error}"
+        return instance
+
+
+def invariant_text_source(raw: bytes) -> str:
+    """Bounded History=None payload in modern FText (Editor custom version >=32).
+
+    Serialization facts: UE5.7/5.8 Text.cpp, CultureInvariantTextSerializationKeyStability.
+    No localized display fallback and no upstream/engine implementation copied.
+    """
+    if len(raw) < 9 or raw[4] != 255:
+        raise ValueError("truncated or non-None FText payload")
+    present = _struct.unpack_from("<i", raw, 5)[0]
+    if present not in (0, 1):
+        raise ValueError("invalid culture-invariant FText presence boolean")
+    if not present:
+        if len(raw) != 9:
+            raise ValueError("trailing bytes after empty FText")
+        return ""
+    if len(raw) < 13:
+        raise ValueError("truncated culture-invariant FString length")
+    length = _struct.unpack_from("<i", raw, 9)[0]
+    size = abs(length) * (2 if length < 0 else 1)
+    if len(raw) != 13 + size:
+        raise ValueError("culture-invariant FString exceeds its property or has trailing bytes")
+    if length == 0:
+        return ""
+    width = 2 if length < 0 else 1
+    payload = raw[13:]
+    if payload[-width:] != bytes(width):
+        raise ValueError("culture-invariant FString is not null terminated")
+    # UE writes this narrow form only for pure ASCII. Noncanonical high bytes
+    # have platform-dependent widening; never guess Latin-1 or an active codepage.
+    text = payload[:-width].decode("utf-16-le" if length < 0 else "ascii", errors="strict")
+    if "\x00" in text:
+        raise ValueError("culture-invariant FString contains an embedded null")
+    return text
 
 
 def clean_name(n: str) -> str:
@@ -94,6 +138,8 @@ class TaggedReader:
                         val = self._struct_array(tag, depth)
                 elif tag.type == "StructProperty":
                     val = self._tagged_struct(tag, depth)
+                elif tag.type == "TextProperty":
+                    val = self._invariant_text(tag)
                 if val is None:
                     del self.issues[checkpoint:]  # discard warnings from an unsuccessful speculative struct read
                     self.ar.seek(tag.value_start_offset)
@@ -101,11 +147,27 @@ class TaggedReader:
                     val = self._resolve(tag, val)
             except Exception as e:  # noqa: BLE001
                 B.record_issue(self.issues, "properties", self._issue_context(tag), e)
-                val = f"<unreadable {tag.type}: {type(e).__name__}>"
+                val = UnreadableValue(tag.type, e)
             if end:
                 self.ar.seek(end)
             items.append((tag.name, val))
         return items
+
+    def _invariant_text(self, tag):
+        versions = {str(v.guid).lower(): v.version for v in (getattr(self.r.summary, "custom_versions", None) or [])}
+        if versions.get(_EDITOR_VERSION_GUID, -1) < 32:
+            return None
+        if tag.size < 5:
+            raise ValueError("truncated FText header")
+        self.ar.seek(tag.value_start_offset)
+        raw = self.ar.read(5)
+        if len(raw) != 5:
+            raise ValueError("truncated FText header")
+        if raw[4] != 255:
+            return None
+        raw += self.ar.read(tag.size - 5)
+        from uasset_read.models.properties import TextValue
+        return TextValue(namespace="", key="", source_string=invariant_text_source(raw))
 
     def _issue_context(self, tag):
         name = getattr(self, "export_name", "")

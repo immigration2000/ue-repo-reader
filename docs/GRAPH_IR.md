@@ -86,10 +86,40 @@ node/pin names, directions, types, defaults, flags and saved links. The two pin 
 Native source text, object paths and exact owner/GUID identities are compared independently of Markdown.
 Available function tooltip/category fields also compare; absent metadata remains explicitly unknown
 (3/3/11 exact metadata gaps; plus one absent NewVariables tag in each original fixture), rather than becoming inferred empty/false values. Four additional eg captures exercise structured
-variable declarations through [declaration_ir](DECLARATION_IR.md), bringing the native replay set to seven.
+variable declarations through [declaration_ir](DECLARATION_IR.md); Q14 adds BP_Knife and its scalar text category,
+bringing the native replay set to eight.
 See [the editor oracle workflow](EDITOR_ORACLE.md) for profiles, package hashes and exclusions.
 
 Runtime execution, function member-reference semantics, arbitrary node properties and effective
 CDO/inherited defaults remain outside this verification. A native loaded graph can also differ
 from saved bytes after engine load fixups; differences need investigation before blaming the reader.
 Existing older-version fixtures retain their checks for compatibility; no new legacy project expansion is claimed.
+
+## Saved membership and unlisted exports (1.17.0)
+
+Schema 1 gains the additive `saved_membership` list and machine-readable `membership_basis` description.
+Each nonempty decoded view reports its exact graph path and
+`status=confirmed` with `saved_node_exports` / `unlisted_node_exports`, or `status=unknown` with a reason.
+The reader locates the exact graph export and Nodes tag, validates the object-array type, tag/export bounds,
+and the raw int32 count plus package-index payload. A tolerant decoder's empty list is never sufficient.
+An explicit bounded zero count is valid; an absent/invalid/unresolved array causes no removal.
+Unknown membership keeps the earlier decoded view and is noted in Markdown. Actual source corruption and
+property-reader failures also reach the parse report. `complete` remains pin projection coverage, not a
+promise that every saved membership could be established; read this list separately.
+This new source-array validation covers UE5-saved packages. UE4-saved packages retain the earlier decoded
+view with an explicit out-of-scope reason; this does not expand legacy format support.
+
+The pinned parser groups additional node exports by Outer. When an export is proven absent from Nodes,
+normal graph rendering/graph-only node coverage excludes it; its full decoded node/pin IR is preserved under
+`blueprints[path].unlisted_graph_nodes` (maps: `maps_detail[path].level_bp_unlisted_graph_nodes`).
+An absent side projection means no confirmed unlisted exports were identified, not independently verified
+absence when membership is unknown. Raw references remain present: links across this projection boundary
+stay unresolved with their saved owner/GUID, rather than becoming inferred active graph edges.
+
+A separately saved `EntryNode` pointer may name an unlisted export. `entry_node_export` and
+`entry_node_listed=false` retain that conflict, and Markdown warns that an entry rendered from listed-node
+links is not a runtime entry guarantee. The saved pointer and package bytes are not rewritten.
+
+Both eg ABP_Hands and ar GideonManny contain one such decoded unlisted entry export. Their graph-only
+coverage decreases by one (eg1779→1778; ar1271→1270); the source exports remain available separately.
+See [Q14 evidence](dev/Q14-LOADED-STATE-2026-10-30.md) for raw array spans and native observations.

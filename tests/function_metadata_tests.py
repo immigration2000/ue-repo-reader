@@ -25,6 +25,7 @@ def extract(ctx):
 
 
 def test_function_metadata_fields_and_explicit_booleans():
+    import data_reader as D
     # bCallInEditor is a stored BoolProperty; exercise both serialized bool values.
     for payload, expected in ((b"\x00", False), (b"\x01", True)):
         flag = struct.unpack("<?", payload)[0]
@@ -37,6 +38,13 @@ def test_function_metadata_fields_and_explicit_booleans():
     assert extract(context({"Category": "", "ToolTip": ""})) == {"category": "", "tooltip": ""}
     assert B._function_metadata(NS(props=lambda index: {}, issues=[]), node(), "", NS(), "Entry") == {}
     assert B._function_metadata(NS(issues=[]), NS(), "", NS(), "Entry") == {}
+    unreadable = D.UnreadableValue("TextProperty", ValueError("truncated text"))
+    ctx = context({"Category": unreadable, "ToolTip": unreadable})
+    info = extract(ctx)
+    assert "category" not in info and "tooltip" not in info
+    assert info["unreadable"] == ["Category", "ToolTip"] and len(ctx.issues) == 2
+    literal = str(unreadable)
+    assert extract(context({"Category": literal, "ToolTip": literal})) == {"category": literal, "tooltip": literal}
 
 
 def test_function_metadata_comment_literals_preserve_text_safely():

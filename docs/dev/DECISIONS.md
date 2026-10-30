@@ -296,3 +296,26 @@
   각 새 정답의 출처 Git blob도 고정 commit/path와 대조한다. 전체 graph 비교와 all의 가용 값 일치 및 정확한 미확정 다중집합 검사, 기존 BP/노드/issue 기대값을 유지한다.
 - 캐시: declaration_ir.py를 fingerprint에 포함하고 출력 버전을 1.16.0으로 올린다. 제품 의존성 추가와 신규 native 빌드는 없다.
   남은 saved/loaded 차이 원인 조사는 Q14, 실데이터 CallInEditor=true는 Q5, 실제 비어 있지 않은 위젯 바인딩의 native 정답은 별도 검증 공백이다.
+
+## D-029 저장 그래프 멤버십·텍스트 원문과 native 세션 관측을 분리 (2026-10-30, codex/claude)
+- 결정: v1.17.0. Q14/Q17에서 UE5 저장 그래프의 top-level Nodes 태그/소유 export/타입/경계/원시 개수를 검증한 뒤에만
+  Outer로 묶인 목록 밖 노드를 그래프 집계에서 분리한다. 전체 노드·핀은 unlisted_graph_nodes에 보존하고 saved_membership과
+  membership_basis로 기준을 공개한다. 잘못된/부재/미해결 목록은 기존 view와 unknown을 유지하며, 명시적 count0은 확인된 빈 목록이다.
+- 이유: eg ABP_Hands의39개 저장/native 멤버 밖 export109, ar GideonManny의6개 저장 멤버 밖 export155를 기존 파서가 추가했다.
+  eg1779→1778, ar1271→1270은 그래프 집계의 정정이며 데이터를 버리는 변경이 아니다. ar은 원본 바이트 증거로만 주장한다.
+  별도 EntryNode가 목록 밖 export를 참조하면 충돌을 보존하고 런타임 entry를 추정하지 않는다. 영역 간 원시 owner/GUID도 유지한다.
+- 범위: 새 멤버십 검증은 UE5 저장 패키지에 한한다. UE4 저장 패키지는 범위 밖 unknown과 기존 view로 두고 bt26/98 및
+  정확한90개 issue 기준을 유지한다. 잘못된 실제 바이트와 I/O 실패는 parse report로 전파하며 미지원 자체는 새 오류로 만들지 않는다.
+- 텍스트: Editor custom version>=32의 scalar tagged FText History=None 원문을 자체 bounded 리더로 디코딩한다.
+  ASCII narrow/UTF16 wide를 구분하고 길이·종단·presence를 검증한다. 실제 엔진에서 비정규0xe9의 widening이 U+FFE9임을 관측했으므로
+  Latin-1/코드페이지 추측을 하지 않고 비정규 narrow 입력은 unknown으로 둔다. 실패 sentinel과 authored literal을 선언/함수 API에서 구분한다.
+  TArray/Map/Set의 FText는 종전 경로이며 후속Q18로 분리한다. 빈 표시를 원문 부재로 보증하지 않는다.
+- 독립 관측: 같은 패키지7개를 UE5.8.4의 두 프로세스에서 각각2회 캡처했다. 프로세스 안73318개 관측은 같고,
+  프로세스 사이 숨긴 ErrorTolerance17개 GUID가 달라졌다. 저장 const/default와 native 값의 안정적 차이2개도 계속 보고한다.
+  정확한 엔진 보정 호출 경로나 실행상 동등성은 단정하지 않는다. 비교기가 이름으로 ID를 추정하거나 차이를 제외하지 않는다.
+- 진단 도구: 실제 Claude Code가 native 반복 캡처만 비교하는 도구와 반례9개를 작성하고 Codex가 재지시·독립 실행·통합했다.
+  비교 입력 전제 오류는 거부, 유효한 입력의 어떤 갭도 incomplete가 changed보다 우선하며 관측된 차이는 보존한다.
+  BP_Knife native 정답1개와 선택된 원본 관측/바이트 증거만 회귀에 추가한다. 큰 전체 캡처·복사본·바이너리는 캐시에 둔다.
+- 영향: 두 SKILL·INDEX/CATALOG·Graph IR 문서를 같이 갱신하고 graph_membership.py를 캐시 지문에 포함한다.
+  선택적 --no-pch는 소유한 임시 에디터 smoke 호스트에만 적용하며 실제5.8.4 빌드/수집으로 검증했다.
+  엔진 구현·고정 버전 이후 uasset_read 코드를 복사하지 않았고 새 제품 의존성은 없다.

@@ -179,6 +179,8 @@ def build_declaration_ir(path, result, ctx, bp_obj, kind):
         if source not in fields:
             return unknown("saved field " + source + " absent")
         value = fields[source]
+        if isinstance(value, D.UnreadableValue):
+            return unknown("saved field " + source + " unreadable: " + value.reason)
         if kind == "text":
             value = value if isinstance(value, str) else getattr(value, "source_string", None)
         elif kind == "reference":

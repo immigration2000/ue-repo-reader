@@ -103,7 +103,8 @@
 ## 정확도 — 빈칸과 검증 (2026-10-28, claude)
 
 등록된 B 계열 버그는 모두 done이며, 미발견 오독까지 없다는 보증은 아니다. 여기는 요약본의 빈칸과 독립 정답·회귀 검증 과제.
-Q1 수집·비교 기반 다음에는 Q13(구조화된 선언/값의 비교 범위)과 Q14(저장 상태와 에디터 로드 상태의 차이 원인)를 우선한다.
+Q1/Q13/Q14의 독립 대조 기반에서 다음은 Q18(FText 컬렉션 원문/unknown), Q16(실제 위젯 바인딩), Q5(CallInEditor=true 실데이터)를 우선한다.
+Q14에서 남은 native 세션 GUID·저장/로드 값 차이는 계속 보고하며, 엔진 보정의 정확한 호출 경로나 런타임 의미는 미확정이다.
 `노드 N/N`은 핀을 읽은 노드 수일 뿐 의미가 맞다는 보증이 아니다(REVIEW-2026-10-27). 관련 기존 항목: X9(AnimSequence 노티파이), F11(그래프 없는 BP), V1.
 
 | ID | 상태 | 담당 | 내용 | 규모 |
@@ -121,7 +122,8 @@ Q1 수집·비교 기반 다음에는 Q13(구조화된 선언/값의 비교 범�
 | Q11 | done | claude | Q10의 순수 정책·출력 보존·best-effort·프로젝트 선택 경계 독립 회귀 검사 작성; Codex가 실행·통합하고 Claude가 구현 교차 검토 | S |
 | Q12 | done | claude | Q1 분담: 에디터 전용 읽기 전용 oracle exporter와 독립 검사; Codex가 실제5.7/5.8 빌드·캡처·저장 안 된 편집 거부를 검증하고 구현 교차검토·통합 | S–M |
 | Q13 | done | codex | native 대조의 구조화된 변수 타입·선언/바인딩 값 비교 갭 보완: raw EdGraphPinType 등을 표시 문자열에서 역추정하지 않고 리더 API로 노출, unknown/저장 여부 유지·native 정답7개 회귀. 실제 비어 있지 않은 바인딩 정답은 Q16 | M |
-| Q14 | doing | codex | eg native 대조 차이 원인 구분: 숨긴 ErrorTolerance 핀 GUID·const/default·변수 category·상태 그래프 소속을 재수집하고 저장 바이트/엔진 로드 보정/리더 오독을 분리. 맞추기 위한 GUID 추정·차이 무시 금지 | M |
+| Q14 | done | codex | UE5.8.4 두 프로세스·각2회와 저장 바이트 대조로 scalar FText 카테고리 누락/그래프 소속 오류 수정. native 차이7→5개 에셋·45→36항목, 남은 GUID34+const/default2 차이는 유지. exact 엔진 호출 경로·런타임 의미는 단정하지 않음(D-029) | M |
 | Q15 | done | claude | Q13 분담: 선언 IR을 native 비교기에 연결하고 변수/함수/바인딩의 부재·중복·오류 반례 검사. Codex가 반례로 재지시·독립 실행·교차검토 후 통합, 전체 회귀 통과 | S–M |
 | Q16 | todo | - | 비어 있지 않은 위젯 바인딩의 UE5.7+ native 독립 정답 확보: function/property binding·누락 Kind·SourcePath 범위를 실제 저장 에셋과 대조(Q13/Q15의 합성 검사와 구분) | S–M |
-| Q17 | doing | claude | Q14 분담: native 반복 캡처의 같은 패키지/dirty 상태·정체성/필드 차이를 독립 검사하는 진단 도구와 반례 검사; 차이를 숨기거나 로드 보정으로 자동 단정하지 않음 | S–M |
+| Q17 | done | claude | Q14 분담: native 반복 진단 도구·반례9개. Codex 재지시로 불완전 우선순위 보완, 실제 반복 캡처/전체 회귀 검증·통합 및 상호 검토 완료. 차이 보존·이름/GUID 추정 없음 | S–M |
+| Q18 | todo | - | FText 컬렉션(TArray/Map/Set)의 History=None 등 원문 디코딩·실패/미지원 표기: scalar tagged 텍스트와 분리해 독립 native 정답으로 검증, 현재 빈 문자열 표시를 실제 부재로 단정하지 않음 | M |
