@@ -56,9 +56,12 @@ do not treat a successful parse as support confirmation. Mode is part of the cac
    Omitted values are unknown here, not confirmed defaults. A display notice alone is not a parse failure,
    and complete BP/data saved values are not yet retained elsewhere; inspect the asset for missing detail.
    Machine comparisons can use `digest.json` → `blueprints[path].graph_ir` (maps: `maps_detail[path].level_bp_graph_ir`).
-   It retains nonempty parsed graphs, node identity/class, pin types/defaults and saved references, with status/issues.
+   It retains nonempty parsed graphs, node identity/class, pin types/defaults, saved pin references and selected saved
+   function/variable/delegate/macro identities. Each node's `semantic_references` keeps available package indices,
+   exact resolved object paths and unknown reasons instead of inferring owners from names.
    `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists. IDs belong to this asset snapshot;
-   unresolved/ambiguous links have no inferred target. Node properties/CDOs are outside the IR. Prefer Markdown
+   unresolved/ambiguous links have no inferred target. Arbitrary node properties/CDOs are outside the IR, and semantic
+   references are not yet independently compared by the native oracle. Prefer Markdown
    for normal analysis and avoid loading the entire JSON into context.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
    Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.

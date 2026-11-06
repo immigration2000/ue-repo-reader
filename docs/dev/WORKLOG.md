@@ -11,6 +11,21 @@
 
 ---
 
+## 2026-11-07 00:41 KST · codex · A9 (정확도 감사와 P0/P1 참조 정체성)
+- 한 일: v1.18.0. GraphRenderer가 owner 없는 링크를 graph-wide unique GUID로 연결하던 추정을 제거하고,
+  tagged reference가 틀린 full path 뒤 같은 이름의 첫 export로 떨어지던 경로를 exact/unique 해석으로 변경했다.
+  graph_ir node에 Function/Event/Variable/Delegate/Macro/CreateDelegate/CustomEvent의 saved semantic reference를 추가해
+  field presence·package index·exact path·GUID components·self-context/unknown을 보존했다(D-030).
+  실제 eg 새 digest에서1195개 reference와 exact parent path613개를 확인했으며 partial1142개를 이름으로 보충하지 않았다.
+  감사·개선·Cloud 준비 보고서와 두 SKILL/Graph IR/INDEX 범례를 갱신했다.
+- 검증: 새 정상/누락/invalid/중복 owner 반례4개 PASS. 최종 전체 regress에서 단위 전체, 외부 에셋6/6,
+  Native Oracle8/8와 loaded-state/saved Nodes evidence, eg49BP/1778노드·ar·ves·bt 모두 PASS(exit0).
+  실제 MCP HTTP 6도구, response limit, warm/restart/refresh와 strict/opt-in cache 분리 PASS.
+  기대값·원본 에셋·독립 Oracle JSON 변경 없음. dirty LFS 회귀 clone은 reset하지 않고 보존 이름으로 옮긴 뒤 새 고정 clone 사용.
+- 남은 일·주의: 새 semantic reference는 tagged saved bytes와 합성 반례까지만 검증했다. Native Oracle producer가 아직
+  해당 필드를 캡처하지 않으므로 독립 검증 완료가 아니다. 실제 UE5.7/5.8 Windows 캡처가 후속 P2다.
+  C++는 정규식 리플렉션 표면만 지원하며 함수 본문/call graph/overload resolution은 F10의 별도 AST 작업으로 남는다.
+
 ## 2026-10-30 09:28 KST · codex/claude · Q14/Q17 (저장값·에디터 로드 차이 조사)
 - 한 일: v1.17.0. 실제 리더 오류2종 수정: Editor custom version>=32의 scalar tagged FText History=None 원문을
   bounded ASCII/UTF16로 읽어 eg 카테고리8개 복구. 실패 sentinel과 실제 authored 문자열을 선언/함수 메타데이터에서 구분.

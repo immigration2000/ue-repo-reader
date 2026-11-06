@@ -34,7 +34,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from project_support import assess_project, declaration_text, parse_descriptor, support_notice
 
-VERSION = "1.17.0"
+VERSION = "1.18.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -931,8 +931,9 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- Files longer than ~60k characters are split: `X.md` ends with a link to `X.part2.md`.",
            "- `digest.json` is the same information for scripts — don't read it to understand the project.",
            "  Scripts can inspect `blueprints[path].graph_ir` / `maps_detail[path].level_bp_graph_ir` for versioned",
-           "  node/pin identities, decoded types/defaults and saved pin references. Check status and issues;",
-           "  complete means projection coverage, not verified gameplay semantics. Node properties/CDOs are outside this IR.",
+           "  node/pin identities, decoded types/defaults, saved pin references and selected saved function/variable/",
+           "  delegate/macro identities. Check each semantic_references status: missing fields stay unknown.",
+           "  Top-level complete means pin projection coverage, not verified gameplay semantics. Arbitrary node properties/CDOs are outside this IR.",
            "  `blueprints[path].declaration_ir` contains saved variable types/flags/authored defaults, parent/function references",
            "  and widget bindings. Check saved_fields, status and unknown reasons; absent tags do not establish defaults.",
            "  graph_ir.saved_membership records checks against bounded saved Nodes arrays. Confirmed unlisted exports are",

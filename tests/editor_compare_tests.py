@@ -27,6 +27,25 @@ def test_editor_oracle_absolute_import_paths_are_not_prefixed_twice():
     assert ctx.full_name(short) == "/Game/BP.BP.Child"
 
 
+def test_context_reference_resolution_never_guesses_duplicate_short_names():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+    import bp_reader as B
+    ctx = object.__new__(B.Ctx)
+    first = SimpleNamespace(object_name="Graph", path="/Game/BP.BP.First.Graph", cls="EdGraph")
+    second = SimpleNamespace(object_name="Graph", path="/Game/BP.BP.Second.Graph", cls="EdGraph")
+    widget = SimpleNamespace(object_name="Graph", path="/Game/BP.BP.Widget.Graph", cls="WidgetTree")
+    ctx._by_name = {"Graph": [first, second, widget]}
+    ctx.full_name = lambda obj: obj.path
+    ctx.class_of = lambda obj: obj.cls
+    ctx.obj = lambda index: {1: first, 2: widget}.get(index)
+    assert ctx.export_by_ref({"object_name": "Graph", "full_name": first.path}) is first
+    assert ctx.export_by_ref({"object_name": "Graph", "full_name": "/Game/Wrong.Graph"}) is None
+    assert ctx.export_by_ref({"object_name": "Graph"}) is None
+    assert ctx.export_by_ref({"object_name": "Graph"}, "WidgetTree") is widget
+    assert ctx.export_by_ref(1, "EdGraph") is first
+    assert ctx.export_by_ref(1, "WidgetTree") is None
+
+
 def snapshot():
     # Display GUID word conversion must not be replaced by punctuation stripping.
     a, b = "0102030405060708090a0b0c0d0e0f10", "ffeeddccbbaa99887766554433221100"

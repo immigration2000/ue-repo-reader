@@ -319,3 +319,19 @@
 - 영향: 두 SKILL·INDEX/CATALOG·Graph IR 문서를 같이 갱신하고 graph_membership.py를 캐시 지문에 포함한다.
   선택적 --no-pch는 소유한 임시 에디터 smoke 호스트에만 적용하며 실제5.8.4 빌드/수집으로 검증했다.
   엔진 구현·고정 버전 이후 uasset_read 코드를 복사하지 않았고 새 제품 의존성은 없다.
+
+## D-030 저장 멤버 정체성과 의사코드 연결 추정을 분리 (2026-11-07, codex)
+- 결정: v1.18.0. Markdown 의사코드의 임의 graph-wide GUID fallback을 제거한다. 저장 링크는 exact owner object path 또는
+  유일한 owner name+pin GUID가 있을 때만 연결하며, owner 부재/불일치와 duplicate owner는 unresolved로 둔다.
+- 이유: 기존 graph_ir는 같은 입력을 unresolved로 보존했지만 GraphRenderer는 GUID가 그래프에서 하나라는 이유로 연결해
+  두 공개 결과가 서로 다른 사실을 말할 수 있었다. full path가 실패한 object reference를 같은 short name의 첫 export로
+  바꾸는 경로도 잘못된 graph/widget/component를 선택할 수 있어 exact/unique 규칙으로 통일한다.
+- 구조화 결과: graph_ir schema1의 additive node field `semantic_references`에 Function/Event/Variable/Delegate reference,
+  MacroGraph, create-delegate/custom-event 이름의 saved field presence, package index, exact resolved path, GUID components,
+  self-context와 unknown 이유를 보존한다. top-level complete는 기존 pin projection 계약이며 각 semantic record의 partial을
+  승격하지 않는다.
+- 검증: missing/wrong owner, duplicate short name, invalid package index/GUID component, absent field, structural-reference 경계
+  반례를 추가했다. 실제 eg에서1195개 reference, exact parent path613개를 보존했다. 전체 회귀와 MCP smoke는 통과했으나
+  기존 Native Oracle은 새 member-reference 필드를 수집하지 않으므로 이 필드는 partial verification이다.
+- 후속: UE5.7/5.8 Oracle producer와 비교기에 FMemberReference/MacroGraph identity를 추가해 새 독립 캡처로 검증한다.
+  C++ 정밀 색인은 F10에서 tree-sitter syntax 결과와 선택적 Clang-resolved 결과를 provenance/status로 분리한다.
