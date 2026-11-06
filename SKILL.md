@@ -76,10 +76,13 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    or subobjects not expanded. These notices describe incomplete display, not confirmed defaults or parse errors.
    Omitted BP/data values are not yet preserved in a complete structured record; inspect the asset for the missing detail.
    For machine comparisons, `digest.json` → `blueprints[path].graph_ir` retains nonempty parsed graphs,
-   node identities/classes, pin types/defaults and saved pin references; maps use `maps_detail[path].level_bp_graph_ir`.
+   node identities/classes, pin types/defaults, saved pin references and selected saved function/variable/delegate/macro identities;
+   maps use `maps_detail[path].level_bp_graph_ir`. Each node's `semantic_references` preserves available package indices,
+   exact resolved object paths and saved fields; unavailable identity fields remain explicit `unknown` rather than being inferred from names.
    Check its `status`/`issues`. `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists.
-   IDs are local to an asset snapshot; unresolved/ambiguous links have no inferred target. Node properties/CDOs
-   are outside this IR. Keep reading Markdown for normal analysis; do not load the entire JSON into context.
+   IDs are local to an asset snapshot; unresolved/ambiguous links have no inferred target. Arbitrary node properties/CDOs
+   are outside this IR, and semantic references are not yet covered by the independent native comparator. Keep reading Markdown
+   for normal analysis; do not load the entire JSON into context.
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment

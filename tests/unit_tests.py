@@ -50,6 +50,7 @@ from declaration_ir_tests import (test_declaration_native_type_decodes_map_objec
                                   test_declaration_reader_keeps_indices_and_rejects_duplicate_nested_fields,
                                   test_declaration_malformed_and_duplicate_records_preserve_unknown_and_stream_errors)
 from editor_compare_tests import (test_editor_compare_dirty_display_text_and_profile_exclusions_are_explicit,
+                                 test_context_reference_resolution_never_guesses_duplicate_short_names,
                                  test_editor_compare_duplicate_and_malformed_identity_refused,
                                  test_editor_compare_hash_binding_and_binary_read_race,
                                  test_editor_compare_partial_assets_keep_other_results_and_metadata_still_compares,
@@ -90,7 +91,10 @@ from graph_ir_tests import (test_graph_ir_full_pin_literals_and_type_fields,
                             test_graph_ir_duplicate_pin_and_invalid_values_remain_unknown,
                             test_graph_ir_semantic_mutations_visible_without_rendering,
                             test_graph_ir_object_defaults_and_unknown_reference_fields_are_not_lost,
-                            test_graph_ir_partial_decode_and_structural_pin_references)
+                            test_graph_ir_partial_decode_and_structural_pin_references,
+                            test_graph_ir_preserves_saved_semantic_references_without_name_inference,
+                            test_graph_ir_semantic_references_reject_bad_or_missing_saved_identity,
+                            test_pseudocode_resolver_never_repairs_links_from_a_unique_guid)
 from failure_tests import (test_partial_map_reporting, test_empty_and_partial_level_blueprints,
                           test_map_preserves_unlisted_level_script_exports_separately,
                           test_graph_render_failure_reporting, test_property_failure_reporting,

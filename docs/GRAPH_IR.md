@@ -5,8 +5,8 @@
 `maps_detail[map_path].level_bp_graph_ir` (null when that read failed).
 
 This is the first W3/W1 comparison foundation. It preserves nonempty graphs found by the
-parser, node identity/class, decoded pin types/defaults and structural pin references.
-It does **not** contain node properties such as function member references, class defaults,
+parser, node identity/class, decoded pin types/defaults, structural pin references and selected
+saved semantic references. It does **not** contain arbitrary node properties, class defaults,
 empty graphs, a complete execution model, or runtime values. Reroutes remain explicit nodes.
 
 | Field | Contract |
@@ -24,7 +24,7 @@ A node counts as decoded when at least one pin decoded. Truncated pin lists insi
 decoder cannot be detected from this count; compare an independent oracle for pin completeness.
 
 Node records preserve `object_path`, `object_name`, positive `export_index`, `class`,
-uninterpreted `guid_raw` and pins. IDs use the owning graph path and export index.
+uninterpreted `guid_raw`, pins and `semantic_references`. IDs use the owning graph path and export index.
 Missing export identities use an explicitly reported local ordinal. Export indices can change
 after a save; these IDs must not be treated as persistent keys across commits. Duplicate node
 or pin identities retain separate records rather than overwriting them.
@@ -69,6 +69,25 @@ Reciprocal link observations remain separate. These are saved structural links, 
 that an execution path runs. Non-finite or unsupported scalar values become an explicit
 unknown record and an issue instead of invalid JSON or invented text.
 
+## Saved semantic references (1.18.0)
+
+`semantic_references` is an additive schema-1 node field. It projects the saved tagged properties used by
+function/event calls, variable get/set, dispatcher operations, macro instances, create-delegate nodes and custom
+events. A member reference retains its source property, kind, `MemberName`, `MemberParent` package index and exact
+resolved object path, the four saved GUID components, `bSelfContext`, and per-field presence. Macro references retain
+the exact package index/path. No owner class or function is inferred from a short name.
+
+Each semantic record has its own `complete`/`partial` status. Missing default-omitted fields, unresolved package
+indices and malformed values become `unknown` with a reason. The top-level graph `status` continues to describe the
+pin projection for compatibility; it does not upgrade a partial semantic record. These fields preserve binary-reader
+observations for later comparison. The current native oracle does not independently capture them, so they are
+**partially verified**, not established engine semantics.
+
+The Markdown renderer now applies the same identity rule to pin links: an exact saved owner name or resolved owner
+object path must identify one pin. A missing/wrong owner and duplicate short owner names stay unresolved. A globally
+unique pin GUID is never used to repair an arbitrary graph link. Current-node fallback is limited to structural
+parent/sub-pin/pass-through references that explicitly permit that scope.
+
 The asset-result cache fingerprint includes `graph_ir.py` and `declaration_ir.py`. Output versions invalidate server
 and asset caches; changing only the projection module must also invalidate asset results.
 
@@ -90,8 +109,8 @@ variable declarations through [declaration_ir](DECLARATION_IR.md); Q14 adds BP_K
 bringing the native replay set to eight.
 See [the editor oracle workflow](EDITOR_ORACLE.md) for profiles, package hashes and exclusions.
 
-Runtime execution, function member-reference semantics, arbitrary node properties and effective
-CDO/inherited defaults remain outside this verification. A native loaded graph can also differ
+Runtime execution, the engine meaning of newly preserved member-reference fields, arbitrary node properties and effective
+CDO/inherited defaults remain outside independent verification. A native loaded graph can also differ
 from saved bytes after engine load fixups; differences need investigation before blaming the reader.
 Existing older-version fixtures retain their checks for compatibility; no new legacy project expansion is claimed.
 

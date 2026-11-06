@@ -3,9 +3,10 @@
 Consumes the public decoded models of the pinned MIT uasset_read dependency; no
 upstream implementation is copied. Pin GUIDs below are serialized byte-order hex,
 NOT Unreal's four-word display GUIDs; graph/node GUIDs remain raw parser metadata.
-This is a comparison foundation, not a
-complete execution model: node properties, CDOs and runtime behavior are outside
-its scope. A complete projection does not mean independently verified semantics.
+This is a comparison foundation, not a complete execution model. Selected saved
+node properties retain function/variable/delegate/macro identities; arbitrary
+node properties, CDOs and runtime behavior remain outside its scope. A complete
+pin projection does not mean independently verified semantics.
 """
 from __future__ import annotations
 
@@ -23,6 +24,25 @@ _TYPE_FIELDS = ("pin_category", "pin_subcategory", "pin_subcategory_object",
                 "b_serialize_as_single_precision_float", "map_key_terminal_category",
                 "map_key_terminal_sub_category", "map_key_terminal_sub_category_object",
                 "map_key_terminal_sub_category_object_name")
+
+_MEMBER_REFERENCE_PROPERTIES = {
+    "K2Node_CallFunction": ("function", "FunctionReference"),
+    "K2Node_CallParentFunction": ("function", "FunctionReference"),
+    "K2Node_CallArrayFunction": ("function", "FunctionReference"),
+    "K2Node_CallMaterialParameterCollectionFunction": ("function", "FunctionReference"),
+    "K2Node_CallFunctionOnMember": ("function", "FunctionReference"),
+    "K2Node_CommutativeAssociativeBinaryOperator": ("function", "FunctionReference"),
+    "K2Node_PromotableOperator": ("function", "FunctionReference"),
+    "K2Node_Message": ("interface_function", "FunctionReference"),
+    "K2Node_Event": ("event", "EventReference"),
+    "K2Node_VariableGet": ("variable", "VariableReference"),
+    "K2Node_VariableSet": ("variable", "VariableReference"),
+    "K2Node_CallDelegate": ("delegate", "DelegateReference"),
+    "K2Node_AddDelegate": ("delegate", "DelegateReference"),
+    "K2Node_AssignDelegate": ("delegate", "DelegateReference"),
+    "K2Node_RemoveDelegate": ("delegate", "DelegateReference"),
+    "K2Node_ClearDelegate": ("delegate", "DelegateReference"),
+}
 
 
 def serialized_guid(value):
@@ -77,6 +97,102 @@ def build_graph_ir(graphs, ctx, asset_path, nodes_ok, nodes_total):
         except (AttributeError, TypeError):
             return None
 
+    def unknown(reason):
+        return {"status": "unknown", "reason": reason}
+
+    def property_fields(value):
+        if isinstance(value, dict):
+            fields_value = value.get("fields", value)
+            return fields_value if isinstance(fields_value, dict) else {}
+        fields_value = getattr(value, "fields", None)
+        return dict(fields_value) if isinstance(fields_value, dict) else {}
+
+    def contains_unknown(value):
+        if isinstance(value, dict):
+            return value.get("status") == "unknown" or any(contains_unknown(v) for v in value.values())
+        return isinstance(value, list) and any(contains_unknown(v) for v in value)
+
+    def saved_object_reference(value, context):
+        """Preserve a package reference and resolve only its exact identity."""
+        if isinstance(value, int) and not isinstance(value, bool):
+            if value == 0:
+                return {"package_index": 0, "object_path": None}
+            try:
+                path = object_path(ctx.obj(value))
+            except (AttributeError, TypeError, ValueError):
+                path = None
+            return {"package_index": int(value),
+                    "object_path": path if path else unknown("package index could not be resolved")}
+        if isinstance(value, dict):
+            # Some tagged readers expose the decoded saved path directly. Keep
+            # it as an observation; do not fall back to a same-name export.
+            path = value.get("full_name")
+            name = value.get("object_name")
+            return {"package_index": None,
+                    "object_name": name if isinstance(name, str) else unknown("saved object name unavailable"),
+                    "object_path": path if isinstance(path, str) and path.startswith("/")
+                    else unknown("saved object path unavailable")}
+        return {"package_index": unknown("saved package index unavailable"),
+                "object_path": unknown("saved object reference unavailable")}
+
+    def saved_guid(value):
+        fields_value = property_fields(value)
+        if fields_value:
+            components = {}
+            for key in ("A", "B", "C", "D"):
+                part = fields_value.get(key)
+                components[key] = part if type(part) is int and 0 <= part < 2 ** 32 else unknown("invalid GUID component")
+            return {"encoding": "saved-uint32-components", "components": components}
+        if isinstance(value, str):
+            return {"encoding": "decoder-text", "value": value}
+        return unknown("saved member GUID absent or unreadable")
+
+    def member_reference(props, kind, source, context):
+        if source not in props:
+            return {"kind": kind, "source_property": source,
+                    "status": "partial", "value": unknown("saved member reference property absent")}
+        fields_value = property_fields(props[source])
+        mapping = {"parent": "MemberParent", "name": "MemberName",
+                   "guid": "MemberGuid", "self_context": "bSelfContext"}
+        record = {"kind": kind, "source_property": source,
+                  "saved_fields": {key: "saved" if saved in fields_value else "absent"
+                                   for key, saved in mapping.items()}}
+        record["parent"] = (saved_object_reference(fields_value["MemberParent"], context + ".parent")
+                            if "MemberParent" in fields_value else unknown("saved MemberParent absent"))
+        name = fields_value.get("MemberName")
+        record["name"] = name if isinstance(name, str) and name else unknown("saved MemberName absent or unreadable")
+        record["guid"] = saved_guid(fields_value.get("MemberGuid"))
+        self_context = fields_value.get("bSelfContext")
+        record["self_context"] = (bool(self_context) if type(self_context) in (bool, int) and self_context in (0, 1)
+                                  else unknown("saved bSelfContext absent or invalid"))
+        record["status"] = "partial" if contains_unknown(record) else "complete"
+        return record
+
+    def semantic_references(node, props, context):
+        cls = getattr(node, "class_name", None)
+        records = []
+        expected = _MEMBER_REFERENCE_PROPERTIES.get(cls)
+        if expected:
+            records.append(member_reference(props, expected[0], expected[1], context + "." + expected[1]))
+        if cls == "K2Node_MacroInstance":
+            source = "MacroGraphReference"
+            fields_value = property_fields(props.get(source)) if source in props else {}
+            value = (saved_object_reference(fields_value["MacroGraph"], context + ".MacroGraph")
+                     if "MacroGraph" in fields_value else unknown("saved MacroGraph reference absent"))
+            records.append({"kind": "macro_graph", "source_property": source,
+                            "status": "partial" if contains_unknown(value) else "complete", "value": value})
+        if cls == "K2Node_CreateDelegate":
+            value = props.get("SelectedFunctionName")
+            value = value if isinstance(value, str) and value else unknown("saved SelectedFunctionName absent or unreadable")
+            records.append({"kind": "delegate_function", "source_property": "SelectedFunctionName",
+                            "status": "partial" if contains_unknown(value) else "complete", "value": value})
+        if cls == "K2Node_CustomEvent":
+            value = props.get("CustomFunctionName")
+            value = value if isinstance(value, str) and value else unknown("saved CustomFunctionName absent or unreadable")
+            records.append({"kind": "custom_event", "source_property": "CustomFunctionName",
+                            "status": "partial" if contains_unknown(value) else "complete", "value": value})
+        return records
+
     for graph_index, (key, graph) in enumerate(graphs):
         gid = str(key)
         if not gid or gid.startswith("?"):
@@ -111,6 +227,11 @@ def build_graph_ir(graphs, ctx, asset_path, nodes_ok, nodes_total):
             record = {"id": nid, "object_name": name, "object_path": path,
                       "export_index": export, "guid_raw": getattr(node, "node_guid", None),
                       "class": getattr(node, "class_name", None), "pins": []}
+            try:
+                props = ctx.props(export) if export is not None and hasattr(ctx, "props") else {}
+            except (AttributeError, TypeError, ValueError):
+                props = {}
+            record["semantic_references"] = semantic_references(node, props, nid)
             item["nodes"].append(record)
             seen = set()
             for pin_index, pin in enumerate(pins):
@@ -209,8 +330,8 @@ def build_graph_ir(graphs, ctx, asset_path, nodes_ok, nodes_total):
     if len(represented) != nodes_total:
         issue(asset_path, f"{len(represented)}/{nodes_total} parser nodes represented; projection coverage is incomplete or inconsistent")
     return {"schema_version": SCHEMA_VERSION, "asset_path": asset_path,
-            "scope": "nonempty parsed graphs: node identity/class, pin types/defaults and saved pin references; "
-                     "excludes node properties, class defaults and runtime semantics",
+            "scope": "nonempty parsed graphs: node identity/class, pin types/defaults, saved pin references and "
+                     "selected saved semantic references; excludes arbitrary node properties, class defaults and runtime semantics",
             "pin_guid_encoding": "serialized-byte-order-hex",
             "identity_scope": "IDs identify this asset package snapshot; export indices may change across revisions",
             "coverage_basis": "decoder-exposed pins only; node N/N means at least one decoded pin per non-comment node, not full pin coverage",
