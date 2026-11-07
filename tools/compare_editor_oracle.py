@@ -317,19 +317,23 @@ _MEMBER_REFERENCE_KINDS = {"function", "interface_function", "event", "variable"
 
 
 def _semantic_owner(self_context, parent, context):
-    if _is_unknown(self_context):
-        return unknown(f"{context} self-context is unavailable")
-    if type(self_context) is not bool:
-        return unknown(f"{context} self-context is not a bool")
-    if self_context:
+    # Positive saved evidence is sufficient to identify either owner mode. An
+    # exact MemberParent identifies an external owner even when the default-false
+    # bSelfContext field was omitted from the tagged struct. Keep self_context
+    # independently unknown; do not invent False or weaken its comparison.
+    if self_context is True:
         return {"mode": "self"}
-    if _is_unknown(parent):
-        return dict(parent)
     if isinstance(parent, str):
         try:
             return {"mode": "external", "object_path": object_path(parent)}
         except OracleError as error:
             return unknown(f"{context} parent object path is invalid ({error})")
+    if _is_unknown(self_context):
+        return unknown(f"{context} self-context is unavailable and no exact external parent is saved")
+    if type(self_context) is not bool:
+        return unknown(f"{context} self-context is not a bool and no exact external parent is saved")
+    if _is_unknown(parent):
+        return dict(parent)
     return unknown(f"{context} external member has no exact parent object path")
 
 

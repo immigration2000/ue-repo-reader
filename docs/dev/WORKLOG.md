@@ -11,6 +11,50 @@
 
 ---
 
+## 2026-11-08 01:48 KST · codex · A13 (P0~P6 최종 통합·릴리스 준비)
+- 한 일: GitHub refs와 PR #1~#5를 재조회하고 main→P0/P1, P0/P1→P2/P3, P2+P3→P4, P4→P5,
+  P5→P6 exact ancestry를 확인했다. P2/P3 heads가 P4 조상이라 중복 병합하지 않는 bottom-up 계획을 문서화했다. 누락됐던
+  P5→P4 PR #6을 문서-only diff로 생성했다. P6 owner 규칙·unknown/GUID 보존·wrong-parent mismatch를 다시 검토하고
+  GridInventorySystem용 Linux/Windows/MCP 읽기 전용 절차와 결과 해석 경계를 작성했다.
+- 검증: fresh cache 전체 회귀 단위174/174, external assets6/6, Native Oracle8그룹, saved/loaded evidence2개,
+  eg/ar/ves/bt4프로젝트 PASS. 실제 MCP HTTP6도구·response limit·warm/restart/refresh·strict/opt-in cache 분리 PASS.
+  동일 P5 evidence replay는 incomplete, checked111/mismatch0/unavailable48(정상 생략/aggregate47+CreateDelegate1)이다.
+  실제 output에서 CXX_INDEX와 unified forward/reverse index 생성을 확인했다. fixture/Oracle/UAsset/게임 프로젝트 변경 없음.
+- 남은 일·주의: 어떤 PR도 merge/close하지 않았다. 사용자 승인은 #5→#6→#4→#1 순서로 필요하며 #2/#3은 별도 병합하지
+  않는다. 이번 Cloud에서 UE Editor를 새로 실행하지 않았고 UE5.7, GridInventorySystem digest/native capture, Clang/UHT/runtime
+  target 검증은 미실행이다. 비공개 Windows evidence ZIP/JSON/개인 경로는 Git에 넣지 않는다.
+
+## 2026-11-08 00:43 KST · codex · A12 (P6 semantic reference 미확정 원인 분석)
+- 한 일: P5 evidence ZIP21개 member의 CRC/경로/해시와 보고서·Native/compare JSON을 직접 검산했다. UE5.8.4 고정
+  `PlayerHealth_Widget` 23개 reference의 raw tagged fields, graph IR, loaded-editor 값을 exact graph/node identity로 전수
+  대조했다. unavailable61은 aggregate partial19, saved GUID 생략15, self-context 생략13, exact parent owner 과잉
+  미확정13, CreateDelegate owner 부족1로 분해했다. parser/GUID 변환 오류는 없었고 exact saved parent가 있으면 owner를
+  비교하되 self field unknown은 유지하도록 comparator와 반례를 수정했다(D-034).
+- 검증: 원본 P5는 native complete22/partial1, saved complete4/partial19, checked85/mismatch0/unavailable61로 재현했다.
+  같은 Native JSON과 package bytes의 수정 후 replay는 incomplete 유지, checked111/mismatch0/unavailable48이다. 저장되지
+  않은 false/zero GUID를 합성하지 않았고 원본 uasset/Oracle JSON/evidence ZIP은 변경·추가하지 않았다. pinned C++ parser를
+  격리 venv에 설치한 뒤 단위174/174, external assets6/6, Native Oracle8그룹, evidence2개, eg/ar/ves/bt4프로젝트가 통과했다.
+  기존 dirty eg cache로 첫 regress가 exit2였으나 이를 reset하지 않고 별도 clean cache의 eg 전체 검증으로 완료했다.
+- 남은 일·주의: 남은48은 저장 생략에 따른 aggregate/field unavailable47과 owner identity 없는 CreateDelegate1이다.
+  UE5.7과 다른 Blueprint/node class 확대 검증, 새 Windows capture는 미실행이다. 첨부 ZIP의 개인 경로/환경 메타데이터는
+  공개 저장소에 넣지 않는다.
+
+## 2026-11-07 23:48 KST · codex · A11 (P5 Windows UE5.8 Native 검증 준비·환경 차단)
+- 한 일: ad854085에서 `codex/p5-windows-native-validation`을 만들고 실제 실행 환경을 검사했다. 연결된 실행기는
+  Debian13 Linux이며 Windows mount/PowerShell/cmd/MSVC/MSBuild/Unreal이 없고 VPN도 구성되지 않았다. GitHub self-hosted
+  runner 조회는 이 인증의 권한 부족으로403이라 runner 유무를 확인하지 못했다. UE 설치·경로 추측은 하지 않았다.
+  고정 ar31bd384의 `/Game/ActionRoguelike/UI/PlayerHealth_Widget`을 함수14/변수3/event1/delegate1/
+  delegate-function1/macro2/custom-event1의 실제 saved 기준으로 선택하고 Git blob·SHA-256을 고정했다. Windows preflight,
+  full validation clone, ActionRoguelikeEditor build, read-only capture, same-hash semantic compare와 보존 산출물을 P5 보고서에 작성했다.
+- 검증: P2/P3/P4 전체 regress 단위173/173·외부 asset6/6·기존 Native Oracle8그룹·evidence2개·고정 프로젝트4/4 PASS.
+  기존 eg native JSON에 semantic-references profile을 실행하면 의도대로 exit1/incomplete, checked0, unavailable1이며 새 P2
+  capability가 없는 정답을 성공으로 승격하지 않는다. 선택 ar package는 working file과 commit blob SHA-256이
+  `2687fa...b37e`로 일치하고 graph IR complete, nodes32/32, asset issues0이다. 실제 UE build/capture/compare는 미실행이다.
+- 남은 일·주의: A11은 Windows UE5.8+VS C++ 실행기에 접근할 때까지 blocked다. 해당 실행기에서 새 full project copy와
+  새 output을 사용해 build.log/native JSON/semantic comparison/pre-post hash/dirty status를 수집해야 한다. 실제 관측 전
+  match/mismatch/unavailable 수를0이나 pass로 쓰지 않는다. 자세한 상태와 명령은
+  `docs/reports/P5_WINDOWS_NATIVE_VALIDATION.md`, `P5_SEMANTIC_ACCURACY.md`에 있다.
+
 ## 2026-11-07 19:44 KST · codex · F13 (C++ ↔ Blueprint 통합 정밀 분석)
 - 한 일: P2 d4012f9와 P3 0c945e6을 dcb99dc 기반 `codex/p4-unified-analysis`에 merge하고 문서 충돌2개만
   양쪽 의미를 유지해 해결했다. v1.20.0에서 원본 graph/declaration/cpp.precision을 바꾸지 않는 schema1 unified IR,

@@ -72,6 +72,7 @@ from editor_compare_tests import (test_editor_compare_dirty_display_text_and_pro
                                  test_native_replay_rejects_wrong_values_and_new_gaps,
                                  test_semantic_reference_profile_matches_exact_loaded_and_saved_function_identity,
                                  test_semantic_reference_profile_rejects_same_name_wrong_class_and_guid,
+                                 test_semantic_reference_profile_uses_exact_parent_without_inventing_omitted_self_context,
                                  test_semantic_reference_profile_covers_member_macro_and_custom_event_records,
                                  test_semantic_reference_profile_missing_duplicate_and_unknown_fail_closed,
                                  test_semantic_reference_profile_preserves_loaded_saved_boundary_and_partial_name_kinds,

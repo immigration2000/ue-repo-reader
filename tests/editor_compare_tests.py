@@ -205,6 +205,23 @@ def test_semantic_reference_profile_rejects_same_name_wrong_class_and_guid():
     assert any(item["path"].endswith("/guid") for item in result["mismatches"]), result
 
 
+def test_semantic_reference_profile_uses_exact_parent_without_inventing_omitted_self_context():
+    native, reader = _semantic_pair()
+    reference = reader["graphs"][0]["nodes"][0]["semantic_references"][0]
+    reference["self_context"] = C.unknown("saved bSelfContext absent or invalid")
+    reference["status"] = "partial"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["checked"] and not result["mismatches"], result
+    assert any(item["path"].endswith("/self_context") for item in result["unavailable"]), result
+    assert not any("/owner" in item["path"] for item in result["unavailable"]), result
+
+    # The exact stored parent is still compared. A different class must not be
+    # accepted merely because the member name matches.
+    reference["parent"]["object_path"] = "/Script/Engine.GameplayStatics"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert any(item["path"].endswith("/owner/object_path") for item in result["mismatches"]), result
+
+
 def test_semantic_reference_profile_covers_member_macro_and_custom_event_records():
     members = (("function", "FunctionReference", "K2Node_CallFunction"),
                ("interface_function", "FunctionReference", "K2Node_Message"),
