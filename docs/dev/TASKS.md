@@ -90,6 +90,7 @@
 | A11 | blocked | codex | P5 Windows UE5.8 Native Oracle 실제 빌드·semantic reference 수집·동일 패키지 비교 — 현재 실행기는 Linux이며 Windows/UE/VS 접근 없음 | M |
 | A12 | done | codex | P6 P5 실측 증거의 semantic reference 미확정 61건 전수 분석; exact saved parent owner 과잉 미확정13건 수정, 저장 생략48건 유지(D-034) | M |
 | A13 | done | codex | P0~P6 최종 포함 관계·PR 충돌·전체 회귀·GridInventorySystem 읽기 전용 적용 준비 검증 및 안전 병합 문서화; P5→P4 PR #6 준비 | M |
+| A14 | doing | codex | 최종 main 분석기로 GridInventory 고정 커밋을 읽기 전용 정밀 분석하고 근거·한계·재현 절차를 보고 | M |
 | O1 | done | codex | 실제 Claude Code 작업 배정·재지시·중단/복구·도구 감사·검토 기록 구축; Q7 구현과 Q4 교차 검토로 실증(D-021) | S |
 
 ## 후속 — 작업 중 발견 (2026-10-27, claude)
