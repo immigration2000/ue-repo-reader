@@ -63,7 +63,14 @@ Copilot의 프로젝트 스킬은 `.agents/skills`와 `.claude/skills`에서도 
 
 로컬 스킬은 `SKILL.md`와 `scripts/`가 같은 폴더에 있어야 합니다. `chatgpt-plugin/skills/`의 스킬은 원격 MCP 전용이며
 이 설치 도구로 배포하지 않습니다. MCP 설정이나 사용자 설정 파일은 변경하지 않습니다.
-필요한 것은 **Python 3.10+, git, git-lfs**뿐이에요(Git for Windows에는 git-lfs가 포함되어 있습니다).
+기본 분석에 필요한 것은 **Python 3.10+, git, git-lfs**입니다(Git for Windows에는 git-lfs가 포함되어 있습니다).
+C++ 함수 본문·호출 구문 정밀 색인은 고정된 선택 의존성을 한 번 설치합니다.
+
+```bash
+python -m pip install -r requirements-cxx.txt
+```
+
+설치하지 않아도 기존 리플렉션 표면 색인은 생성되며, 정밀 C++ 결과는 `unavailable`로 명시됩니다.
 첫 실행 때 파서([soatori/uasset_read](https://github.com/soatori/uasset_read), 검증한 커밋으로 고정)를 `~/.cache/ue-repo-reader`에 자동으로 받습니다.
 
 ## 사용법
@@ -104,7 +111,11 @@ Project_digest/
 ├─ blueprints/Game/…/BP_X.md   BP 하나당 파일 하나 (콘텐츠 경로 그대로)
 ├─ data/Game/…/DT_X.md         데이터 에셋 하나당 파일 하나
 ├─ maps/Game/…/L_X.md          맵 하나당 파일 하나 (레벨 BP + 배치된 액터)
-├─ cpp/CLASSES.md    C++ UCLASS/USTRUCT/UENUM + 블루프린트 노출 함수·프로퍼티
+├─ cpp/CLASSES.md    호환용 C++ UCLASS/USTRUCT/UENUM + 블루프린트 노출 표면
+├─ cpp/FUNCTIONS.md  함수 선언·정의·본문 위치(구문 관측)
+├─ cpp/CALL_GRAPH.md 호출 표현식과 미확정 대상 후보
+├─ cpp/UNRESOLVED.md 부분 파싱·전처리·대상 해석 한계
+├─ cpp/CXX_INDEX.json 버전이 있는 정밀 C++ 구문 IR
 └─ digest.json       위 내용 전체를 기계가 읽는 형태로
 ```
 
@@ -122,7 +133,7 @@ INDEX는 최대 약 9KB로 제한하며 토큰 수는 언어·토크나이저에
 **CATALOG.md**에 보존하는 전체 정보:
 - 프로젝트 정보: 엔진 버전, 모듈, 플러그인, 기본 맵·게임모드·GameInstance, 입력 설정
 - 블루프린트 목록: 종류(일반/위젯/애님), 부모 클래스, 진입점(BeginPlay, 입력, 컴포넌트 이벤트…)
-- **C++ ↔ BP 매핑**: 어떤 C++ 클래스를 어떤 BP가 상속하는지, 어떤 C++ 함수를 어떤 BP가 호출하는지
+- **C++ ↔ BP 이름 후보**: 저장된 짧은 이름과 유일한 C++ 소스 철자의 탐색용 연결. 컴파일러/UHT 정체성이나 호출 대상을 증명하지 않음
 - 데이터 에셋 목록: 요약(행 수, 필드 수, 태스크 수 등)과 **어떤 BP·에셋이 쓰는지(Used by)**
 - 파싱 리포트: 부분 디코딩, 실패, LFS 누락 항목
 

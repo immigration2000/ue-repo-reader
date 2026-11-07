@@ -17,6 +17,10 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from cxx_index_tests import (test_cxx_precision_build_rules_and_digest_outputs_are_additive,
+                             test_cxx_precision_keeps_overloads_duplicates_namespaces_and_ambiguity,
+                             test_cxx_precision_observes_unreal_functions_bodies_and_source_spans,
+                             test_cxx_precision_reports_invalid_source_and_missing_parser_without_false_success)
 from native_repeat_tests import (test_native_repeats_identical_clean_capture_is_stable_under_reordering,
                                  test_native_repeats_scalar_guid_and_hidden_changes_are_retained,
                                  test_native_repeats_package_hash_engine_and_project_drift_fail_closed,

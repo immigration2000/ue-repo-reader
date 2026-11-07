@@ -11,6 +11,25 @@
 
 ---
 
+## 2026-11-07 18:45 KST · codex · F10 (C++ 정밀 구문 색인)
+- 한 일: v1.19.0. 기존 regex `cpp.modules/classes`와 CLASSES.md를 호환 유지하고, 고정 tree-sitter-cpp 기반
+  schema1 `cpp.precision`/CXX_INDEX.json 및 FUNCTIONS/CALL_GRAPH/UNRESOLVED.md를 추가했다. 일반/Unreal 타입,
+  함수 선언·정의/본문·원본 span, access/namespace/base/member, 호출·제어문·read/write·lambda, Build.cs/Target.cs,
+  U 매크로/GENERATED_BODY/generated.h/전처리 원문을 보존한다. 매크로는 같은 길이로 파서 입력에서만 마스킹한다.
+  모든 syntax 결과와 typed 의미를 분리해 call은 유일 후보도 unresolved, semantic_resolved는0으로 고정(D-032).
+  _Implementation/_Validate와 선언/정의는 owner+source spelling 후보만 연결. 기존 C++↔BP short-name 연결도 유일한
+  후보만 탐색용으로 표시하고 중복 이름은 연결하지 않는다. 선택 의존성 부재는 unavailable로 명시하며 서버/스킬 설치 핀을 추가했다.
+- 검증: dcb99dc detached 기준 regress 단위158/158·외부 에셋6/6·Native Oracle8그룹+증거2개·고정 프로젝트4/4 PASS.
+  최종 전체는 단위162/162와 같은 독립/고정 회귀 전부 PASS, 실제 MCP HTTP6도구 PASS. 새 합성 반례4개에서 ordinary/
+  UFUNCTION multiline/RPC, overload·동명 class/function·namespace/template/lambda/전처리/invalid source/Build·Target/output을 확인.
+  실제 C++는 ar164파일 중7 partial(함수728/call2000), ves4/0 partial, bt26/0 partial로 숨기지 않았다.
+  fixtures.json, 원본 패키지, 독립 Oracle/evidence 정답은 변경하지 않았다. 첫 최종 시도의 dirty eg 전용 캐시 거부는
+  reset하지 않고 보존 후 새 고정 clone으로 재실행했고 완전 통과했다.
+- 남은 일·주의: tree-sitter는 전처리/UHT/UBT/type/overload/template instantiation/virtual·delegate runtime target을
+  검증하지 않는다. UE5.7/5.8 엔진 빌드와 Clang AST 비교는 미실행이며 semantic_resolved가 필요하면 compile_commands,
+  동일 엔진/생성 헤더/플랫폼 define을 갖춘 별도 resolver로 syntax IR을 덮어쓰지 않고 추가해야 한다. 자세한 범위와
+  수치는 docs/reports/P3_CPP_PRECISION_{AUDIT,RESULTS,LIMITATIONS}.md에 기록했다.
+
 ## 2026-11-07 02:00 KST · codex · A10 (P2 semantic reference Native Oracle)
 - 한 일: 기준 dcb99dc에서 loaded-editor semantic reference를 읽는 RepoReaderOracle 확장과 saved-package graph IR을
   대조하는 `semantic-references` profile을 추가했다. exact graph/node path·node GUID·owner/self·member name/GUID를 비교하고,

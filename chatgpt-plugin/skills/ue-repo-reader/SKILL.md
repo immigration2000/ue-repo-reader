@@ -34,7 +34,7 @@ do not treat a successful parse as support confirmation. Mode is part of the cac
    with coverage, configured entry points and PageRank priority links. Scores use saved references and
    unique-name mentions; they suggest reading order, not runtime calls, dependencies or gameplay importance.
    Follow relevant links and the incoming/outgoing context in each asset's header. `CATALOG.md` preserves
-   complete project settings, maps/Blueprint/data catalogs, C++ ↔ Blueprint mapping, Enhanced Input check,
+   complete project settings, maps/Blueprint/data catalogs, C++ ↔ Blueprint short-name candidates, Enhanced Input check,
    GameplayTags, full notation and Parse report; follow continuation parts too.
    Read the prominent **Project support** notice as well as decode coverage before drawing conclusions.
    An independent editor comparison is a separate optional developer workflow (`docs/EDITOR_ORACLE.md`
@@ -67,7 +67,10 @@ do not treat a successful parse as support confirmation. Mode is part of the cac
    Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.
    Saved names/numbers are preserved; integers for serialized names come from that enum's value table.
    Unresolved names/numbers flag missing/ambiguous enums or unknown values.
-5. `cpp/CLASSES.md`, then real C++ via `read_source_file` (a glob like `Source/**/*.h` lists files).
+5. C++: `cpp/CLASSES.md` keeps the compatible reflected surface; `cpp/FUNCTIONS.md`, `cpp/CALL_GRAPH.md`,
+   `cpp/UNRESOLVED.md`, and schema-versioned `cpp/CXX_INDEX.json` contain tree-sitter source observations.
+   `syntax_observed` is not typed resolution. Calls remain target-`unresolved` even with one spelling candidate;
+   use `read_source_file` for the exact source (a glob like `Source/**/*.h` lists files).
 
 Read **Parse warnings** in each document, INDEX coverage and the CATALOG Parse report. Property/graph-render/Level Blueprint/
 external-actor failures can occur with N/N node coverage. An unreadable Level Blueprint is unknown, not empty;
