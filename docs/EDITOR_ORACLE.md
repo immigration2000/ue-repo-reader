@@ -66,6 +66,11 @@ semantic profile의 member target은 `(self 또는 exact parent object path, mem
 saved/loaded 차이로 남긴다. `K2Node_CreateDelegate.SelectedFunctionName`은 owner를 저장하지 않으므로 이름이 같아도
 `unavailable`이 남는다. CustomEvent는 현재 Blueprint의 self identity와 node identity 안에서 이름을 비교한다.
 
+Unreal tagged struct가 external reference의 default-false `bSelfContext`를 생략했더라도 exact saved `MemberParent`가 있으면
+그 parent object path는 독립적으로 비교한다. 이때 owner mode/path만 검증하며 `bSelfContext` 자체는 unknown으로 남긴다.
+반대로 exact parent가 없으면 short name이나 loaded default `false`로 external owner를 만들지 않는다. 저장되지 않은 zero GUID도
+loaded-editor 관측일 뿐 saved value로 합성하지 않는다.
+
 `all`/`graph`에서는 빈 그래프, 레이아웃, 그래프/노드/변수 GUID, 그래프 핀의 맵 값 타입 const/weak 플래그,
 FText 지역화 정체성, 함수 키워드/compact title/flags와 위젯 SourcePath 전체를 제외한다. semantic profile은 node GUID를
 identity 일부로 비교하지만 graph/variable GUID는 비교하지 않는다. 기본값은 저장된 필드이며 유효 CDO/상속값이나
