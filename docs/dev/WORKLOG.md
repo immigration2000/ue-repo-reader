@@ -11,6 +11,54 @@
 
 ---
 
+## 2026-11-07 19:44 KST · codex · F13 (C++ ↔ Blueprint 통합 정밀 분석)
+- 한 일: P2 d4012f9와 P3 0c945e6을 dcb99dc 기반 `codex/p4-unified-analysis`에 merge하고 문서 충돌2개만
+  양쪽 의미를 유지해 해결했다. v1.20.0에서 원본 graph/declaration/cpp.precision을 바꾸지 않는 schema1 unified IR,
+  overview/unresolved 문서, source/target 양방향 관계 색인을 추가했다. `/Script` owner+member 후보, BP 함수·변수, 저장 pin flow·MacroGraph path,
+  C++ call/base/override/read-write와 Unreal implementation을 연결하되 cross-language verified를0으로 고정했다(D-033).
+  overload/동명 class·graph/GUID 오류/누락/P2-P3 partial·saved-loaded mismatch/BNE/interface/return 후보 반례를 추가했다.
+- 검증: 통합 전 기준 전체 regress 단위169/169와 외부/Native/evidence/고정4프로젝트 PASS. 최종 전체는 단위173/173,
+  외부 에셋6/6, 기존 Native Oracle8그룹+증거2개, eg/ar/ves/bt 모두 PASS. 실제 C++와 BP가 있는 고정 ar에서 전체8169개
+  관계(verified2522/candidate1156/ambiguous158/unavailable4333), cross-language545개(verified0/candidate89/
+  ambiguous7/unavailable449)를 관측했다. fixtures/원본 패키지/Oracle/evidence 정답은 변경하지 않았다. 첫 단위 단독 실행은
+  read-only HOME cache 때문에 중단됐고 workspace cache를 명시한 재실행과 최종 전체 회귀가 통과했다. 실제 MCP HTTP6도구의
+  response limit, warm/restart/refresh, strict/opt-in cache 분리도 PASS.
+- 남은 일·주의: P2 UE5.7/5.8 plugin 실제 build/new semantic capture와 Clang AST/UHT 검증은 미실행이다. saved pin/MacroGraph verified는
+  runtime order가 아니며 cross-language target은 compiler/UHT ID 전까지 후보다. GridInventorySystem 적용 전 clean pinned
+  commit digest와 UE5.8 same-hash capture를 별도 출력으로 생성하고 saved/loaded 차이를 유지한다. 상세 수치와 절차는
+  docs/reports/P4_{INTEGRATION_AUDIT,INTEGRATION_RESULTS,ANALYSIS_ACCURACY}.md.
+
+## 2026-11-07 18:45 KST · codex · F10 (C++ 정밀 구문 색인)
+- 한 일: v1.19.0. 기존 regex `cpp.modules/classes`와 CLASSES.md를 호환 유지하고, 고정 tree-sitter-cpp 기반
+  schema1 `cpp.precision`/CXX_INDEX.json 및 FUNCTIONS/CALL_GRAPH/UNRESOLVED.md를 추가했다. 일반/Unreal 타입,
+  함수 선언·정의/본문·원본 span, access/namespace/base/member, 호출·제어문·read/write·lambda, Build.cs/Target.cs,
+  U 매크로/GENERATED_BODY/generated.h/전처리 원문을 보존한다. 매크로는 같은 길이로 파서 입력에서만 마스킹한다.
+  모든 syntax 결과와 typed 의미를 분리해 call은 유일 후보도 unresolved, semantic_resolved는0으로 고정(D-032).
+  _Implementation/_Validate와 선언/정의는 owner+source spelling 후보만 연결. 기존 C++↔BP short-name 연결도 유일한
+  후보만 탐색용으로 표시하고 중복 이름은 연결하지 않는다. 선택 의존성 부재는 unavailable로 명시하며 서버/스킬 설치 핀을 추가했다.
+- 검증: dcb99dc detached 기준 regress 단위158/158·외부 에셋6/6·Native Oracle8그룹+증거2개·고정 프로젝트4/4 PASS.
+  최종 전체는 단위162/162와 같은 독립/고정 회귀 전부 PASS, 실제 MCP HTTP6도구 PASS. 새 합성 반례4개에서 ordinary/
+  UFUNCTION multiline/RPC, overload·동명 class/function·namespace/template/lambda/전처리/invalid source/Build·Target/output을 확인.
+  실제 C++는 ar164파일 중7 partial(함수728/call2000), ves4/0 partial, bt26/0 partial로 숨기지 않았다.
+  fixtures.json, 원본 패키지, 독립 Oracle/evidence 정답은 변경하지 않았다. 첫 최종 시도의 dirty eg 전용 캐시 거부는
+  reset하지 않고 보존 후 새 고정 clone으로 재실행했고 완전 통과했다.
+- 남은 일·주의: tree-sitter는 전처리/UHT/UBT/type/overload/template instantiation/virtual·delegate runtime target을
+  검증하지 않는다. UE5.7/5.8 엔진 빌드와 Clang AST 비교는 미실행이며 semantic_resolved가 필요하면 compile_commands,
+  동일 엔진/생성 헤더/플랫폼 define을 갖춘 별도 resolver로 syntax IR을 덮어쓰지 않고 추가해야 한다. 자세한 범위와
+  수치는 docs/reports/P3_CPP_PRECISION_{AUDIT,RESULTS,LIMITATIONS}.md에 기록했다.
+
+## 2026-11-07 02:00 KST · codex · A10 (P2 semantic reference Native Oracle)
+- 한 일: 기준 dcb99dc에서 loaded-editor semantic reference를 읽는 RepoReaderOracle 확장과 saved-package graph IR을
+  대조하는 `semantic-references` profile을 추가했다. exact graph/node path·node GUID·owner/self·member name/GUID를 비교하고,
+  같은 short name, unknown, duplicate identity, unresolved target을 성공으로 처리하지 않는다. Function/Event/Variable/Delegate,
+  MacroGraph, CreateDelegate/CustomEvent의 지원 경계를 기록하고 CreateDelegate name-only는 incomplete로 유지한다(D-031).
+  새 P2 보고서와 UE5.7/5.8 Windows build/capture/hash/compare 절차를 작성했다. 기존 native 정답 JSON은 변경하지 않았다.
+- 검증: 변경 전/후 전체 regress PASS. unit 전체, 외부 에셋6/6, 기존 Native Oracle8/8, eg49BP/1778노드·ar·ves·bt PASS.
+  exact 정상 참조와 동명 타 class/wrong GUID/missing parent·reference/duplicate node/partial/saved-load/hash 반례 PASS.
+  Python compile·diff check PASS. 기존 fixture/oracle/evidence diff 없음. dirty LFS clone은 reset하지 않고 보존 이름으로 이동했다.
+- 남은 일·주의: Cloud에는 UE header/toolchain이 없어 새 C++ producer를 실제 빌드·실행하지 못했다. UE5.8 우선, 5.7 별도
+  Windows capture가 완료되기 전에는 semantic reference 독립 검증 완료가 아니다. 새 정답은 기존 JSON을 덮어쓰지 말고 별도 추가한다.
+
 ## 2026-11-07 00:41 KST · codex · A9 (정확도 감사와 P0/P1 참조 정체성)
 - 한 일: v1.18.0. GraphRenderer가 owner 없는 링크를 graph-wide unique GUID로 연결하던 추정을 제거하고,
   tagged reference가 틀린 full path 뒤 같은 이름의 첫 export로 떨어지던 경로를 exact/unique 해석으로 변경했다.

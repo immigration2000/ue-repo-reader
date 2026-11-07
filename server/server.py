@@ -428,7 +428,10 @@ preserves complete catalogs, settings, notation and the Parse report; follow con
 you need: maps/*.md (level Blueprint, placed
 actors), blueprints/*.md (components, variables, graphs as execution-flow pseudo-code), data/*.md (DataTables,
 structs, enums, behavior trees, input mappings, DataAssets), cpp/CLASSES.md, and real C++ sources through
-read_source_file. Follow returned offsets until complete: file reads use character offsets; lists/globs use item
+read_source_file. For cross-language questions read analysis/OVERVIEW.md and analysis/UNRESOLVED.md; the
+schema-versioned analysis/UNIFIED_ANALYSIS.json retains forward/reverse relations and candidates. Cross-language
+relations are not verified without compiler/UHT identity, and saved pin connectivity is not runtime order.
+Follow returned offsets until complete: file reads use character offsets; lists/globs use item
 offsets. Search is literal, not FTS/regex syntax; report search coverage warnings and narrow truncated results.
 Quote Blueprint paths and pseudo-code lines, state coverage from the Parse report, and do not guess the content
 of nodes marked unreadable."""
