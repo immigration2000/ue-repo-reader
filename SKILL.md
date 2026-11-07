@@ -38,7 +38,10 @@ Useful options:
 - `--lfs-max-mb 8` — only Git-LFS `.uasset` files up to this size are downloaded (Blueprints are small;
   textures and meshes are skipped on purpose)
 
-Requirements: Python 3.10+, `git`, and `git-lfs` for LFS repos. The first run fetches the pinned
+Requirements: Python 3.10+, `git`, and `git-lfs` for LFS repos. For the precision C++ syntax index, install
+the pinned optional parser once with `python -m pip install -r <this-skill-dir>/requirements-cxx.txt`.
+Without it, the compatible reflected-surface index is still generated and the precision index reports
+`unavailable`; it does not silently substitute regex results. The first run fetches the pinned
 `uasset_read` parser into `~/.cache/ue-repo-reader` (override with `UE_REPO_READER_CACHE`). Private repos use
 the machine's normal git credentials. Use `python3` or `py -3` if `python` is not the right interpreter.
 
@@ -56,7 +59,7 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    and unique-name mentions, with configured-entry seeds; they suggest reading order, not runtime behavior
    or proven dependencies. Follow the links relevant to the question. Each asset starts with context links.
    `<out>/CATALOG.md` preserves the complete project settings, map/Blueprint/data catalogs, C++ ↔ Blueprint
-   mapping, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
+   short-name candidates, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
    Read **Project support** before interpreting coverage. The declaration is not independent semantic
    verification; an explicit best-effort run never becomes a confirmed target because parsing succeeded.
    For an explicit request to verify against an editor, use the optional developer workflow in
@@ -104,7 +107,16 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    ambiguous enum; ordinary byte arrays remain numeric.
 5. `<out>/config/GameplayTags.md` (when the project uses tags) — every tag, where it is defined (ini, tag
    DataTable or native C++), who uses it, tags used but never defined, redirects.
-6. `<out>/cpp/CLASSES.md` to locate C++ types, then read the **real** C++ sources in the clone for details.
+6. C++ output:
+   - `<out>/cpp/CLASSES.md` is the compatible regex-based reflected surface.
+   - `<out>/cpp/FUNCTIONS.md` records tree-sitter-observed declarations, definitions, bodies and source lines.
+   - `<out>/cpp/CALL_GRAPH.md` records call expressions and spelling candidates; even a unique candidate is
+     unresolved until a typed C++ analyzer verifies it.
+   - `<out>/cpp/UNRESOLVED.md` lists partial syntax, unevaluated preprocessor branches and unresolved targets.
+   - `<out>/cpp/CXX_INDEX.json` is schema-versioned machine data with exact source spans and status.
+   Read the **real** C++ sources for exact code. `syntax_observed` is direct syntax, not proof of types,
+   overloads, generated code, runtime dispatch or UnrealHeaderTool behavior. `semantic_resolved` is reserved
+   for a future typed analyzer and is never emitted by the tree-sitter index.
 
 Skip `digest.json` (a machine-readable copy of the same facts). A file that ends with
 `→ continued in X.part2.md` is split; read the parts in order.
@@ -113,7 +125,8 @@ Read each document's **Parse warnings**, the INDEX coverage summary and the CATA
 and external-actor failures are reported even when all graph nodes have decoded pins. An unreadable Level
 Blueprint is **unknown**, not an empty graph; missing values after a parse failure are not confirmed defaults.
 
-Cross-check both directions: when a Blueprint calls project C++ (`CATALOG.md` lists these), read that C++;
+Cross-check both directions: when a Blueprint has a project C++ name candidate (`CATALOG.md` lists these),
+read that C++ and do not treat the short-name link as compiler/UHT identity or a resolved call;
 when C++ declares a `BlueprintImplementableEvent`/`BlueprintNativeEvent`, grep `blueprints/` for the event
 name to find its Blueprint implementation.
 
