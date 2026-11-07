@@ -60,13 +60,20 @@ from editor_compare_tests import (test_editor_compare_dirty_display_text_and_pro
                                  test_editor_compare_unknown_never_becomes_default_or_success,
                                  test_editor_compare_word_order_owner_scope_and_order_independence,
                                  test_editor_oracle_absolute_import_paths_are_not_prefixed_twice,
-                                 test_native_replay_rejects_wrong_values_and_new_gaps)
+                                 test_native_replay_rejects_wrong_values_and_new_gaps,
+                                 test_semantic_reference_profile_matches_exact_loaded_and_saved_function_identity,
+                                 test_semantic_reference_profile_rejects_same_name_wrong_class_and_guid,
+                                 test_semantic_reference_profile_covers_member_macro_and_custom_event_records,
+                                 test_semantic_reference_profile_missing_duplicate_and_unknown_fail_closed,
+                                 test_semantic_reference_profile_preserves_loaded_saved_boundary_and_partial_name_kinds,
+                                 test_semantic_reference_oracle_profile_requires_hash_and_new_native_capability)
 from editor_export_tests import (test_editor_oracle_captures_requested_assets_in_order_with_pinned_bytes,
                                 test_editor_oracle_pins_nothing_it_cannot_read_but_still_captures_the_asset,
                                 test_editor_oracle_preserves_native_text_source_and_flags_display_text,
                                 test_editor_oracle_records_every_failure_without_dropping_an_asset,
                                 test_editor_oracle_refuses_bad_configuration_before_reading_or_replacing_anything,
                                 test_editor_oracle_reports_package_bytes_that_changed_during_a_capture,
+                                test_native_oracle_semantic_capture_declares_loaded_state_and_no_mutators,
                                 test_editor_oracle_touches_no_editor_mutators_and_shares_no_reader_code,
                                 test_editor_oracle_will_not_read_a_dirty_package_as_the_saved_asset,
                                 test_editor_oracle_write_failure_keeps_the_previous_oracle_and_leaves_no_debris)
