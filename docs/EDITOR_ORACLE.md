@@ -44,6 +44,7 @@ module.export_oracle(r"D:/checks/eg.json", ["/Game/DeltaForce/Blueprints/Core/BF
 ```powershell
 python tools/compare_editor_oracle.py D:/checks/eg.json --project-root D:/projects/ExtractionGame --out D:/checks/compare-all.json
 python tools/compare_editor_oracle.py D:/checks/eg.json --project-root D:/projects/ExtractionGame --profile graph --out D:/checks/compare-graph.json
+python tools/compare_editor_oracle.py D:/checks/eg-semantic.json --project-root D:/projects/ExtractionGame --profile semantic-references --out D:/checks/compare-semantic.json
 ```
 
 기존 요약본을 실제 결과로 재사용하지 않으며 리더를 새로 실행한다. 다른 PC의 프로젝트 복사본도 같은 패키지 바이트라면 비교할 수 있다.
@@ -54,9 +55,25 @@ python tools/compare_editor_oracle.py D:/checks/eg.json --project-root D:/projec
   바이너리에 명시되지 않았거나 리더가 노출하지 않은 값은 추정하지 않고 `unavailable`로 남긴다.
 - `graph`는 노드 클래스, 전체 수집 핀의 이름/방향/타입/기본값/표시 플래그와 저장 연결만 대조한다.
   부모·변수/함수 선언·함수 메타데이터·위젯 바인딩은 비교하지 않았다고 보고서에 명시한다.
+- `semantic-references`는 새 native bridge가 `loaded-editor`로 표시한 참조만 1.18.0 graph IR의 `saved-package`
+  관측과 대조한다. exact graph/node object path와 node GUID로 노드를 찾고 kind/source property, self/external owner,
+  exact owner object path, member name과 GUID를 비교한다. 이름만 같거나 unknown인 값은 통과가 아니다. 기존 8개 정답에는
+  이 capability가 없으므로 이 profile에서 `incomplete`이며 기존 정답을 새 필드로 덮어쓰지 않는다.
 
-어느 범위든 빈 그래프, 레이아웃, 그래프/노드/변수 GUID, 그래프 핀의 맵 값 타입 const/weak 플래그, FText 지역화 정체성,
-함수 키워드/compact title/flags와 위젯 SourcePath 전체는 현재 비교에서 제외한다. 기본값은 저장된 필드이며 유효 CDO/상속값이나
+semantic profile의 member target은 `(self 또는 exact parent object path, member name, member GUID)`다. native 쪽은 로드된
+`FMemberReference`가 실제 함수/프로퍼티로 해석됐는지도 별도 기록한다. 저장 package index와 로드된 UObject 포인터는 표현이
+다르므로 직접 비교하지 않고 binary reader가 index로 확인한 exact object path를 비교한다. GUID가 engine load fixup으로 바뀌면
+saved/loaded 차이로 남긴다. `K2Node_CreateDelegate.SelectedFunctionName`은 owner를 저장하지 않으므로 이름이 같아도
+`unavailable`이 남는다. CustomEvent는 현재 Blueprint의 self identity와 node identity 안에서 이름을 비교한다.
+
+Unreal tagged struct가 external reference의 default-false `bSelfContext`를 생략했더라도 exact saved `MemberParent`가 있으면
+그 parent object path는 독립적으로 비교한다. 이때 owner mode/path만 검증하며 `bSelfContext` 자체는 unknown으로 남긴다.
+반대로 exact parent가 없으면 short name이나 loaded default `false`로 external owner를 만들지 않는다. 저장되지 않은 zero GUID도
+loaded-editor 관측일 뿐 saved value로 합성하지 않는다.
+
+`all`/`graph`에서는 빈 그래프, 레이아웃, 그래프/노드/변수 GUID, 그래프 핀의 맵 값 타입 const/weak 플래그,
+FText 지역화 정체성, 함수 키워드/compact title/flags와 위젯 SourcePath 전체를 제외한다. semantic profile은 node GUID를
+identity 일부로 비교하지만 graph/variable GUID는 비교하지 않는다. 기본값은 저장된 필드이며 유효 CDO/상속값이나
 실제 실행·도달성을 검증하지 않는다. 저장 후 엔진의 로드 시 보정과 리더 오류도 차이의 원인이므로 보고서를 확인하고 원인을 구분한다.
 관측값 수는 정확도 점수가 아니다.
 Control Rig/RigVM 그래프는 현재 비교 어댑터의 범위 밖이며 수집 목록에 있어도 미확정으로 남긴다.
@@ -73,6 +90,17 @@ Control Rig/RigVM 그래프는 현재 비교 어댑터의 범위 밖이며 수�
 객체 경로의 `:` 경계는 리더의 `.` 표기와 대조할 때 한 번 변환한다. 핀 GUID는 에디터의 4개 uint32 표기를 각 워드별
 little-endian 저장 바이트로 변환한다. 핀의 소유 노드 경로를 함께 사용하며 같은 GUID가 다른 노드에 있다는 이유로 연결하지 않는다.
 배열 순서나 레이아웃은 비교 결과를 바꾸지 않는다. 중복 정체성은 덮어쓰지 않고 오류로 처리하며 중복 연결 관측은 유지한다.
+
+새 캡처는 snapshot에 `semantic_reference_state="loaded-editor"`를 쓰고 각 node의 `semantic_references`에 다음을 보존한다.
+
+- Function/Event/Variable/Delegate reference: `MemberParent`, `MemberName`, `MemberGuid`, `bSelfContext`의 loaded 값과
+  field별 지원 상태, parent/effective owner class path, resolved member/owner path
+- MacroGraphReference: `UK2Node_MacroInstance::GetMacroGraph()`가 반환한 exact graph object path
+- CreateDelegate/CustomEvent: 로드된 FName. CreateDelegate owner는 이 필드만으로 확인할 수 없으므로 partial
+
+FMemberReference는 node UPROPERTY와 그 struct field를 Unreal reflection으로 읽는다. private C++ layout이나 저장 바이트를
+재구성하지 않으며 setter를 호출하지 않는다. field/property가 없거나 타입이 다르면 `unsupported`, null 또는 미해석 target은
+`partial`이다. 수집기는 Blueprint 저장·컴파일·node 재구성·dirty 해제 API를 호출하지 않는다.
 
 캡처된 정답은 우리 리더 결과로 재생성하면 안 된다. 고정 외부 패키지의 출처·라이선스·해시는
 [`tests/asset_fixtures.json`](../tests/asset_fixtures.json)과 [`tests/README.md`](../tests/README.md)를 참고한다.
@@ -104,3 +132,55 @@ GUID를 이름으로 맞추거나 숨겨 일치로 바꾸지 않는다. const/de
 선택적 native smoke에 `--no-pch`를 주면 임시 플러그인의 PCH 사용을 꺼 큰 캐시 생성을 줄인다.
 Q14는 실제5.8.4에서 이 방식으로 빌드했다. 프로젝트 복사본의 애니메이션 의존 에셋을 로드할 때는 AnimationData 등
 원래 필요한 플러그인도 그 복사본에 활성화해야 한다. 사용자 프로젝트/엔진 전역 설정은 바꾸지 않는다.
+
+## P2 semantic reference Windows 검증 절차
+
+원본 프로젝트가 아닌 깨끗한 검증 복사본을 사용한다. 아래 예시는 UE 5.8이며 5.7은 engine path와 새 출력 폴더만 바꾼다.
+
+1. 기준 `dcb99dc`와 검증 브랜치를 별도 폴더에 checkout하고 대상 프로젝트 commit을 고정한다. 비교 전
+   `git status --short`와 대상 `.uasset`의 `Get-FileHash -Algorithm SHA256` 값을 기록한다.
+2. 프로젝트 복사본의 `Plugins/RepoReaderOracle`에 `tools/RepoReaderOracle`을 복사한다. PythonScriptPlugin과 이 editor-only
+   plugin만 복사본의 `.uproject`에서 활성화한다. 원본 `.uproject`와 Content는 수정하지 않는다.
+3. 프로젝트가 실제 선언한 Editor target 이름으로 빌드한다.
+
+```powershell
+$Engine = "C:/Program Files/Epic Games/UE_5.8"
+$Project = "D:/checks/project-copy/Game.uproject"
+& "$Engine/Engine/Build/BatchFiles/Build.bat" GameEditor Win64 Development "-Project=$Project" -WaitMutex -NoHotReloadFromIDE
+```
+
+   engine 전역 plugin이나 설정을 변경하지 않는다. 빌드가 실패하면 semantic native 검증은 미실행이며 Linux 합성 검사로
+   대체해 완료라고 보고하지 않는다. 독립 smoke 자체는 다음 명령으로 다시 확인할 수 있다.
+
+```powershell
+python tests/editor_native_smoke.py --engine $Engine --workdir "D:/checks/oracle-p2-58" --no-pch
+```
+
+4. 빌드된 복사본을 열고 Python console에서 새 파일명으로 캡처한다. 정확한 `/Game/...` package path를 사용한다.
+
+```python
+import importlib.util
+spec = importlib.util.spec_from_file_location("oracle_export", r"C:/work/ue-repo-reader/tools/export_editor_oracle.py")
+oracle_export = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(oracle_export)
+oracle_export.export_oracle(
+    r"D:/checks/oracle-p2-58/semantic-native.json",
+    [r"/Game/Blueprints/BP_Target"])
+```
+
+5. 출력 JSON에서 root/asset/snapshot `issues`가 비었고 `package_dirty=false`,
+   `semantic_reference_state="loaded-editor"`, 수집 전후 SHA-256이 같은지 확인한다. Content의 실제 SHA-256도 JSON과 같아야 한다.
+6. editor를 종료한 뒤 같은 깨끗한 프로젝트 복사본에 새 binary read를 실행한다. 기존 JSON과 보고서를 덮어쓰지 않는다.
+
+```powershell
+python tools/compare_editor_oracle.py `
+  "D:/checks/oracle-p2-58/semantic-native.json" `
+  --project-root "D:/checks/project-copy" `
+  --profile semantic-references `
+  --out "D:/checks/oracle-p2-58/semantic-compare.json"
+```
+
+종료 코드 0은 선택한 패키지와 semantic profile의 모든 필수 관측이 일치하고 unavailable이 없다는 뜻이다. mismatch는 보고서의
+exact graph/node/reference/field path, expected loaded 값과 actual saved 값을 함께 보존한다. `incomplete`는 unknown,
+unsupported, capture issue, dirty package, SHA 불일치, 중복 identity 또는 CreateDelegate owner 미확정을 포함한다.
+UE 5.7은 별도 복사본·별도 JSON·별도 보고서로 같은 절차를 수행하고 두 결과를 합쳐 쓰지 않는다.

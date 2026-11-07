@@ -123,7 +123,8 @@ def check(fx: dict, out: Path) -> list[str]:
         expected_docs = {folder + gp + ".md" for folder, group in
                          (("blueprints", "blueprints"), ("data", "data_assets"), ("maps", "maps_detail"))
                          for gp in (digest.get(group) or {})}
-        if (digest.get("cpp") or {}).get("classes"):
+        cpp = digest.get("cpp") or {}
+        if cpp.get("classes") or (cpp.get("precision") or {}).get("types") or (cpp.get("precision") or {}).get("functions"):
             expected_docs.add("cpp/CLASSES.md")
         if set(documents) != expected_docs:
             errors.append("navigation does not cover every rendered asset/C++ document")

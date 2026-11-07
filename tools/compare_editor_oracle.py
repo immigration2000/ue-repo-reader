@@ -18,6 +18,8 @@ import sys
 
 DECLARATION_SCHEMA_VERSION = 1
 DECLARATION_BASIS = "saved-tagged-properties"
+SEMANTIC_PROFILE = "semantic-references"
+PROFILES = ("all", "graph", SEMANTIC_PROFILE)
 # Native field names, in the shape the editor bridge writes them.
 _VARIABLE_FIELDS = ("name", "type", "flags", "category", "default_value")
 _BINDING_FIELDS = ("object_name", "property_name", "function_name", "kind")
@@ -63,6 +65,25 @@ def display_guid_to_serialized(value):
     if not isinstance(value, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", value) or not int(value, 16):
         raise OracleError("pin GUID must be a nonzero four-word Unreal display GUID")
     return b"".join(int(value[i:i + 8], 16).to_bytes(4, "little") for i in range(0, 32, 8)).hex()
+
+
+def serialized_guid_to_display(value, *, label="GUID", nonzero=True):
+    """Convert four serialized little-endian uint32 words to Unreal's display form."""
+    if not isinstance(value, str):
+        raise OracleError(f"{label} must be a 32-digit serialized GUID")
+    raw = value.replace("-", "")
+    if not re.fullmatch(r"[a-fA-F0-9]{32}", raw) or nonzero and not int(raw, 16):
+        raise OracleError(f"{label} must be a {'nonzero ' if nonzero else ''}32-digit serialized GUID")
+    return "".join(f"{int.from_bytes(bytes.fromhex(raw[i:i + 8]), 'little'):08x}"
+                   for i in range(0, 32, 8))
+
+
+def _display_guid(value, *, label="GUID", nonzero=True):
+    if not isinstance(value, str) or not re.fullmatch(r"[a-fA-F0-9]{32}", value):
+        raise OracleError(f"{label} must be a 32-digit Unreal display GUID")
+    if nonzero and not int(value, 16):
+        raise OracleError(f"{label} must be nonzero")
+    return value.lower()
 
 
 def _fname(value):
@@ -292,6 +313,238 @@ def canonical_snapshot(snapshot):
     return result
 
 
+_MEMBER_REFERENCE_KINDS = {"function", "interface_function", "event", "variable", "delegate"}
+
+
+def _semantic_owner(self_context, parent, context):
+    # Positive saved evidence is sufficient to identify either owner mode. An
+    # exact MemberParent identifies an external owner even when the default-false
+    # bSelfContext field was omitted from the tagged struct. Keep self_context
+    # independently unknown; do not invent False or weaken its comparison.
+    if self_context is True:
+        return {"mode": "self"}
+    if isinstance(parent, str):
+        try:
+            return {"mode": "external", "object_path": object_path(parent)}
+        except OracleError as error:
+            return unknown(f"{context} parent object path is invalid ({error})")
+    if _is_unknown(self_context):
+        return unknown(f"{context} self-context is unavailable and no exact external parent is saved")
+    if type(self_context) is not bool:
+        return unknown(f"{context} self-context is not a bool and no exact external parent is saved")
+    if _is_unknown(parent):
+        return dict(parent)
+    return unknown(f"{context} external member has no exact parent object path")
+
+
+def _saved_member_guid(value, context):
+    if _is_unknown(value):
+        return dict(value)
+    if not isinstance(value, dict) or value.get("encoding") != "saved-uint32-components":
+        return unknown(f"{context} member GUID is not saved uint32 components")
+    components = value.get("components")
+    if not isinstance(components, dict):
+        return unknown(f"{context} member GUID components are unavailable")
+    words = []
+    for key in ("A", "B", "C", "D"):
+        word = components.get(key, _MISSING)
+        if type(word) is not int or not 0 <= word < 1 << 32:
+            return unknown(f"{context} member GUID component {key} is unavailable or invalid")
+        words.append(word)
+    return "".join(f"{word:08x}" for word in words)
+
+
+def _native_semantic_reference(record, context, unavailable):
+    if not isinstance(record, dict):
+        raise OracleError(f"{context} native semantic reference must be an object")
+    kind = record.get("kind")
+    source = record.get("source_property")
+    _identity((kind, source), "native semantic reference")
+    if record.get("state") != "loaded-editor":
+        raise OracleError(f"{context} native semantic reference is not labelled loaded-editor")
+    status = record.get("status")
+    if status not in ("complete", "partial", "unsupported"):
+        raise OracleError(f"{context} native semantic reference has invalid status {status!r}")
+    if status != "complete":
+        unavailable.append({"path": context + "/status",
+                            "reason": str(record.get("reason") or f"native reference is {status}")})
+    if kind in _MEMBER_REFERENCE_KINDS:
+        states = record.get("field_states")
+        if not isinstance(states, dict):
+            states = {}
+        def field(name, expected_type, *, nullable=False):
+            value = record.get(name, _MISSING)
+            if states.get({"parent_object_path": "parent", "self_context": "self_context"}.get(name, name)) != "loaded":
+                return unknown(f"native loaded {name} is unsupported")
+            if nullable and value is None:
+                return None
+            if type(value) is not expected_type:
+                return unknown(f"native loaded {name} has invalid type {type(value).__name__}")
+            return value
+        self_context = field("self_context", bool)
+        parent = field("parent_object_path", str, nullable=True)
+        name = field("name", str)
+        guid = field("guid", str)
+        if not _is_unknown(guid):
+            try:
+                guid = _display_guid(guid, label="native member GUID", nonzero=False)
+            except OracleError as error:
+                guid = unknown(str(error))
+        if record.get("resolution_status") != "resolved":
+            unavailable.append({"path": context + "/resolved_member_path",
+                                "reason": "the editor did not resolve an exact loaded member target"})
+        return {"owner": _semantic_owner(self_context, parent, context),
+                "name": name, "guid": guid, "self_context": self_context}
+    if kind == "macro_graph":
+        value = record.get("object_path")
+        if not isinstance(value, str):
+            return {"object_path": unknown("native loaded macro graph path is unavailable")}
+        try:
+            value = object_path(value)
+        except OracleError as error:
+            value = unknown(str(error))
+        return {"object_path": value}
+    if kind in ("delegate_function", "custom_event"):
+        value = record.get("value")
+        if not isinstance(value, str) or not value:
+            value = unknown(f"native loaded {kind} name is unavailable")
+        return {"value": value}
+    raise OracleError(f"{context} unsupported native semantic reference kind {kind!r}")
+
+
+def _reader_semantic_reference(record, context, unavailable):
+    if not isinstance(record, dict):
+        raise OracleError(f"{context} reader semantic reference must be an object")
+    kind = record.get("kind")
+    source = record.get("source_property")
+    _identity((kind, source), "reader semantic reference")
+    status = record.get("status")
+    if status not in ("complete", "partial"):
+        unavailable.append({"path": context + "/status",
+                            "reason": f"reader semantic reference status is {status!r}"})
+    elif status != "complete":
+        unavailable.append({"path": context + "/status",
+                            "reason": "saved semantic reference is partial"})
+    if kind in _MEMBER_REFERENCE_KINDS:
+        self_context = record.get("self_context", unknown("saved self-context absent"))
+        parent_record = record.get("parent", unknown("saved member parent absent"))
+        parent = (parent_record.get("object_path", unknown("saved member parent path absent"))
+                  if isinstance(parent_record, dict) and not _is_unknown(parent_record)
+                  else parent_record)
+        name = record.get("name", unknown("saved member name absent"))
+        if not (isinstance(name, str) and name) and not _is_unknown(name):
+            name = unknown("saved member name is empty or invalid")
+        return {"owner": _semantic_owner(self_context, parent, context),
+                "name": name, "guid": _saved_member_guid(record.get("guid"), context),
+                "self_context": self_context}
+    if kind == "macro_graph":
+        value = record.get("value", unknown("saved macro graph reference absent"))
+        path = (value.get("object_path", unknown("saved macro graph path absent"))
+                if isinstance(value, dict) and not _is_unknown(value) else value)
+        if isinstance(path, str):
+            try:
+                path = object_path(path)
+            except OracleError as error:
+                path = unknown(str(error))
+        return {"object_path": path}
+    if kind in ("delegate_function", "custom_event"):
+        value = record.get("value", unknown(f"saved {kind} name absent"))
+        if not (isinstance(value, str) and value) and not _is_unknown(value):
+            value = unknown(f"saved {kind} name is empty or invalid")
+        return {"value": value}
+    raise OracleError(f"{context} unsupported reader semantic reference kind {kind!r}")
+
+
+def _semantic_snapshot(snapshot, *, native):
+    """Canonical semantic-reference target tuples keyed by exact graph/node object paths."""
+    if not isinstance(snapshot, dict):
+        raise OracleError("semantic snapshot must be an object")
+    if native and snapshot.get("semantic_reference_state") != "loaded-editor":
+        raise OracleError("native snapshot has no loaded-editor semantic-reference capability")
+    unavailable = []
+    result = {}
+    graphs = _indexed(snapshot.get("graphs"), lambda graph: object_path(graph["object_path"]),
+                      "semantic graph")
+    for graph_path, graph in graphs.items():
+        nodes = _indexed(graph.get("nodes"), lambda node: object_path(node["object_path"]),
+                         f"semantic node in {graph_path}")
+        selected = {}
+        seen_guids = set()
+        for node_path, node in nodes.items():
+            references = node.get("semantic_references", _MISSING)
+            if references is _MISSING:
+                if native:
+                    raise OracleError(f"native node {node_path} is missing semantic_references")
+                references = unknown("reader node has no semantic_references projection")
+            if _is_unknown(references):
+                unavailable.append({"path": f"semantic/{graph_path}/{node_path}/semantic_references",
+                                    "reason": references.get("reason", "reader references are unknown")})
+                continue
+            indexed = _indexed(references, lambda ref: (ref["kind"], ref["source_property"]),
+                               f"semantic reference in {node_path}")
+            if not indexed:
+                continue
+            node_guid = node.get("guid" if native else "guid_raw")
+            try:
+                normalized_guid = (_display_guid(node_guid, label="native node GUID") if native
+                                   else serialized_guid_to_display(node_guid, label="saved node GUID"))
+            except OracleError as error:
+                normalized_guid = unknown(str(error))
+            if isinstance(normalized_guid, str):
+                if normalized_guid in seen_guids:
+                    raise OracleError(f"duplicate semantic node GUID in graph {graph_path}: {normalized_guid}")
+                seen_guids.add(normalized_guid)
+            class_name = node.get("class")
+            if not isinstance(class_name, str) or not class_name:
+                class_name = unknown("node class is unavailable")
+            refs = {}
+            for identity, record in indexed.items():
+                key = json.dumps(identity, ensure_ascii=False)
+                context = f"semantic/{graph_path}/{node_path}/{identity[0]}:{identity[1]}"
+                refs[key] = (_native_semantic_reference(record, context, unavailable) if native
+                             else _reader_semantic_reference(record, context, unavailable))
+            selected[node_path] = {"class": class_name, "guid": normalized_guid,
+                                   "semantic_references": refs}
+        if selected:
+            result[graph_path] = selected
+    return result, unavailable
+
+
+def compare_semantic_references(expected, actual):
+    """Compare native loaded targets with saved-package semantic-reference observations."""
+    want, native_unavailable = _semantic_snapshot(expected, native=True)
+    got, reader_unavailable = _semantic_snapshot(actual, native=False)
+    result = {"checked": 0, "mismatches": [],
+              "unavailable": native_unavailable + reader_unavailable,
+              "states": {"expected": "loaded-editor", "actual": "saved-package"}}
+    if not want:
+        result["unavailable"].append({"path": "semantic", "reason": "no native semantic references were captured"})
+    def walk(left, right, path):
+        if _is_unknown(left):
+            result["unavailable"].append({"path": path,
+                                          "reason": left.get("$unavailable", left.get("reason", "native field is unknown"))})
+        elif _is_unknown(right):
+            result["unavailable"].append({"path": path,
+                                          "reason": right.get("$unavailable", right.get("reason", "saved field is unknown"))})
+        elif isinstance(left, dict) and isinstance(right, dict):
+            for key in sorted(left.keys() | right.keys()):
+                location = path + "/" + key
+                if key not in left or key not in right:
+                    result["mismatches"].append({"path": location, "expected": left.get(key),
+                                                  "actual": right.get(key),
+                                                  "reason": "missing or extra graph/node/reference identity or field"})
+                else:
+                    walk(left[key], right[key], location)
+        elif type(left) is not type(right) or left != right:
+            result["checked"] += 1
+            result["mismatches"].append({"path": path, "expected": left, "actual": right,
+                                          "reason": "loaded-editor and saved-package values differ"})
+        else:
+            result["checked"] += 1
+    walk(want, got, "semantic")
+    return result
+
+
 EXCLUSIONS = ["Empty graphs; graph/node/variable GUIDs and editor layout",
               "Control Rig/RigVM graphs are outside this native-oracle comparison adapter's scope",
               "Graph-pin map terminal const/weak flags (compared for variable declarations), "
@@ -301,11 +554,20 @@ EXCLUSIONS = ["Empty graphs; graph/node/variable GUIDs and editor layout",
               "Function keywords/compact title/flags; widget SourcePath segments",
               "Runtime reachability, compiled behavior and gameplay correctness"]
 
+SEMANTIC_EXCLUSIONS = [
+    "Pin values, links, declarations, function metadata and widget bindings (use all/graph profiles)",
+    "Graph GUID/layout and graphs without semantic-reference observations",
+    "CreateDelegate selected function owner: 1.18.0 saves only SelectedFunctionName, so name equality stays incomplete",
+    "Runtime dispatch, compiled behavior, inherited/CDO values and gameplay correctness",
+]
+
 
 def compare_snapshots(expected, actual, *, profile="all"):
-    if profile not in ("all", "graph"):
-        raise OracleError("comparison profile must be all or graph")
+    if profile not in PROFILES:
+        raise OracleError("comparison profile must be all, graph or semantic-references")
     validate_native_snapshot(expected)
+    if profile == SEMANTIC_PROFILE:
+        return compare_semantic_references(expected, actual)
     expected, actual = canonical_snapshot(expected), canonical_snapshot(actual)
     if profile == "graph":
         for value in (expected, actual):
@@ -353,8 +615,8 @@ def _package(root, record):
 
 
 def compare_oracle(oracle, project_root, *, reader=None, profile="all"):
-    if profile not in ("all", "graph"):
-        raise OracleError("comparison profile must be all or graph")
+    if profile not in PROFILES:
+        raise OracleError("comparison profile must be all, graph or semantic-references")
     if type(oracle.get("schema_version")) is not int or oracle["schema_version"] != 1:
         raise OracleError("unsupported oracle schema")
     if oracle.get("producer") != "unreal-editor-native":
@@ -370,7 +632,7 @@ def compare_oracle(oracle, project_root, *, reader=None, profile="all"):
     if not assets:
         raise OracleError("an empty oracle cannot verify anything")
     root = Path(project_root).resolve(strict=True)
-    exclusions = list(EXCLUSIONS)
+    exclusions = list(SEMANTIC_EXCLUSIONS if profile == SEMANTIC_PROFILE else EXCLUSIONS)
     if profile == "graph":
         exclusions.append("Graph profile: parent, variable/function declarations, function metadata and widget bindings are not compared")
     report = {"schema_version": 1, "status": "incomplete", "engine_version": oracle["engine_version"], "profile": profile,
@@ -402,7 +664,8 @@ def compare_oracle(oracle, project_root, *, reader=None, profile="all"):
             native_nodes = [n for g in asset["snapshot"]["graphs"] for n in g["nodes"]]
             native_pins = [p for n in native_nodes for p in n["pins"]]
             item["native_counts"] = {"graphs": len(asset["snapshot"]["graphs"]), "nodes": len(native_nodes),
-                                      "pins": len(native_pins), "link_observations": sum(len(p["links"]) for p in native_pins)}
+                                      "pins": len(native_pins), "link_observations": sum(len(p["links"]) for p in native_pins),
+                                      "semantic_references": sum(len(n.get("semantic_references", [])) for n in native_nodes)}
             if decoded.get("issues"):
                 item["unavailable"].append({"path": path, "reason": "decoder reports parse/projection gaps"})
             if not item["checked"] and not item["unavailable"]:
@@ -635,8 +898,12 @@ def read_snapshot(path, asset_path, *, native_class=None):
                 raw = raw_nodes.get(node["object_path"])
                 found = B._function_metadata(ctx, raw, str(path), parsed, node["object_path"]) if raw is not None else {}
                 meta = {k: found.get(k, unknown("metadata not explicitly decoded")) for k in ("tooltip", "category", "call_in_editor")}
-            nodes.append({"object_path": node["object_path"], "class": node["class"], "guid": node["guid_raw"], "pins": pins, "function_metadata": meta})
-        graphs.append({"object_path": graph["id"], "name": graph["name"], "nodes": nodes})
+            nodes.append({"object_path": node["object_path"], "class": node["class"],
+                          "guid": node["guid_raw"], "guid_raw": node["guid_raw"],
+                          "pins": pins, "function_metadata": meta,
+                          "semantic_references": node.get("semantic_references", unknown("semantic references absent"))})
+        graphs.append({"object_path": graph["id"], "name": graph["name"],
+                       "guid_raw": graph.get("guid_raw"), "nodes": nodes})
     # The native bridge reports a binding list for every UWidgetBlueprint, editor utility ones included.
     declared = _declaration_snapshot(declarations, widget=kind in ("WidgetBlueprint", "EditorUtilityWidgetBlueprint"))
     reported = declarations.get("issues") or []
@@ -654,7 +921,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("oracle", type=Path)
     parser.add_argument("--project-root", required=True, type=Path)
-    parser.add_argument("--profile", choices=("all", "graph"), default="all", help="graph explicitly excludes declaration/metadata/widget comparisons")
+    parser.add_argument("--profile", choices=PROFILES, default="all",
+                        help="semantic-references compares exact loaded member targets with saved graph_ir observations")
     parser.add_argument("--out", type=Path, help="write a new comparison report; existing files are preserved")
     args = parser.parse_args(argv)
     try:

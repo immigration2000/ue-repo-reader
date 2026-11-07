@@ -39,6 +39,7 @@ def test_skill_install_layouts_and_execution():
                     installed = I.install(client, root)
                 assert installed == root / folder / "skills/ue-repo-reader"
                 assert (installed / "SKILL.md").read_bytes() == (ROOT / "SKILL.md").read_bytes()
+                assert (installed / "requirements-cxx.txt").read_bytes() == (ROOT / "requirements-cxx.txt").read_bytes()
                 assert not any((installed / name).exists() for name in (".git", "tests", "server", "AGENTS.md", "chatgpt-plugin"))
                 # All local imports must resolve inside the installed skill, from
                 # a different cwd, without importing from the source checkout.

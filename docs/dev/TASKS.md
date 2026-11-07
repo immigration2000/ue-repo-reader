@@ -46,9 +46,10 @@
 | F7 | done | claude | 타임라인 템플릿(길이, 트랙, 키) | S–M |
 | F8 | done | claude | 몽타주·시퀀스 노티파이, 섹션 | S–M |
 | F9 | todo | - | 머티리얼 인스턴스 파라미터(S), 머티리얼 표현식 트리(M) | S / M |
-| F10 | todo | - | C++ 색인(tree-sitter)과 BP↔C++ 링크 | M |
+| F10 | done | codex | C++ 색인(tree-sitter)과 BP↔C++ 링크 | M |
 | F11 | todo | - | Kismet 바이트코드 대체 섹션 | S / M |
 | F12 | todo | - | Niagara, MetaSound, PCG, LevelSequence | M–L |
+| F13 | done | codex | P2/P3 C++ ↔ Blueprint 통합 분석 IR과 탐색 | L |
 
 ## P3 — 에디터 없는 diff·린트·CI
 
@@ -85,6 +86,10 @@
 | A7 | done | codex | 지원 범위·누락/검증 공백·19개 미완료 과제·미등록 제안 4개를 코드와 대조한 독립 HTML 보고서; 실제 Claude 독립 감사·정정 대조와 PC/모바일·필터/인쇄 검증 완료 | S |
 | A8 | done | codex | UE 5.7+ 프로젝트 지원 가정과 높은 정확도·레포 이해를 기준으로 HTML 보고서/우선순위 재작성; 실제 지원 제한 코드는 이번 범위 밖 | S |
 | A9 | done | codex | 정확도 재감사와 P0/P1 개선: 의사코드 핀 연결 추정 제거, 저장된 함수·변수·델리게이트·매크로 참조를 구조화 IR로 보존, Cloud/Editor 검증 경계 문서화 | M |
+| A10 | done | codex | P2 semantic reference 독립 검증: Native Oracle 읽기 전용 수집·saved/loaded 비교 profile·Linux 반례·Windows UE5.7/5.8 절차 | M |
+| A11 | blocked | codex | P5 Windows UE5.8 Native Oracle 실제 빌드·semantic reference 수집·동일 패키지 비교 — 현재 실행기는 Linux이며 Windows/UE/VS 접근 없음 | M |
+| A12 | done | codex | P6 P5 실측 증거의 semantic reference 미확정 61건 전수 분석; exact saved parent owner 과잉 미확정13건 수정, 저장 생략48건 유지(D-034) | M |
+| A13 | done | codex | P0~P6 최종 포함 관계·PR 충돌·전체 회귀·GridInventorySystem 읽기 전용 적용 준비 검증 및 안전 병합 문서화; P5→P4 PR #6 준비 | M |
 | O1 | done | codex | 실제 Claude Code 작업 배정·재지시·중단/복구·도구 감사·검토 기록 구축; Q7 구현과 Q4 교차 검토로 실증(D-021) | S |
 
 ## 후속 — 작업 중 발견 (2026-10-27, claude)

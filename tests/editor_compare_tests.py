@@ -143,6 +143,183 @@ def test_editor_compare_duplicate_and_malformed_identity_refused():
             raise AssertionError("invalid pin identity accepted")
 
 
+_SEMANTIC_GRAPH = "/Game/BP.BP:EventGraph"
+_SEMANTIC_NODE = _SEMANTIC_GRAPH + ".K2Node_CallFunction_0"
+_SEMANTIC_NODE_SAVED_GUID = "0102030405060708090a0b0c0d0e0f10"
+_SEMANTIC_MEMBER_GUID = {"A": 0x11111111, "B": 0x22222222,
+                         "C": 0x33333333, "D": 0x44444444}
+
+
+def _semantic_pair(*, parent="/Script/Engine.KismetSystemLibrary", name="PrintString"):
+    native_reference = {
+        "kind": "function", "source_property": "FunctionReference", "state": "loaded-editor",
+        "status": "complete", "field_states": {"parent": "loaded", "name": "loaded",
+                                                       "guid": "loaded", "self_context": "loaded"},
+        "parent_object_path": parent, "parent_class_path": parent, "name": name,
+        "guid": "11111111222222223333333344444444", "self_context": False,
+        "effective_owner_class_path": parent,
+        "resolved_member_path": parent + "." + name,
+        "resolved_owner_class_path": parent, "resolution_status": "resolved",
+    }
+    reader_reference = {
+        "kind": "function", "source_property": "FunctionReference", "status": "complete",
+        "saved_fields": {"parent": "saved", "name": "saved", "guid": "saved",
+                         "self_context": "saved"},
+        "parent": {"package_index": -7, "object_path": parent}, "name": name,
+        "guid": {"encoding": "saved-uint32-components", "components": copy.deepcopy(_SEMANTIC_MEMBER_GUID)},
+        "self_context": False,
+    }
+    native_node = {"object_path": _SEMANTIC_NODE, "class": "K2Node_CallFunction",
+                   "guid": C.serialized_guid_to_display(_SEMANTIC_NODE_SAVED_GUID), "pins": [],
+                   "function_metadata": None, "semantic_references": [native_reference]}
+    reader_node = {"object_path": _SEMANTIC_NODE.replace(":", "."), "class": "K2Node_CallFunction",
+                   "guid_raw": _SEMANTIC_NODE_SAVED_GUID, "pins": [],
+                   "function_metadata": None, "semantic_references": [reader_reference]}
+    native = snapshot()
+    native["semantic_reference_state"] = "loaded-editor"
+    native["graphs"] = [{"object_path": _SEMANTIC_GRAPH, "name": "EventGraph", "nodes": [native_node]}]
+    reader = snapshot()
+    reader["graphs"] = [{"object_path": _SEMANTIC_GRAPH.replace(":", "."),
+                         "name": "EventGraph", "nodes": [reader_node]}]
+    return native, reader
+
+
+def test_semantic_reference_profile_matches_exact_loaded_and_saved_function_identity():
+    native, reader = _semantic_pair()
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["checked"] >= 6 and not result["mismatches"] and not result["unavailable"], result
+    assert result["states"] == {"expected": "loaded-editor", "actual": "saved-package"}
+
+
+def test_semantic_reference_profile_rejects_same_name_wrong_class_and_guid():
+    native, reader = _semantic_pair()
+    reader["graphs"][0]["nodes"][0]["semantic_references"][0]["parent"]["object_path"] = \
+        "/Script/Engine.GameplayStatics"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert any(item["path"].endswith("/owner/object_path") for item in result["mismatches"]), result
+    assert all("PrintString" not in str(item.get("reason", "")) for item in result["mismatches"]), result
+
+    native, reader = _semantic_pair()
+    reader["graphs"][0]["nodes"][0]["semantic_references"][0]["guid"]["components"]["D"] ^= 1
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert any(item["path"].endswith("/guid") for item in result["mismatches"]), result
+
+
+def test_semantic_reference_profile_uses_exact_parent_without_inventing_omitted_self_context():
+    native, reader = _semantic_pair()
+    reference = reader["graphs"][0]["nodes"][0]["semantic_references"][0]
+    reference["self_context"] = C.unknown("saved bSelfContext absent or invalid")
+    reference["status"] = "partial"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["checked"] and not result["mismatches"], result
+    assert any(item["path"].endswith("/self_context") for item in result["unavailable"]), result
+    assert not any("/owner" in item["path"] for item in result["unavailable"]), result
+
+    # The exact stored parent is still compared. A different class must not be
+    # accepted merely because the member name matches.
+    reference["parent"]["object_path"] = "/Script/Engine.GameplayStatics"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert any(item["path"].endswith("/owner/object_path") for item in result["mismatches"]), result
+
+
+def test_semantic_reference_profile_covers_member_macro_and_custom_event_records():
+    members = (("function", "FunctionReference", "K2Node_CallFunction"),
+               ("interface_function", "FunctionReference", "K2Node_Message"),
+               ("event", "EventReference", "K2Node_Event"),
+               ("variable", "VariableReference", "K2Node_VariableGet"),
+               ("delegate", "DelegateReference", "K2Node_CallDelegate"))
+    for kind, source, node_class in members:
+        native, reader = _semantic_pair()
+        for snapshot_value in (native, reader):
+            node = snapshot_value["graphs"][0]["nodes"][0]
+            node["class"] = node_class
+            node["semantic_references"][0]["kind"] = kind
+            node["semantic_references"][0]["source_property"] = source
+        result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+        assert not result["mismatches"] and not result["unavailable"], (kind, result)
+
+    native, reader = _semantic_pair()
+    nref = native["graphs"][0]["nodes"][0]["semantic_references"][0]
+    nref.clear()
+    nref.update(kind="macro_graph", source_property="MacroGraphReference", state="loaded-editor",
+                status="complete", object_path="/Game/Macros/BP_Macros.BP_Macros:DoThing")
+    rref = reader["graphs"][0]["nodes"][0]["semantic_references"][0]
+    rref.clear()
+    rref.update(kind="macro_graph", source_property="MacroGraphReference", status="complete",
+                value={"package_index": 12,
+                       "object_path": "/Game/Macros/BP_Macros.BP_Macros.DoThing"})
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert not result["mismatches"] and not result["unavailable"], result
+
+    nref.clear()
+    nref.update(kind="custom_event", source_property="CustomFunctionName", state="loaded-editor",
+                status="complete", value="OnReady")
+    rref.clear()
+    rref.update(kind="custom_event", source_property="CustomFunctionName", status="complete",
+                value="OnReady")
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert not result["mismatches"] and not result["unavailable"], result
+
+
+def test_semantic_reference_profile_missing_duplicate_and_unknown_fail_closed():
+    native, reader = _semantic_pair()
+    reference = reader["graphs"][0]["nodes"][0]["semantic_references"][0]
+    reference["parent"]["object_path"] = {"status": "unknown", "reason": "parent class missing"}
+    reference["status"] = "partial"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["unavailable"] and not result["mismatches"], result
+    assert any("parent" in item["reason"] or "partial" in item["reason"] for item in result["unavailable"])
+
+    native, reader = _semantic_pair()
+    reader["graphs"][0]["nodes"][0]["semantic_references"].clear()
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["mismatches"] and any("missing or extra" in item["reason"] for item in result["mismatches"])
+
+    for duplicate_guid in (False, True):
+        native, reader = _semantic_pair()
+        clone = copy.deepcopy(reader["graphs"][0]["nodes"][0])
+        if duplicate_guid:
+            clone["object_path"] += "_Other"
+        reader["graphs"][0]["nodes"].append(clone)
+        try:
+            C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+        except C.OracleError as error:
+            assert "duplicate semantic node" in str(error)
+        else:
+            raise AssertionError("duplicate semantic node identity was accepted")
+
+
+def test_semantic_reference_profile_preserves_loaded_saved_boundary_and_partial_name_kinds():
+    native, reader = _semantic_pair()
+    reader["graphs"][0]["nodes"][0]["semantic_references"][0]["name"] = "DifferentLoadedName"
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["mismatches"] and all(item["reason"] == "loaded-editor and saved-package values differ"
+                                         for item in result["mismatches"]), result
+
+    # A CreateDelegate name is still compared, but cannot pass without its owning target identity.
+    native, reader = _semantic_pair()
+    nref = native["graphs"][0]["nodes"][0]["semantic_references"][0]
+    nref.clear()
+    nref.update(kind="delegate_function", source_property="SelectedFunctionName", state="loaded-editor",
+                status="partial", reason="the selected function name does not identify its owning class",
+                value="OnSelected")
+    rref = reader["graphs"][0]["nodes"][0]["semantic_references"][0]
+    rref.clear()
+    rref.update(kind="delegate_function", source_property="SelectedFunctionName", status="complete",
+                value="OnSelected")
+    result = C.compare_snapshots(native, reader, profile=C.SEMANTIC_PROFILE)
+    assert result["checked"] and result["unavailable"] and not result["mismatches"], result
+
+    old_native, reader = _semantic_pair()
+    old_native.pop("semantic_reference_state")
+    try:
+        C.compare_snapshots(old_native, reader, profile=C.SEMANTIC_PROFILE)
+    except C.OracleError as error:
+        assert "capability" in str(error)
+    else:
+        raise AssertionError("an older native snapshot was reported as semantic-reference validation")
+
+
 def fixture(root):
     source = root / "Content/한국어/BP.uasset"
     source.parent.mkdir(parents=True)
@@ -152,6 +329,30 @@ def fixture(root):
              "sha256_after": sha, "snapshot": snapshot(), "issues": []}
     return {"schema_version": 1, "producer": "unreal-editor-native", "engine_version": "5.8.4-test",
             "project_file": "D:/different machine/Project.uproject", "assets": [asset], "issues": []}, source
+
+
+def test_semantic_reference_oracle_profile_requires_hash_and_new_native_capability():
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        oracle, _ = fixture(root)
+        native, reader = _semantic_pair()
+        oracle["assets"][0]["snapshot"] = native
+        report = C.compare_oracle(oracle, root, reader=lambda *_: reader, profile=C.SEMANTIC_PROFILE)
+        assert report["status"] == "passed" and report["checked"] > 0, report
+        assert report["assets"][0]["native_counts"]["semantic_references"] == 1
+
+        bad_hash = copy.deepcopy(oracle)
+        bad_hash["assets"][0]["sha256_after"] = "f" * 64
+        calls = []
+        report = C.compare_oracle(bad_hash, root, reader=lambda *args: calls.append(args),
+                                  profile=C.SEMANTIC_PROFILE)
+        assert report["status"] == "incomplete" and not calls, report
+
+        old_capture = copy.deepcopy(oracle)
+        old_capture["assets"][0]["snapshot"].pop("semantic_reference_state")
+        report = C.compare_oracle(old_capture, root, reader=lambda *_: reader,
+                                  profile=C.SEMANTIC_PROFILE)
+        assert report["status"] == "incomplete" and report["assets"][0]["unavailable"], report
 
 
 def test_editor_compare_hash_binding_and_binary_read_race():

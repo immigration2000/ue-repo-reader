@@ -43,7 +43,7 @@ CONTENT = "Content"
 TEXT_VALUES = "source"
 # A record is only comparable against the saved package when both of these hold: the text is source
 # text, and the editor was not sitting on unsaved edits that the package file cannot show.
-SNAPSHOT_KEYS = ("asset_class", "text_values", "package_dirty", "parent_class", "variables",
+SNAPSHOT_KEYS = ("asset_class", "text_values", "semantic_reference_state", "package_dirty", "parent_class", "variables",
                  "function_graphs", "graphs", "widget_bindings", "issues")
 _ENGINE_VERSION = re.compile(r"^\s*(\d+)\.(\d+)(?:\D|$)")
 _UNUSABLE = set('\\:*?"<>|') | {chr(code) for code in range(32)}
@@ -276,6 +276,11 @@ def _check_snapshot(asset_path: str, snapshot: dict, issues: list[str]) -> None:
         issues.append(f"{asset_path}: the native snapshot reports text_values={values!r} instead of "
                       f"{TEXT_VALUES!r}; its text fields may be localized display strings, "
                       "not authored source text")
+    semantic_state = snapshot.get("semantic_reference_state")
+    if "semantic_reference_state" in snapshot and semantic_state != "loaded-editor":
+        issues.append(f"{asset_path}: the native snapshot reports semantic_reference_state="
+                      f"{semantic_state!r} instead of 'loaded-editor'; saved and loaded identities "
+                      "cannot be distinguished")
     # Unsaved editor edits leave the package file's bytes alone, so the hashes above cannot see them:
     # a dirty package means this snapshot describes the editor's state, not the saved asset's.
     dirty = snapshot.get("package_dirty")

@@ -121,7 +121,8 @@ def pin(**overrides):
 
 def snapshot(**overrides):
     """A contract-shaped snapshot, as the native bridge reports it: source text, saved package."""
-    record = {"asset_class": "Blueprint", "text_values": "source", "package_dirty": False,
+    record = {"asset_class": "Blueprint", "text_values": "source",
+              "semantic_reference_state": "loaded-editor", "package_dirty": False,
               "parent_class": "/Script/Engine.Actor", "variables": [], "function_graphs": [],
               "graphs": [], "widget_bindings": None, "issues": []}
     record.update(overrides)
@@ -487,6 +488,22 @@ def test_editor_oracle_touches_no_editor_mutators_and_shares_no_reader_code():
                          "project_support", "navigation", "subprocess", "shutil"):
             assert f"import {borrowed}" not in source, f"the exporter imported {borrowed}"
             assert f"from {borrowed}" not in source, f"the exporter imported from {borrowed}"
+
+
+def test_native_oracle_semantic_capture_declares_loaded_state_and_no_mutators():
+    source = (Path(__file__).resolve().parents[1] /
+              "tools/RepoReaderOracle/Source/RepoReaderOracle/Private/RepoReaderOracleLibrary.cpp").read_text(
+                  encoding="utf-8")
+    for token in ("FunctionReference", "VariableReference", "EventReference", "DelegateReference",
+                  "MacroGraphReference", "MemberParent", "MemberName", "MemberGuid", "bSelfContext",
+                  'TEXT("loaded-editor")'):
+        assert token in source, f"native semantic capture is missing {token}"
+    for mutator in ("CompileBlueprint(", "SavePackage(", "MarkPackageDirty(", "Modify(",
+                    "ReconstructNode(", "SetExternalMember(", "SetSelfMember("):
+        assert mutator not in source, f"native oracle contains the mutator {mutator}"
+    issues = []
+    E._check_snapshot("/Game/BP", snapshot(semantic_reference_state="saved-package"), issues)
+    assert any("saved and loaded identities cannot be distinguished" in issue for issue in issues), issues
 
 
 def test_editor_oracle_write_failure_keeps_the_previous_oracle_and_leaves_no_debris():
