@@ -99,7 +99,7 @@ python scripts/ue_repo_digest.py <url> --ref dev --project Chapter03/Game   # �
 
 `--out`은 요약본 전용 폴더를 지정하세요. 새 폴더·빈 폴더 또는 기존 ue-repo-reader 요약본만 사용할 수 있습니다.
 입력 저장소 자체·그 상위 경로·심볼릭 링크/정션은 거부합니다. 기존 요약본은 `digest.json`의 도구 식별자와
-최상위 파일/폴더 구성을 확인한 뒤 교체하며, `blueprints/`, `data/`, `maps/`, `cpp/`, `config/`는 생성 결과 전용입니다.
+최상위 파일/폴더 구성을 확인한 뒤 교체하며, `blueprints/`, `data/`, `maps/`, `cpp/`, `config/`, `analysis/`는 생성 결과 전용입니다.
 별도 메모 등 다른 최상위 항목이 있거나 이전 실행이 중단되어 요약본을 식별할 수 없으면 새 출력 폴더를 지정하세요.
 
 ## 결과물
@@ -116,6 +116,9 @@ Project_digest/
 ├─ cpp/CALL_GRAPH.md 호출 표현식과 미확정 대상 후보
 ├─ cpp/UNRESOLVED.md 부분 파싱·전처리·대상 해석 한계
 ├─ cpp/CXX_INDEX.json 버전이 있는 정밀 C++ 구문 IR
+├─ analysis/OVERVIEW.md C++ ↔ Blueprint 관계 수·입력 상태·정확성 경계
+├─ analysis/UNRESOLVED.md 모호하거나 대상이 없는 통합 관계
+├─ analysis/UNIFIED_ANALYSIS.json 버전이 있는 통합 관계 IR과 양방향 색인
 └─ digest.json       위 내용 전체를 기계가 읽는 형태로
 ```
 
@@ -129,6 +132,12 @@ Project_digest/
 PageRank를 계산합니다. 런타임 호출이나 게임플레이 중요도를 입증하는 점수는 아닙니다. 이름이 겹치면 추측하지 않습니다.
 각 에셋 파일의 머리말에는 순위·해석 상태·들어오는/나가는 문서 링크가 붙습니다.
 INDEX는 최대 약 9KB로 제한하며 토큰 수는 언어·토크나이저에 따라 달라집니다(작은 프로젝트는 더 짧음).
+
+**analysis/UNIFIED_ANALYSIS.json**은 `graph_ir`, `declaration_ir`, `cpp.precision`을 바꾸지 않고 합성합니다.
+저장된 그래프·노드·핀과 C++ 원본 위치를 함께 보존하고 source/target 양방향으로 관계를 찾을 수 있습니다.
+컴파일러/UHT 정체성이 없는 C++ ↔ Blueprint 관계는 하나뿐이어도 `candidate`이며, 같은 이름의 여러 대상은
+`ambiguous`, 근거가 부족하면 `unavailable`입니다. `verified`는 기존 IR 안에서 정확한 저장 source/target
+정체성이 있는 관계에만 쓰며 런타임 호출 순서나 게임플레이 의미를 뜻하지 않습니다.
 
 **CATALOG.md**에 보존하는 전체 정보:
 - 프로젝트 정보: 엔진 버전, 모듈, 플러그인, 기본 맵·게임모드·GameInstance, 입력 설정

@@ -172,6 +172,8 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
           f"{meta.get('external_objects', 0)} external-object packages counted only.",
           f"- Unsupported asset types are counted in the catalog, not decoded. Selected project only; "
           f"{len(meta.get('other_projects') or [])} other projects.",
+          "- [Unified C++ ↔ Blueprint analysis](<analysis/OVERVIEW.md>) · "
+          "[ambiguous/unavailable relations](<analysis/UNRESOLVED.md>). Cross-language targets remain candidates without compiler/UHT identity.",
           "- [Full parse report](<CATALOG.md#parse-report>) · [All catalogs and notation](<CATALOG.md>). "
           "Follow continuation parts when a document is split.", "", "## Configured entry points", ""]
     entry_bytes = 0

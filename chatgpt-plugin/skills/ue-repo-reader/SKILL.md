@@ -61,7 +61,8 @@ do not treat a successful parse as support confirmation. Mode is part of the cac
    exact resolved object paths and unknown reasons instead of inferring owners from names.
    `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists. IDs belong to this asset snapshot;
    unresolved/ambiguous links have no inferred target. Arbitrary node properties/CDOs are outside the IR, and semantic
-   references are not yet independently compared by the native oracle. Prefer Markdown
+   references can be checked by the optional `semantic-references` native profile only after a clean UE 5.7/5.8
+   capture with the same package hash; Linux fixtures alone are not that independent engine verification. Prefer Markdown
    for normal analysis and avoid loading the entire JSON into context.
 4. `data/…md` — DataTable rows, struct fields, enum values, Behavior Trees, input mappings, DataAssets.
    Typed enum arrays show `Enum::Enumerator(number, display="Label")` using this project's UserDefinedEnums.
@@ -71,6 +72,10 @@ do not treat a successful parse as support confirmation. Mode is part of the cac
    `cpp/UNRESOLVED.md`, and schema-versioned `cpp/CXX_INDEX.json` contain tree-sitter source observations.
    `syntax_observed` is not typed resolution. Calls remain target-`unresolved` even with one spelling candidate;
    use `read_source_file` for the exact source (a glob like `Source/**/*.h` lists files).
+6. Unified analysis: read `analysis/OVERVIEW.md`, then `analysis/UNRESOLVED.md` for gaps. Machine traversal is
+   in `analysis/UNIFIED_ANALYSIS.json`; `relation_index.by_source` and `by_target_or_candidate` support both
+   directions. Cross-language targets remain `candidate`, `ambiguous` or `unavailable` without compiler/UHT
+   identity. A saved pin link or exact MacroGraph path marked `verified` is stored identity, not runtime behavior.
 
 Read **Parse warnings** in each document, INDEX coverage and the CATALOG Parse report. Property/graph-render/Level Blueprint/
 external-actor failures can occur with N/N node coverage. An unreadable Level Blueprint is unknown, not empty;

@@ -21,6 +21,11 @@ from cxx_index_tests import (test_cxx_precision_build_rules_and_digest_outputs_a
                              test_cxx_precision_keeps_overloads_duplicates_namespaces_and_ambiguity,
                              test_cxx_precision_observes_unreal_functions_bodies_and_source_spans,
                              test_cxx_precision_reports_invalid_source_and_missing_parser_without_false_success)
+from unified_analysis_tests import (
+    test_unified_duplicate_cpp_classes_and_blueprint_function_names_never_collapse,
+    test_unified_exact_native_path_stays_candidate_and_overloads_are_ambiguous,
+    test_unified_inheritance_native_event_interface_and_implementation_are_candidates,
+    test_unified_pin_flow_variable_use_and_partial_inputs_preserve_boundaries)
 from native_repeat_tests import (test_native_repeats_identical_clean_capture_is_stable_under_reordering,
                                  test_native_repeats_scalar_guid_and_hidden_changes_are_retained,
                                  test_native_repeats_package_hash_engine_and_project_drift_fail_closed,
@@ -317,6 +322,11 @@ def test_output_rerun():
             assert _digest_cli(args) == 0
             assert (out / "INDEX.md").is_file() and not stale.exists()
             assert (out / "CATALOG.md").is_file() and not (out / "CATALOG.part10.md").exists()
+            assert (out / "analysis" / "OVERVIEW.md").is_file()
+            assert (out / "analysis" / "UNRESOLVED.md").is_file()
+            unified = json.loads((out / "analysis" / "UNIFIED_ANALYSIS.json").read_text(encoding="utf-8"))
+            digest = json.loads((out / "digest.json").read_text(encoding="utf-8"))
+            assert unified["schema_version"] == 1 and digest["unified_analysis"] == unified
             assert (source / "Game.uproject").is_file()
 
 

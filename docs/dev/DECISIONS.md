@@ -360,3 +360,16 @@
   Build.cs/Target.cs도 lexical 관측이며 실제 UBT 모듈 그래프로 승격하지 않는다. 기존 BP↔C++ 이름 카탈로그는 의미 정답이 아니다.
 - 영향: 스킬 스냅샷에 requirements-cxx.txt와 새 모듈을 포함한다. Clang AST는 compile commands, 동일 UE 헤더/생성 코드/
   정의가 준비된 별도 semantic resolver로 후속 구현하며 syntax IR을 덮어쓰지 않는다.
+
+## D-033 C++·Blueprint 원본 IR 위에 보수적 통합 관계 계층 추가 (2026-11-07, codex)
+- 결정: v1.20.0. `graph_ir`, `declaration_ir`, `cpp.precision`의 의미를 바꾸지 않고 schema1
+  `analysis/UNIFIED_ANALYSIS.json`/`digest.json.unified_analysis`를 합성한다. 관계마다 source/target 또는 모든 후보,
+  asset/graph/node/pin·source span, provenance/evidence/issues와 verified/candidate/ambiguous/unavailable을 보존한다.
+  source 및 target-or-candidate 관계 색인을 제공해 C++→BP와 BP→C++를 같은 원본 관계에서 탐색한다.
+- 정확성: compiler/UHT 심볼 ID가 없는 모든 C++↔BP 관계는 유일한 `/Script` 경로+member spelling 후보여도
+  candidate 이하로 유지한다. overload/중복은 ambiguous, identity 부족은 unavailable이다. verified는 기존 IR 안의 정확한
+  저장 pin source/target 또는 정확한 저장 MacroGraph object path에 한하며 runtime 순서·의미가 아니다. 함수 result pin 전체를 return으로 보지 않고 이름 후보도
+  candidate로 둔다. P2 native 미실행, P3/graph/declaration partial과 saved-loaded mismatch를 전체 상태에 전파한다.
+- 범위: type parent, function/event/interface, variable/delegate, saved pin flow, MacroGraph object path, C++ call/base/override/read-write,
+  _Implementation/_Validate를 연결한다. BlueprintNativeEvent/RPC/interface/virtual dispatch에는 UHT/runtime 미확정을 남긴다.
+  정확한 cross-language 승격은 matching engine/generated headers/defines의 typed resolver를 별도 provenance로 추가해야 한다.

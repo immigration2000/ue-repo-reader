@@ -84,7 +84,9 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    exact resolved object paths and saved fields; unavailable identity fields remain explicit `unknown` rather than being inferred from names.
    Check its `status`/`issues`. `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists.
    IDs are local to an asset snapshot; unresolved/ambiguous links have no inferred target. Arbitrary node properties/CDOs
-   are outside this IR, and semantic references are not yet covered by the independent native comparator. Keep reading Markdown
+   are outside this IR. The optional `semantic-references` native profile can compare saved and editor-loaded
+   identities, but only a clean UE 5.7/5.8 capture with the same package hash establishes that selected comparison;
+   Linux fixtures alone do not. Keep reading Markdown
    for normal analysis; do not load the entire JSON into context.
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
@@ -117,6 +119,13 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    Read the **real** C++ sources for exact code. `syntax_observed` is direct syntax, not proof of types,
    overloads, generated code, runtime dispatch or UnrealHeaderTool behavior. `semantic_resolved` is reserved
    for a future typed analyzer and is never emitted by the tree-sitter index.
+7. `<out>/analysis/OVERVIEW.md` and `<out>/analysis/UNRESOLVED.md` summarize the additive unified layer.
+   Use `analysis/UNIFIED_ANALYSIS.json` for C++ ↔ Blueprint traversal: every relation retains source/target
+   identity or all candidates, asset/graph/node/pin or source span, provenance, evidence, issues and one of
+   `verified`, `candidate`, `ambiguous`, `unavailable`. Follow `relation_index.by_source` forward and
+   `relation_index.by_target_or_candidate` backward. A single name/path candidate is not compiler/UHT proof;
+   cross-language links remain below `verified`. Saved pin links and exact MacroGraph object paths describe stored
+   identities, not runtime order or target graph behavior.
 
 Skip `digest.json` (a machine-readable copy of the same facts). A file that ends with
 `→ continued in X.part2.md` is split; read the parts in order.
@@ -125,10 +134,10 @@ Read each document's **Parse warnings**, the INDEX coverage summary and the CATA
 and external-actor failures are reported even when all graph nodes have decoded pins. An unreadable Level
 Blueprint is **unknown**, not an empty graph; missing values after a parse failure are not confirmed defaults.
 
-Cross-check both directions: when a Blueprint has a project C++ name candidate (`CATALOG.md` lists these),
-read that C++ and do not treat the short-name link as compiler/UHT identity or a resolved call;
-when C++ declares a `BlueprintImplementableEvent`/`BlueprintNativeEvent`, grep `blueprints/` for the event
-name to find its Blueprint implementation.
+Cross-check both directions with the unified relation index, then read the source and Blueprint documents it names.
+Do not treat a short-name candidate as compiler/UHT identity or a resolved call. For
+`BlueprintImplementableEvent`/`BlueprintNativeEvent`, interface, virtual and RPC relations, retain the reported
+runtime/UHT uncertainty even when only one source candidate exists.
 
 The saved declaration projection is `digest.json` → `blueprints[path].declaration_ir` (schema 1). Use it for structured variable types/flags/authored defaults, parent and function graph references, and widget bindings. Check `saved_fields`, `status` and unknown reasons: absent tags, non-map terminal types and unsupported older saved layouts remain unknown; CDO, inherited/runtime defaults and map Level Blueprint declarations are outside this projection. Display text is not a substitute for these fields.
 

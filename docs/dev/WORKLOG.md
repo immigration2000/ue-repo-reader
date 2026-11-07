@@ -11,6 +11,23 @@
 
 ---
 
+## 2026-11-07 19:44 KST · codex · F13 (C++ ↔ Blueprint 통합 정밀 분석)
+- 한 일: P2 d4012f9와 P3 0c945e6을 dcb99dc 기반 `codex/p4-unified-analysis`에 merge하고 문서 충돌2개만
+  양쪽 의미를 유지해 해결했다. v1.20.0에서 원본 graph/declaration/cpp.precision을 바꾸지 않는 schema1 unified IR,
+  overview/unresolved 문서, source/target 양방향 관계 색인을 추가했다. `/Script` owner+member 후보, BP 함수·변수, 저장 pin flow·MacroGraph path,
+  C++ call/base/override/read-write와 Unreal implementation을 연결하되 cross-language verified를0으로 고정했다(D-033).
+  overload/동명 class·graph/GUID 오류/누락/P2-P3 partial·saved-loaded mismatch/BNE/interface/return 후보 반례를 추가했다.
+- 검증: 통합 전 기준 전체 regress 단위169/169와 외부/Native/evidence/고정4프로젝트 PASS. 최종 전체는 단위173/173,
+  외부 에셋6/6, 기존 Native Oracle8그룹+증거2개, eg/ar/ves/bt 모두 PASS. 실제 C++와 BP가 있는 고정 ar에서 전체8169개
+  관계(verified2522/candidate1156/ambiguous158/unavailable4333), cross-language545개(verified0/candidate89/
+  ambiguous7/unavailable449)를 관측했다. fixtures/원본 패키지/Oracle/evidence 정답은 변경하지 않았다. 첫 단위 단독 실행은
+  read-only HOME cache 때문에 중단됐고 workspace cache를 명시한 재실행과 최종 전체 회귀가 통과했다. 실제 MCP HTTP6도구의
+  response limit, warm/restart/refresh, strict/opt-in cache 분리도 PASS.
+- 남은 일·주의: P2 UE5.7/5.8 plugin 실제 build/new semantic capture와 Clang AST/UHT 검증은 미실행이다. saved pin/MacroGraph verified는
+  runtime order가 아니며 cross-language target은 compiler/UHT ID 전까지 후보다. GridInventorySystem 적용 전 clean pinned
+  commit digest와 UE5.8 same-hash capture를 별도 출력으로 생성하고 saved/loaded 차이를 유지한다. 상세 수치와 절차는
+  docs/reports/P4_{INTEGRATION_AUDIT,INTEGRATION_RESULTS,ANALYSIS_ACCURACY}.md.
+
 ## 2026-11-07 18:45 KST · codex · F10 (C++ 정밀 구문 색인)
 - 한 일: v1.19.0. 기존 regex `cpp.modules/classes`와 CLASSES.md를 호환 유지하고, 고정 tree-sitter-cpp 기반
   schema1 `cpp.precision`/CXX_INDEX.json 및 FUNCTIONS/CALL_GRAPH/UNRESOLVED.md를 추가했다. 일반/Unreal 타입,

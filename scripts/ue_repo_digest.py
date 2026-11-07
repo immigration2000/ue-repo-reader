@@ -16,6 +16,9 @@ Output (in --out):
     cpp/FUNCTIONS.md         function declarations/definitions with source spans
     cpp/CALL_GRAPH.md        observed calls and unresolved syntax candidates
     cpp/UNRESOLVED.md        partial parses, preprocessor limits and unresolved calls
+    analysis/OVERVIEW.md     unified C++/Blueprint relation coverage and confidence
+    analysis/UNRESOLVED.md   ambiguous and unavailable unified relations
+    analysis/UNIFIED_ANALYSIS.json  versioned cross-language identities and evidence
     digest.json              machine-readable summary of everything above
 """
 from __future__ import annotations
@@ -38,7 +41,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from project_support import assess_project, declaration_text, parse_descriptor, support_notice
 
-VERSION = "1.19.0"
+VERSION = "1.20.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -902,12 +905,13 @@ def asset_kind(name: str) -> str:
 
 
 def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Path, uproject, datas=None, data_failures=None,
-                levels=None, map_failures=None, placed_in=None):
+                levels=None, map_failures=None, placed_in=None, unified=None):
     datas = datas or {}
     data_failures = data_failures or {}
     levels = levels or {}
     map_failures = map_failures or {}
     placed_in = placed_in or {}
+    unified = unified or {}
     md = []
     title = uproject.stem if uproject else Path(meta.get("url") or proj).stem
     src = meta.get("url") or str(proj)
@@ -1087,6 +1091,17 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
             md.extend(f"- {item}" for item in sorted(ambiguous_links))
             md.append("")
 
+    if unified:
+        counts = (unified.get("statistics") or {}).get("by_resolution_status") or {}
+        md += ["## Unified C++ ↔ Blueprint analysis", "",
+               f"Status: **{unified.get('status', 'unavailable')}** · schema {unified.get('schema_version', '?')}. "
+               f"Relations: verified {counts.get('verified', 0)}, candidate {counts.get('candidate', 0)}, "
+               f"ambiguous {counts.get('ambiguous', 0)}, unavailable {counts.get('unavailable', 0)}.",
+               "Cross-language verified remains 0 without compiler/UHT identity. Saved Blueprint pin links and exact",
+               "MacroGraph object paths may be verified as stored identities; this does not establish runtime behavior.",
+               "- [Overview](<analysis/OVERVIEW.md>) · [Ambiguous/unavailable](<analysis/UNRESOLVED.md>) · "
+               "machine IR: `analysis/UNIFIED_ANALYSIS.json`", ""]
+
     # content overview
     folders = Counter()
     kinds = Counter()
@@ -1237,7 +1252,7 @@ def validate_output_dir(output: Path, repo: Path, project: Path | None = None) -
         manifest = None
     if not isinstance(manifest, dict) or not str(manifest.get("tool", "")).startswith("ue-repo-reader "):
         raise ValueError(f"output directory is not a recognized ue-repo-reader digest: {out}; choose a new --out")
-    dirs = {"blueprints", "cpp", "data", "maps", "config"}
+    dirs = {"blueprints", "cpp", "data", "maps", "config", "analysis"}
     files = {"INDEX.md", "CATALOG.md", "digest.json"}
     for entry in entries:
         if entry.name in dirs and entry.is_dir():
@@ -1346,6 +1361,7 @@ def main(argv=None):
     (out / "cpp").mkdir(parents=True)
     (out / "data").mkdir(parents=True)
     (out / "maps").mkdir(parents=True)
+    (out / "analysis").mkdir(parents=True)
 
     if len(all_projects) > 1:
         meta["other_projects"] = [p.relative_to(repo).as_posix() for p in all_projects if p != uproject]
@@ -1513,15 +1529,26 @@ def main(argv=None):
                 fh.write("\n## Placed in levels\n" + ", ".join(f"`{m}` ×{n}" for m, n in sorted(placed_in[cls].items())) + "\n")
     meta["external_objects"] = n_external_objects
 
+    from unified_analysis import build_unified_analysis, overview_markdown, unresolved_markdown
+    unified = build_unified_analysis(cpp, {gp: r["summary"] for gp, r in bps.items()},
+                                     {gp: r["summary"] for gp, r in level_results.items()})
+    (out / "analysis" / "UNIFIED_ANALYSIS.json").write_text(
+        json.dumps(unified, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (out / "analysis" / "OVERVIEW.md").write_text(overview_markdown(unified), encoding="utf-8")
+    (out / "analysis" / "UNRESOLVED.md").write_text(unresolved_markdown(unified), encoding="utf-8")
+    unified_counts = unified["statistics"]["by_resolution_status"]
+    log("[analysis] " + unified["status"] + " " + " ".join(f"{key}={unified_counts[key]}" for key in
+                                                             ("verified", "candidate", "ambiguous", "unavailable")))
+
     build_index(meta, proj, cpp, bps, failures, others, maps, lfs, out, uproject, datas, data_failures,
-                level_results, map_failures, placed_in)
+                level_results, map_failures, placed_in, unified)
     from navigation import build_navigation, repair_catalog_links
     navigation = build_navigation(meta, cpp, bps, failures, datas, data_failures, level_results, map_failures, lfs, out)
     digest = {"tool": f"ue-repo-reader {VERSION}", "source": meta, "lfs": lfs,
               "blueprints": {gp: r["summary"] for gp, r in bps.items()}, "failures": failures,
               "data_assets": {gp: r["summary"] for gp, r in datas.items()}, "data_failures": data_failures,
               "maps_detail": {gp: r["summary"] for gp, r in level_results.items()}, "map_failures": map_failures,
-              "maps": sorted(maps), "cpp": cpp, "navigation": navigation}
+              "maps": sorted(maps), "cpp": cpp, "unified_analysis": unified, "navigation": navigation}
     # compact: this file is for scripts, not for reading (it repeats what the Markdown says)
     (out / "digest.json").write_text(json.dumps(digest, ensure_ascii=False, default=list, separators=(",", ":")),
                                      encoding="utf-8")
