@@ -11,6 +11,19 @@
 
 ---
 
+## 2026-11-08 01:48 KST · codex · A13 (P0~P6 최종 통합·릴리스 준비)
+- 한 일: GitHub refs와 PR #1~#5를 재조회하고 main→P0/P1, P0/P1→P2/P3, P2+P3→P4, P4→P5,
+  P5→P6 exact ancestry를 확인했다. P2/P3 heads가 P4 조상이라 중복 병합하지 않는 bottom-up 계획을 문서화했다. 누락됐던
+  P5→P4 PR #6을 문서-only diff로 생성했다. P6 owner 규칙·unknown/GUID 보존·wrong-parent mismatch를 다시 검토하고
+  GridInventorySystem용 Linux/Windows/MCP 읽기 전용 절차와 결과 해석 경계를 작성했다.
+- 검증: fresh cache 전체 회귀 단위174/174, external assets6/6, Native Oracle8그룹, saved/loaded evidence2개,
+  eg/ar/ves/bt4프로젝트 PASS. 실제 MCP HTTP6도구·response limit·warm/restart/refresh·strict/opt-in cache 분리 PASS.
+  동일 P5 evidence replay는 incomplete, checked111/mismatch0/unavailable48(정상 생략/aggregate47+CreateDelegate1)이다.
+  실제 output에서 CXX_INDEX와 unified forward/reverse index 생성을 확인했다. fixture/Oracle/UAsset/게임 프로젝트 변경 없음.
+- 남은 일·주의: 어떤 PR도 merge/close하지 않았다. 사용자 승인은 #5→#6→#4→#1 순서로 필요하며 #2/#3은 별도 병합하지
+  않는다. 이번 Cloud에서 UE Editor를 새로 실행하지 않았고 UE5.7, GridInventorySystem digest/native capture, Clang/UHT/runtime
+  target 검증은 미실행이다. 비공개 Windows evidence ZIP/JSON/개인 경로는 Git에 넣지 않는다.
+
 ## 2026-11-08 00:43 KST · codex · A12 (P6 semantic reference 미확정 원인 분석)
 - 한 일: P5 evidence ZIP21개 member의 CRC/경로/해시와 보고서·Native/compare JSON을 직접 검산했다. UE5.8.4 고정
   `PlayerHealth_Widget` 23개 reference의 raw tagged fields, graph IR, loaded-editor 값을 exact graph/node identity로 전수
