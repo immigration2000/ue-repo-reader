@@ -78,7 +78,7 @@ def graph(bps, datas, levels, cpp, config):
             names[name].add(doc)
             if folder == "blueprints":
                 names[name + "_C"].add(doc)
-    if cpp.get("classes"):
+    if cpp.get("classes") or (cpp.get("precision") or {}).get("types") or (cpp.get("precision") or {}).get("functions"):
         doc = "cpp/CLASSES.md"
         nodes[doc] = {"path": "project C++ types", "kind": "C++", "summary": {}, "markdown": ""}
         for cls in cpp["classes"]:
@@ -172,6 +172,8 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
           f"{meta.get('external_objects', 0)} external-object packages counted only.",
           f"- Unsupported asset types are counted in the catalog, not decoded. Selected project only; "
           f"{len(meta.get('other_projects') or [])} other projects.",
+          "- [Unified C++ ↔ Blueprint analysis](<analysis/OVERVIEW.md>) · "
+          "[ambiguous/unavailable relations](<analysis/UNRESOLVED.md>). Cross-language targets remain candidates without compiler/UHT identity.",
           "- [Full parse report](<CATALOG.md#parse-report>) · [All catalogs and notation](<CATALOG.md>). "
           "Follow continuation parts when a document is split.", "", "## Configured entry points", ""]
     entry_bytes = 0
@@ -216,8 +218,9 @@ def build_navigation(meta, cpp, bps, failures, datas, data_failures, levels, map
             'Unresolved values retain their saved name/number; ordinary byte arrays stay numeric.',
             "- `// Function metadata` / `// Function tooltip` describe saved Category, CallInEditor and ToolTip on function entries. "
             "They are descriptive comments; absent fields are not inferred.",
-            "- [Full legend](<CATALOG.md#how-to-read-this-digest>) · [C++ index](<cpp/CLASSES.md>): "
-            "read real C++ sources for implementations. Skip `digest.json` when reading; it repeats facts for scripts.",
+            "- [Full legend](<CATALOG.md#how-to-read-this-digest>) · [C++ surface](<cpp/CLASSES.md>) · "
+            "[functions](<cpp/FUNCTIONS.md>) · [call syntax](<cpp/CALL_GRAPH.md>) · [unresolved](<cpp/UNRESOLVED.md>). "
+            "tree-sitter observations are not typed target resolution. Read the source for exact code.",
             "- Structured pin comparison: `blueprints[path].graph_ir` / `maps_detail[path].level_bp_graph_ir` in JSON. "
             "Its complete status means projection coverage, not verified gameplay semantics; check issues.", ""]
     shown = 0

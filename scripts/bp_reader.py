@@ -714,21 +714,27 @@ class Ctx:
         return self._props[key]
 
     def export_by_ref(self, ref, cls: str | None = None):
-        """Resolve a decoded object reference (dict with full_name / object_name, or int)."""
+        """Resolve an exact decoded object reference without short-name guessing.
+
+        Package indices are already exact.  A tagged reference with a full path
+        must match that path, and a short-name-only reference is usable only
+        when it identifies one object after the optional class filter.  Returning
+        the first same-name export can attach a graph, widget or component to a
+        different object while still producing plausible Markdown.
+        """
         if isinstance(ref, int):
-            return self.obj(ref)
+            obj = self.obj(ref)
+            return obj if obj is not None and (cls is None or self.class_of(obj) == cls) else None
         if not isinstance(ref, dict):
             return None
         cands = self._by_name.get(ref.get("object_name", ""), [])
         fn = ref.get("full_name")
         if fn:
-            for o in cands:
-                if self.full_name(o) == fn:
-                    return o
-        for o in cands:
-            if cls is None or self.class_of(o) == cls:
-                return o
-        return None
+            exact = [o for o in cands if self.full_name(o) == fn and
+                     (cls is None or self.class_of(o) == cls)]
+            return exact[0] if len(exact) == 1 else None
+        filtered = [o for o in cands if cls is None or self.class_of(o) == cls]
+        return filtered[0] if len(filtered) == 1 else None
 
     def export_by_name(self, name: str, cls: str | None = None):
         for o in self._by_name.get(name, []):
@@ -849,14 +855,22 @@ class GraphRenderer:
         self.g = graph
         self.name = name
         self.nodes = list(graph.nodes)
-        # Pin GUIDs are only unique within a node, so pins are keyed by (owning node, guid).
+        # Pin GUIDs are only unique within a node. Keep every candidate for a
+        # short owner and a separate full-path index; a duplicate owner is
+        # ambiguous rather than last-write-wins.
         self.pin_owner = {}
-        self.pin_by_guid = {}
+        self.pin_owner_path = {}
         self.sub_pins = {}
         for n in self.nodes:
+            owner_path = ""
+            try:
+                owner_path = self.ctx.full_name(self.ctx.obj(getattr(n, "_export_index", None)))
+            except (AttributeError, TypeError):
+                pass
             for p in n.pins:
-                self.pin_owner[(n._export_object_name, p.pin_id)] = (n, p)
-                self.pin_by_guid.setdefault(p.pin_id, []).append((n, p))
+                self.pin_owner.setdefault((n._export_object_name, p.pin_id), []).append((n, p))
+                if owner_path:
+                    self.pin_owner_path.setdefault((owner_path, p.pin_id), []).append((n, p))
         for n in self.nodes:
             for p in n.pins:
                 if p.parent_pin and p.parent_pin.get("pin_guid"):
@@ -904,15 +918,25 @@ class GraphRenderer:
     # ---- helpers
     def resolve(self, ref, default_node=None):
         """(node, pin) for a serialized pin reference {owning_node, pin_guid}."""
-        if not ref:
+        if not isinstance(ref, dict):
             return None
         guid = ref.get("pin_guid")
-        owner = ref.get("owning_node") or (default_node._export_object_name if default_node is not None else None)
-        hit = self.pin_owner.get((owner, guid))
-        if hit:
-            return hit
-        cands = self.pin_by_guid.get(guid) or []
-        return cands[0] if len(cands) == 1 else None
+        owner_object = ref.get("owning_node_object")
+        if owner_object is not None:
+            try:
+                owner_path = self.ctx.full_name(owner_object)
+            except (AttributeError, TypeError):
+                owner_path = ""
+            candidates = self.pin_owner_path.get((owner_path, guid), []) if owner_path else []
+            return candidates[0] if len(candidates) == 1 else None
+        owner = ref.get("owning_node")
+        if not owner and default_node is not None:
+            # Only structural parent/sub-pin references may use their current
+            # node as an explicit scope. Arbitrary graph links call resolve()
+            # without default_node and are never repaired from a unique GUID.
+            owner = default_node._export_object_name
+        candidates = self.pin_owner.get((owner, guid), []) if owner else []
+        return candidates[0] if len(candidates) == 1 else None
 
     def props(self, n):
         idx = getattr(n, "_export_index", None)

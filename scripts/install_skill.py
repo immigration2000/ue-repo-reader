@@ -35,11 +35,11 @@ def install(client: str, root: Path, *, personal: bool = False) -> Path:
         raise FileExistsError(f"skill already exists: {destination}; update a Git clone with git pull, "
                               "or move the previous snapshot before installing again")
 
-    files = [SOURCE / "SKILL.md", *sorted((SOURCE / "scripts").glob("*.py"))]
+    files = [SOURCE / "SKILL.md", SOURCE / "requirements-cxx.txt", *sorted((SOURCE / "scripts").glob("*.py"))]
     # Carry license/notice files if the source distribution provides them.
     files += [p for pattern in ("LICENSE*", "NOTICE*") for p in SOURCE.glob(pattern) if p.is_file()]
     required = {"ue_repo_digest.py", "bp_reader.py", "data_reader.py", "map_reader.py"}
-    if not (SOURCE / "SKILL.md").is_file() or not required <= {p.name for p in files}:
+    if not all(p.is_file() for p in files[:2]) or not required <= {p.name for p in files}:
         raise ValueError("source skill is incomplete; run this script from a complete checkout or skill")
     if any(p.is_symlink() for p in files):
         raise ValueError("source skill files must be regular files, not links")

@@ -11,6 +11,113 @@
 
 ---
 
+## 2026-11-08 01:48 KST · codex · A13 (P0~P6 최종 통합·릴리스 준비)
+- 한 일: GitHub refs와 PR #1~#5를 재조회하고 main→P0/P1, P0/P1→P2/P3, P2+P3→P4, P4→P5,
+  P5→P6 exact ancestry를 확인했다. P2/P3 heads가 P4 조상이라 중복 병합하지 않는 bottom-up 계획을 문서화했다. 누락됐던
+  P5→P4 PR #6을 문서-only diff로 생성했다. P6 owner 규칙·unknown/GUID 보존·wrong-parent mismatch를 다시 검토하고
+  GridInventorySystem용 Linux/Windows/MCP 읽기 전용 절차와 결과 해석 경계를 작성했다.
+- 검증: fresh cache 전체 회귀 단위174/174, external assets6/6, Native Oracle8그룹, saved/loaded evidence2개,
+  eg/ar/ves/bt4프로젝트 PASS. 실제 MCP HTTP6도구·response limit·warm/restart/refresh·strict/opt-in cache 분리 PASS.
+  동일 P5 evidence replay는 incomplete, checked111/mismatch0/unavailable48(정상 생략/aggregate47+CreateDelegate1)이다.
+  실제 output에서 CXX_INDEX와 unified forward/reverse index 생성을 확인했다. fixture/Oracle/UAsset/게임 프로젝트 변경 없음.
+- 남은 일·주의: 어떤 PR도 merge/close하지 않았다. 사용자 승인은 #5→#6→#4→#1 순서로 필요하며 #2/#3은 별도 병합하지
+  않는다. 이번 Cloud에서 UE Editor를 새로 실행하지 않았고 UE5.7, GridInventorySystem digest/native capture, Clang/UHT/runtime
+  target 검증은 미실행이다. 비공개 Windows evidence ZIP/JSON/개인 경로는 Git에 넣지 않는다.
+
+## 2026-11-08 00:43 KST · codex · A12 (P6 semantic reference 미확정 원인 분석)
+- 한 일: P5 evidence ZIP21개 member의 CRC/경로/해시와 보고서·Native/compare JSON을 직접 검산했다. UE5.8.4 고정
+  `PlayerHealth_Widget` 23개 reference의 raw tagged fields, graph IR, loaded-editor 값을 exact graph/node identity로 전수
+  대조했다. unavailable61은 aggregate partial19, saved GUID 생략15, self-context 생략13, exact parent owner 과잉
+  미확정13, CreateDelegate owner 부족1로 분해했다. parser/GUID 변환 오류는 없었고 exact saved parent가 있으면 owner를
+  비교하되 self field unknown은 유지하도록 comparator와 반례를 수정했다(D-034).
+- 검증: 원본 P5는 native complete22/partial1, saved complete4/partial19, checked85/mismatch0/unavailable61로 재현했다.
+  같은 Native JSON과 package bytes의 수정 후 replay는 incomplete 유지, checked111/mismatch0/unavailable48이다. 저장되지
+  않은 false/zero GUID를 합성하지 않았고 원본 uasset/Oracle JSON/evidence ZIP은 변경·추가하지 않았다. pinned C++ parser를
+  격리 venv에 설치한 뒤 단위174/174, external assets6/6, Native Oracle8그룹, evidence2개, eg/ar/ves/bt4프로젝트가 통과했다.
+  기존 dirty eg cache로 첫 regress가 exit2였으나 이를 reset하지 않고 별도 clean cache의 eg 전체 검증으로 완료했다.
+- 남은 일·주의: 남은48은 저장 생략에 따른 aggregate/field unavailable47과 owner identity 없는 CreateDelegate1이다.
+  UE5.7과 다른 Blueprint/node class 확대 검증, 새 Windows capture는 미실행이다. 첨부 ZIP의 개인 경로/환경 메타데이터는
+  공개 저장소에 넣지 않는다.
+
+## 2026-11-07 23:48 KST · codex · A11 (P5 Windows UE5.8 Native 검증 준비·환경 차단)
+- 한 일: ad854085에서 `codex/p5-windows-native-validation`을 만들고 실제 실행 환경을 검사했다. 연결된 실행기는
+  Debian13 Linux이며 Windows mount/PowerShell/cmd/MSVC/MSBuild/Unreal이 없고 VPN도 구성되지 않았다. GitHub self-hosted
+  runner 조회는 이 인증의 권한 부족으로403이라 runner 유무를 확인하지 못했다. UE 설치·경로 추측은 하지 않았다.
+  고정 ar31bd384의 `/Game/ActionRoguelike/UI/PlayerHealth_Widget`을 함수14/변수3/event1/delegate1/
+  delegate-function1/macro2/custom-event1의 실제 saved 기준으로 선택하고 Git blob·SHA-256을 고정했다. Windows preflight,
+  full validation clone, ActionRoguelikeEditor build, read-only capture, same-hash semantic compare와 보존 산출물을 P5 보고서에 작성했다.
+- 검증: P2/P3/P4 전체 regress 단위173/173·외부 asset6/6·기존 Native Oracle8그룹·evidence2개·고정 프로젝트4/4 PASS.
+  기존 eg native JSON에 semantic-references profile을 실행하면 의도대로 exit1/incomplete, checked0, unavailable1이며 새 P2
+  capability가 없는 정답을 성공으로 승격하지 않는다. 선택 ar package는 working file과 commit blob SHA-256이
+  `2687fa...b37e`로 일치하고 graph IR complete, nodes32/32, asset issues0이다. 실제 UE build/capture/compare는 미실행이다.
+- 남은 일·주의: A11은 Windows UE5.8+VS C++ 실행기에 접근할 때까지 blocked다. 해당 실행기에서 새 full project copy와
+  새 output을 사용해 build.log/native JSON/semantic comparison/pre-post hash/dirty status를 수집해야 한다. 실제 관측 전
+  match/mismatch/unavailable 수를0이나 pass로 쓰지 않는다. 자세한 상태와 명령은
+  `docs/reports/P5_WINDOWS_NATIVE_VALIDATION.md`, `P5_SEMANTIC_ACCURACY.md`에 있다.
+
+## 2026-11-07 19:44 KST · codex · F13 (C++ ↔ Blueprint 통합 정밀 분석)
+- 한 일: P2 d4012f9와 P3 0c945e6을 dcb99dc 기반 `codex/p4-unified-analysis`에 merge하고 문서 충돌2개만
+  양쪽 의미를 유지해 해결했다. v1.20.0에서 원본 graph/declaration/cpp.precision을 바꾸지 않는 schema1 unified IR,
+  overview/unresolved 문서, source/target 양방향 관계 색인을 추가했다. `/Script` owner+member 후보, BP 함수·변수, 저장 pin flow·MacroGraph path,
+  C++ call/base/override/read-write와 Unreal implementation을 연결하되 cross-language verified를0으로 고정했다(D-033).
+  overload/동명 class·graph/GUID 오류/누락/P2-P3 partial·saved-loaded mismatch/BNE/interface/return 후보 반례를 추가했다.
+- 검증: 통합 전 기준 전체 regress 단위169/169와 외부/Native/evidence/고정4프로젝트 PASS. 최종 전체는 단위173/173,
+  외부 에셋6/6, 기존 Native Oracle8그룹+증거2개, eg/ar/ves/bt 모두 PASS. 실제 C++와 BP가 있는 고정 ar에서 전체8169개
+  관계(verified2522/candidate1156/ambiguous158/unavailable4333), cross-language545개(verified0/candidate89/
+  ambiguous7/unavailable449)를 관측했다. fixtures/원본 패키지/Oracle/evidence 정답은 변경하지 않았다. 첫 단위 단독 실행은
+  read-only HOME cache 때문에 중단됐고 workspace cache를 명시한 재실행과 최종 전체 회귀가 통과했다. 실제 MCP HTTP6도구의
+  response limit, warm/restart/refresh, strict/opt-in cache 분리도 PASS.
+- 남은 일·주의: P2 UE5.7/5.8 plugin 실제 build/new semantic capture와 Clang AST/UHT 검증은 미실행이다. saved pin/MacroGraph verified는
+  runtime order가 아니며 cross-language target은 compiler/UHT ID 전까지 후보다. GridInventorySystem 적용 전 clean pinned
+  commit digest와 UE5.8 same-hash capture를 별도 출력으로 생성하고 saved/loaded 차이를 유지한다. 상세 수치와 절차는
+  docs/reports/P4_{INTEGRATION_AUDIT,INTEGRATION_RESULTS,ANALYSIS_ACCURACY}.md.
+
+## 2026-11-07 18:45 KST · codex · F10 (C++ 정밀 구문 색인)
+- 한 일: v1.19.0. 기존 regex `cpp.modules/classes`와 CLASSES.md를 호환 유지하고, 고정 tree-sitter-cpp 기반
+  schema1 `cpp.precision`/CXX_INDEX.json 및 FUNCTIONS/CALL_GRAPH/UNRESOLVED.md를 추가했다. 일반/Unreal 타입,
+  함수 선언·정의/본문·원본 span, access/namespace/base/member, 호출·제어문·read/write·lambda, Build.cs/Target.cs,
+  U 매크로/GENERATED_BODY/generated.h/전처리 원문을 보존한다. 매크로는 같은 길이로 파서 입력에서만 마스킹한다.
+  모든 syntax 결과와 typed 의미를 분리해 call은 유일 후보도 unresolved, semantic_resolved는0으로 고정(D-032).
+  _Implementation/_Validate와 선언/정의는 owner+source spelling 후보만 연결. 기존 C++↔BP short-name 연결도 유일한
+  후보만 탐색용으로 표시하고 중복 이름은 연결하지 않는다. 선택 의존성 부재는 unavailable로 명시하며 서버/스킬 설치 핀을 추가했다.
+- 검증: dcb99dc detached 기준 regress 단위158/158·외부 에셋6/6·Native Oracle8그룹+증거2개·고정 프로젝트4/4 PASS.
+  최종 전체는 단위162/162와 같은 독립/고정 회귀 전부 PASS, 실제 MCP HTTP6도구 PASS. 새 합성 반례4개에서 ordinary/
+  UFUNCTION multiline/RPC, overload·동명 class/function·namespace/template/lambda/전처리/invalid source/Build·Target/output을 확인.
+  실제 C++는 ar164파일 중7 partial(함수728/call2000), ves4/0 partial, bt26/0 partial로 숨기지 않았다.
+  fixtures.json, 원본 패키지, 독립 Oracle/evidence 정답은 변경하지 않았다. 첫 최종 시도의 dirty eg 전용 캐시 거부는
+  reset하지 않고 보존 후 새 고정 clone으로 재실행했고 완전 통과했다.
+- 남은 일·주의: tree-sitter는 전처리/UHT/UBT/type/overload/template instantiation/virtual·delegate runtime target을
+  검증하지 않는다. UE5.7/5.8 엔진 빌드와 Clang AST 비교는 미실행이며 semantic_resolved가 필요하면 compile_commands,
+  동일 엔진/생성 헤더/플랫폼 define을 갖춘 별도 resolver로 syntax IR을 덮어쓰지 않고 추가해야 한다. 자세한 범위와
+  수치는 docs/reports/P3_CPP_PRECISION_{AUDIT,RESULTS,LIMITATIONS}.md에 기록했다.
+
+## 2026-11-07 02:00 KST · codex · A10 (P2 semantic reference Native Oracle)
+- 한 일: 기준 dcb99dc에서 loaded-editor semantic reference를 읽는 RepoReaderOracle 확장과 saved-package graph IR을
+  대조하는 `semantic-references` profile을 추가했다. exact graph/node path·node GUID·owner/self·member name/GUID를 비교하고,
+  같은 short name, unknown, duplicate identity, unresolved target을 성공으로 처리하지 않는다. Function/Event/Variable/Delegate,
+  MacroGraph, CreateDelegate/CustomEvent의 지원 경계를 기록하고 CreateDelegate name-only는 incomplete로 유지한다(D-031).
+  새 P2 보고서와 UE5.7/5.8 Windows build/capture/hash/compare 절차를 작성했다. 기존 native 정답 JSON은 변경하지 않았다.
+- 검증: 변경 전/후 전체 regress PASS. unit 전체, 외부 에셋6/6, 기존 Native Oracle8/8, eg49BP/1778노드·ar·ves·bt PASS.
+  exact 정상 참조와 동명 타 class/wrong GUID/missing parent·reference/duplicate node/partial/saved-load/hash 반례 PASS.
+  Python compile·diff check PASS. 기존 fixture/oracle/evidence diff 없음. dirty LFS clone은 reset하지 않고 보존 이름으로 이동했다.
+- 남은 일·주의: Cloud에는 UE header/toolchain이 없어 새 C++ producer를 실제 빌드·실행하지 못했다. UE5.8 우선, 5.7 별도
+  Windows capture가 완료되기 전에는 semantic reference 독립 검증 완료가 아니다. 새 정답은 기존 JSON을 덮어쓰지 말고 별도 추가한다.
+
+## 2026-11-07 00:41 KST · codex · A9 (정확도 감사와 P0/P1 참조 정체성)
+- 한 일: v1.18.0. GraphRenderer가 owner 없는 링크를 graph-wide unique GUID로 연결하던 추정을 제거하고,
+  tagged reference가 틀린 full path 뒤 같은 이름의 첫 export로 떨어지던 경로를 exact/unique 해석으로 변경했다.
+  graph_ir node에 Function/Event/Variable/Delegate/Macro/CreateDelegate/CustomEvent의 saved semantic reference를 추가해
+  field presence·package index·exact path·GUID components·self-context/unknown을 보존했다(D-030).
+  실제 eg 새 digest에서1195개 reference와 exact parent path613개를 확인했으며 partial1142개를 이름으로 보충하지 않았다.
+  감사·개선·Cloud 준비 보고서와 두 SKILL/Graph IR/INDEX 범례를 갱신했다.
+- 검증: 새 정상/누락/invalid/중복 owner 반례4개 PASS. 최종 전체 regress에서 단위 전체, 외부 에셋6/6,
+  Native Oracle8/8와 loaded-state/saved Nodes evidence, eg49BP/1778노드·ar·ves·bt 모두 PASS(exit0).
+  실제 MCP HTTP 6도구, response limit, warm/restart/refresh와 strict/opt-in cache 분리 PASS.
+  기대값·원본 에셋·독립 Oracle JSON 변경 없음. dirty LFS 회귀 clone은 reset하지 않고 보존 이름으로 옮긴 뒤 새 고정 clone 사용.
+- 남은 일·주의: 새 semantic reference는 tagged saved bytes와 합성 반례까지만 검증했다. Native Oracle producer가 아직
+  해당 필드를 캡처하지 않으므로 독립 검증 완료가 아니다. 실제 UE5.7/5.8 Windows 캡처가 후속 P2다.
+  C++는 정규식 리플렉션 표면만 지원하며 함수 본문/call graph/overload resolution은 F10의 별도 AST 작업으로 남는다.
+
 ## 2026-10-30 09:28 KST · codex/claude · Q14/Q17 (저장값·에디터 로드 차이 조사)
 - 한 일: v1.17.0. 실제 리더 오류2종 수정: Editor custom version>=32의 scalar tagged FText History=None 원문을
   bounded ASCII/UTF16로 읽어 eg 카테고리8개 복구. 실패 sentinel과 실제 authored 문자열을 선언/함수 메타데이터에서 구분.

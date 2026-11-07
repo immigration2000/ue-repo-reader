@@ -11,7 +11,14 @@ Output (in --out):
     INDEX.md                 start here: bounded reading map, entry points, coverage and priority links
     CATALOG.md               complete catalogs, C++<->BP map, notation and parse report
     blueprints/<path>.md     one file per Blueprint (components, variables, defaults, graphs as pseudo-code)
-    cpp/CLASSES.md           C++ UCLASS/USTRUCT/UENUM index with Blueprint-exposed API
+    cpp/CLASSES.md           compatible reflected C++ surface index
+    cpp/CXX_INDEX.json       source-faithful tree-sitter syntax IR (never typed resolution)
+    cpp/FUNCTIONS.md         function declarations/definitions with source spans
+    cpp/CALL_GRAPH.md        observed calls and unresolved syntax candidates
+    cpp/UNRESOLVED.md        partial parses, preprocessor limits and unresolved calls
+    analysis/OVERVIEW.md     unified C++/Blueprint relation coverage and confidence
+    analysis/UNRESOLVED.md   ambiguous and unavailable unified relations
+    analysis/UNIFIED_ANALYSIS.json  versioned cross-language identities and evidence
     digest.json              machine-readable summary of everything above
 """
 from __future__ import annotations
@@ -34,7 +41,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 from project_support import assess_project, declaration_text, parse_descriptor, support_notice
 
-VERSION = "1.17.0"
+VERSION = "1.20.0"
 LFS_MAGIC = b"version https://git-lfs"
 BP_MARKERS = re.compile(rb"(WidgetBlueprintGeneratedClass|AnimBlueprintGeneratedClass|BlueprintGeneratedClass)")
 
@@ -471,12 +478,26 @@ def scan_cpp(proj: Path) -> dict:
                     props = [{"name": v, "type": "", "spec": ""} for v in vals if v not in ("enum", "class")][:40]
                 classes.append({"kind": kind, "name": name, "parent": parent or "", "spec": re.sub(r"\s+", " ", spec).strip(),
                                 "file": h.relative_to(proj).as_posix(), "functions": funcs, "properties": props})
-    return {"modules": modules, "classes": classes}
+    # Keep the long-standing modules/classes shape intact for existing consumers.
+    # The precision index is additive and has its own schema version and accuracy contract.
+    import cxx_index
+    return {"modules": modules, "classes": classes, "precision": cxx_index.analyze_project(proj)}
+
+
+def write_cpp_precision(cpp: dict, directory: Path) -> None:
+    import cxx_index
+    precision = cpp["precision"]
+    (directory / "CXX_INDEX.json").write_text(json.dumps(precision, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (directory / "FUNCTIONS.md").write_text(cxx_index.functions_markdown(precision), encoding="utf-8")
+    (directory / "CALL_GRAPH.md").write_text(cxx_index.call_graph_markdown(precision), encoding="utf-8")
+    (directory / "UNRESOLVED.md").write_text(cxx_index.unresolved_markdown(precision), encoding="utf-8")
 
 
 def cpp_markdown(cpp: dict) -> str:
     out = ["# C++ index", "", "Blueprint-relevant surface of the project's C++ (UFUNCTION/UPROPERTY with Blueprint, Edit,",
-           "Replicated or RPC specifiers). Parsed with regexes from headers — open the file for the exact code.", ""]
+           "Replicated or RPC specifiers). This compatibility view is parsed with regexes from headers.",
+           "Use `CXX_INDEX.json` and the precision Markdown files for source spans and explicit resolution status;",
+           "open the source for exact code. tree-sitter syntax is never presented as typed C++ resolution.", ""]
     if cpp["modules"]:
         out += ["## Modules", ""]
         for m in cpp["modules"]:
@@ -500,6 +521,19 @@ def cpp_markdown(cpp: dict) -> str:
                     out.append(f"- prop `{p['type']} {p['name']}` — {p['spec']}")
             out.append("")
     return "\n".join(out) + "\n"
+
+
+def _cpp_name_indexes(classes: list[dict]) -> tuple[dict, dict]:
+    exact, stripped = defaultdict(list), defaultdict(list)
+    for record in classes:
+        exact[record["name"]].append(record)
+        stripped[re.sub(r"^[AUFIE](?=[A-Z])", "", record["name"])].append(record)
+    return exact, stripped
+
+
+def _unique_cpp_name_candidate(name: str, exact: dict, stripped: dict) -> str | None:
+    candidates = exact.get(name) or stripped.get(name) or []
+    return candidates[0]["name"] if len(candidates) == 1 else None
 
 
 # =========================================================================== blueprint workers
@@ -871,12 +905,13 @@ def asset_kind(name: str) -> str:
 
 
 def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Path, uproject, datas=None, data_failures=None,
-                levels=None, map_failures=None, placed_in=None):
+                levels=None, map_failures=None, placed_in=None, unified=None):
     datas = datas or {}
     data_failures = data_failures or {}
     levels = levels or {}
     map_failures = map_failures or {}
     placed_in = placed_in or {}
+    unified = unified or {}
     md = []
     title = uproject.stem if uproject else Path(meta.get("url") or proj).stem
     src = meta.get("url") or str(proj)
@@ -931,8 +966,9 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
            "- Files longer than ~60k characters are split: `X.md` ends with a link to `X.part2.md`.",
            "- `digest.json` is the same information for scripts — don't read it to understand the project.",
            "  Scripts can inspect `blueprints[path].graph_ir` / `maps_detail[path].level_bp_graph_ir` for versioned",
-           "  node/pin identities, decoded types/defaults and saved pin references. Check status and issues;",
-           "  complete means projection coverage, not verified gameplay semantics. Node properties/CDOs are outside this IR.",
+           "  node/pin identities, decoded types/defaults, saved pin references and selected saved function/variable/",
+           "  delegate/macro identities. Check each semantic_references status: missing fields stay unknown.",
+           "  Top-level complete means pin projection coverage, not verified gameplay semantics. Arbitrary node properties/CDOs are outside this IR.",
            "  `blueprints[path].declaration_ir` contains saved variable types/flags/authored defaults, parent/function references",
            "  and widget bindings. Check saved_fields, status and unknown reasons; absent tags do not establish defaults.",
            "  graph_ir.saved_membership records checks against bounded saved Nodes arrays. Confirmed unlisted exports are",
@@ -998,25 +1034,40 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
     md.append("")
 
     # C++ <-> BP
-    cpp_names = {c["name"] for c in cpp["classes"]}
-    cpp_names_stripped = {re.sub(r"^[AUFIE](?=[A-Z])", "", n): n for n in cpp_names}
+    cpp_name_records, cpp_stripped_records = _cpp_name_indexes(cpp["classes"])
+
+    def cpp_name_candidate(name):
+        return _unique_cpp_name_candidate(name, cpp_name_records, cpp_stripped_records)
+
     sub = defaultdict(list)
     calls = defaultdict(set)
+    ambiguous_links = set()
     for gp, r in bps.items():
         s = r["summary"]
         par = s["parent"]
-        if par in cpp_names_stripped or par in cpp_names:
-            sub[cpp_names_stripped.get(par, par)].append(gp)
+        parent_candidate = cpp_name_candidate(par)
+        if parent_candidate:
+            sub[parent_candidate].append(gp)
+        elif cpp_name_records.get(par) or cpp_stripped_records.get(par):
+            ambiguous_links.add(f"parent `{par}` for `{gp}` has duplicate C++ short-name candidates")
         for c in s["calls"]:
             cls, _, fn = c.partition("::")
-            if cls in cpp_names_stripped:
-                calls[f"{cpp_names_stripped[cls]}::{fn}"].add(gp.rsplit("/", 1)[-1])
+            class_candidate = cpp_name_candidate(cls)
+            if class_candidate:
+                calls[f"{class_candidate}::{fn}"].add(gp.rsplit("/", 1)[-1])
+            elif cpp_name_records.get(cls) or cpp_stripped_records.get(cls):
+                ambiguous_links.add(f"call owner `{cls}` in `{gp}` has duplicate C++ short-name candidates")
     direct = {}
     for cls, where in placed_in.items():
-        if cls in cpp_names_stripped:
-            direct[cpp_names_stripped[cls]] = where
-    if sub or calls or direct:
-        md += ["## C++ ↔ Blueprint", ""]
+        class_candidate = cpp_name_candidate(cls)
+        if class_candidate:
+            direct[class_candidate] = where
+        elif cpp_name_records.get(cls) or cpp_stripped_records.get(cls):
+            ambiguous_links.add(f"placed class `{cls}` has duplicate C++ short-name candidates")
+    if sub or calls or direct or ambiguous_links:
+        md += ["## C++ ↔ Blueprint name candidates", "",
+               "These navigation hints match saved short names to unique C++ source spellings. They are not shared",
+               "compiler/UHT identities and do not prove inheritance, overload choice, or a call target.", ""]
         if direct:
             md.append("**Project C++ classes placed directly in maps**")
             md.append("")
@@ -1024,17 +1075,32 @@ def build_index(meta, proj, cpp, bps, failures, other_assets, maps, lfs, out: Pa
                 md.append(f"- `{k}` in " + ", ".join(f"{m} ×{n}" for m, n in sorted(direct[k].items())))
             md.append("")
         if sub:
-            md.append("**Project C++ classes that Blueprints subclass**")
+            md.append("**Unique C++ class-name candidates for Blueprint parents**")
             md.append("")
             for k in sorted(sub):
                 md.append(f"- `{k}` ← " + ", ".join(sorted(x.rsplit('/', 1)[-1] for x in sub[k])))
             md.append("")
         if calls:
-            md.append("**Project C++ functions called from Blueprints**")
+            md.append("**Unique C++ class/function spelling candidates for Blueprint calls**")
             md.append("")
             for k in sorted(calls):
                 md.append(f"- `{k}` ← " + ", ".join(sorted(calls[k])))
             md.append("")
+        if ambiguous_links:
+            md += ["**Ambiguous short-name links (not connected)**", ""]
+            md.extend(f"- {item}" for item in sorted(ambiguous_links))
+            md.append("")
+
+    if unified:
+        counts = (unified.get("statistics") or {}).get("by_resolution_status") or {}
+        md += ["## Unified C++ ↔ Blueprint analysis", "",
+               f"Status: **{unified.get('status', 'unavailable')}** · schema {unified.get('schema_version', '?')}. "
+               f"Relations: verified {counts.get('verified', 0)}, candidate {counts.get('candidate', 0)}, "
+               f"ambiguous {counts.get('ambiguous', 0)}, unavailable {counts.get('unavailable', 0)}.",
+               "Cross-language verified remains 0 without compiler/UHT identity. Saved Blueprint pin links and exact",
+               "MacroGraph object paths may be verified as stored identities; this does not establish runtime behavior.",
+               "- [Overview](<analysis/OVERVIEW.md>) · [Ambiguous/unavailable](<analysis/UNRESOLVED.md>) · "
+               "machine IR: `analysis/UNIFIED_ANALYSIS.json`", ""]
 
     # content overview
     folders = Counter()
@@ -1186,7 +1252,7 @@ def validate_output_dir(output: Path, repo: Path, project: Path | None = None) -
         manifest = None
     if not isinstance(manifest, dict) or not str(manifest.get("tool", "")).startswith("ue-repo-reader "):
         raise ValueError(f"output directory is not a recognized ue-repo-reader digest: {out}; choose a new --out")
-    dirs = {"blueprints", "cpp", "data", "maps", "config"}
+    dirs = {"blueprints", "cpp", "data", "maps", "config", "analysis"}
     files = {"INDEX.md", "CATALOG.md", "digest.json"}
     for entry in entries:
         if entry.name in dirs and entry.is_dir():
@@ -1295,6 +1361,7 @@ def main(argv=None):
     (out / "cpp").mkdir(parents=True)
     (out / "data").mkdir(parents=True)
     (out / "maps").mkdir(parents=True)
+    (out / "analysis").mkdir(parents=True)
 
     if len(all_projects) > 1:
         meta["other_projects"] = [p.relative_to(repo).as_posix() for p in all_projects if p != uproject]
@@ -1362,7 +1429,10 @@ def main(argv=None):
             local.append(p)
     cpp = scan_cpp(proj)
     (out / "cpp" / "CLASSES.md").write_text(cpp_markdown(cpp), encoding="utf-8")
-    log(f"[cpp] {len(cpp['classes'])} reflected types in {len(cpp['modules'])} modules")
+    write_cpp_precision(cpp, out / "cpp")
+    precision_stats = cpp["precision"].get("statistics", {})
+    log(f"[cpp] {len(cpp['classes'])} reflected types in {len(cpp['modules'])} modules; "
+        f"precision={cpp['precision']['status']} functions={precision_stats.get('functions', 0)} calls={precision_stats.get('calls', 0)}")
     project_types = {re.sub(r"^[AUF](?=[A-Z])", "", c["name"]) for c in cpp["classes"]}
 
     classes = classify_assets([str(p) for p in local], a.workers)
@@ -1459,15 +1529,26 @@ def main(argv=None):
                 fh.write("\n## Placed in levels\n" + ", ".join(f"`{m}` ×{n}" for m, n in sorted(placed_in[cls].items())) + "\n")
     meta["external_objects"] = n_external_objects
 
+    from unified_analysis import build_unified_analysis, overview_markdown, unresolved_markdown
+    unified = build_unified_analysis(cpp, {gp: r["summary"] for gp, r in bps.items()},
+                                     {gp: r["summary"] for gp, r in level_results.items()})
+    (out / "analysis" / "UNIFIED_ANALYSIS.json").write_text(
+        json.dumps(unified, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    (out / "analysis" / "OVERVIEW.md").write_text(overview_markdown(unified), encoding="utf-8")
+    (out / "analysis" / "UNRESOLVED.md").write_text(unresolved_markdown(unified), encoding="utf-8")
+    unified_counts = unified["statistics"]["by_resolution_status"]
+    log("[analysis] " + unified["status"] + " " + " ".join(f"{key}={unified_counts[key]}" for key in
+                                                             ("verified", "candidate", "ambiguous", "unavailable")))
+
     build_index(meta, proj, cpp, bps, failures, others, maps, lfs, out, uproject, datas, data_failures,
-                level_results, map_failures, placed_in)
+                level_results, map_failures, placed_in, unified)
     from navigation import build_navigation, repair_catalog_links
     navigation = build_navigation(meta, cpp, bps, failures, datas, data_failures, level_results, map_failures, lfs, out)
     digest = {"tool": f"ue-repo-reader {VERSION}", "source": meta, "lfs": lfs,
               "blueprints": {gp: r["summary"] for gp, r in bps.items()}, "failures": failures,
               "data_assets": {gp: r["summary"] for gp, r in datas.items()}, "data_failures": data_failures,
               "maps_detail": {gp: r["summary"] for gp, r in level_results.items()}, "map_failures": map_failures,
-              "maps": sorted(maps), "cpp": cpp, "navigation": navigation}
+              "maps": sorted(maps), "cpp": cpp, "unified_analysis": unified, "navigation": navigation}
     # compact: this file is for scripts, not for reading (it repeats what the Markdown says)
     (out / "digest.json").write_text(json.dumps(digest, ensure_ascii=False, default=list, separators=(",", ":")),
                                      encoding="utf-8")

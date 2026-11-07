@@ -38,7 +38,10 @@ Useful options:
 - `--lfs-max-mb 8` — only Git-LFS `.uasset` files up to this size are downloaded (Blueprints are small;
   textures and meshes are skipped on purpose)
 
-Requirements: Python 3.10+, `git`, and `git-lfs` for LFS repos. The first run fetches the pinned
+Requirements: Python 3.10+, `git`, and `git-lfs` for LFS repos. For the precision C++ syntax index, install
+the pinned optional parser once with `python -m pip install -r <this-skill-dir>/requirements-cxx.txt`.
+Without it, the compatible reflected-surface index is still generated and the precision index reports
+`unavailable`; it does not silently substitute regex results. The first run fetches the pinned
 `uasset_read` parser into `~/.cache/ue-repo-reader` (override with `UE_REPO_READER_CACHE`). Private repos use
 the machine's normal git credentials. Use `python3` or `py -3` if `python` is not the right interpreter.
 
@@ -56,7 +59,7 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    and unique-name mentions, with configured-entry seeds; they suggest reading order, not runtime behavior
    or proven dependencies. Follow the links relevant to the question. Each asset starts with context links.
    `<out>/CATALOG.md` preserves the complete project settings, map/Blueprint/data catalogs, C++ ↔ Blueprint
-   mapping, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
+   short-name candidates, Enhanced Input check, GameplayTag summary, full pseudo-code legend and Parse report.
    Read **Project support** before interpreting coverage. The declaration is not independent semantic
    verification; an explicit best-effort run never becomes a confirmed target because parsing succeeded.
    For an explicit request to verify against an editor, use the optional developer workflow in
@@ -76,10 +79,15 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    or subobjects not expanded. These notices describe incomplete display, not confirmed defaults or parse errors.
    Omitted BP/data values are not yet preserved in a complete structured record; inspect the asset for the missing detail.
    For machine comparisons, `digest.json` → `blueprints[path].graph_ir` retains nonempty parsed graphs,
-   node identities/classes, pin types/defaults and saved pin references; maps use `maps_detail[path].level_bp_graph_ir`.
+   node identities/classes, pin types/defaults, saved pin references and selected saved function/variable/delegate/macro identities;
+   maps use `maps_detail[path].level_bp_graph_ir`. Each node's `semantic_references` preserves available package indices,
+   exact resolved object paths and saved fields; unavailable identity fields remain explicit `unknown` rather than being inferred from names.
    Check its `status`/`issues`. `complete` covers decoder-exposed pins, not verified gameplay semantics or detection of truncated pin lists.
-   IDs are local to an asset snapshot; unresolved/ambiguous links have no inferred target. Node properties/CDOs
-   are outside this IR. Keep reading Markdown for normal analysis; do not load the entire JSON into context.
+   IDs are local to an asset snapshot; unresolved/ambiguous links have no inferred target. Arbitrary node properties/CDOs
+   are outside this IR. The optional `semantic-references` native profile can compare saved and editor-loaded
+   identities, but only a clean UE 5.7/5.8 capture with the same package hash establishes that selected comparison;
+   Linux fixtures alone do not. Keep reading Markdown
+   for normal analysis; do not load the entire JSON into context.
 3. `<out>/maps/<content path>.md` — one file per map: game mode override, World Partition / streaming
    sub-levels, the Level Blueprint graphs, every placed gameplay actor (label, object name, class,
    location, rotation, per-instance overrides such as instance-editable variables) and an environment
@@ -101,7 +109,23 @@ entries are rejected. If an incomplete run left an unrecognized output, choose a
    ambiguous enum; ordinary byte arrays remain numeric.
 5. `<out>/config/GameplayTags.md` (when the project uses tags) — every tag, where it is defined (ini, tag
    DataTable or native C++), who uses it, tags used but never defined, redirects.
-6. `<out>/cpp/CLASSES.md` to locate C++ types, then read the **real** C++ sources in the clone for details.
+6. C++ output:
+   - `<out>/cpp/CLASSES.md` is the compatible regex-based reflected surface.
+   - `<out>/cpp/FUNCTIONS.md` records tree-sitter-observed declarations, definitions, bodies and source lines.
+   - `<out>/cpp/CALL_GRAPH.md` records call expressions and spelling candidates; even a unique candidate is
+     unresolved until a typed C++ analyzer verifies it.
+   - `<out>/cpp/UNRESOLVED.md` lists partial syntax, unevaluated preprocessor branches and unresolved targets.
+   - `<out>/cpp/CXX_INDEX.json` is schema-versioned machine data with exact source spans and status.
+   Read the **real** C++ sources for exact code. `syntax_observed` is direct syntax, not proof of types,
+   overloads, generated code, runtime dispatch or UnrealHeaderTool behavior. `semantic_resolved` is reserved
+   for a future typed analyzer and is never emitted by the tree-sitter index.
+7. `<out>/analysis/OVERVIEW.md` and `<out>/analysis/UNRESOLVED.md` summarize the additive unified layer.
+   Use `analysis/UNIFIED_ANALYSIS.json` for C++ ↔ Blueprint traversal: every relation retains source/target
+   identity or all candidates, asset/graph/node/pin or source span, provenance, evidence, issues and one of
+   `verified`, `candidate`, `ambiguous`, `unavailable`. Follow `relation_index.by_source` forward and
+   `relation_index.by_target_or_candidate` backward. A single name/path candidate is not compiler/UHT proof;
+   cross-language links remain below `verified`. Saved pin links and exact MacroGraph object paths describe stored
+   identities, not runtime order or target graph behavior.
 
 Skip `digest.json` (a machine-readable copy of the same facts). A file that ends with
 `→ continued in X.part2.md` is split; read the parts in order.
@@ -110,9 +134,10 @@ Read each document's **Parse warnings**, the INDEX coverage summary and the CATA
 and external-actor failures are reported even when all graph nodes have decoded pins. An unreadable Level
 Blueprint is **unknown**, not an empty graph; missing values after a parse failure are not confirmed defaults.
 
-Cross-check both directions: when a Blueprint calls project C++ (`CATALOG.md` lists these), read that C++;
-when C++ declares a `BlueprintImplementableEvent`/`BlueprintNativeEvent`, grep `blueprints/` for the event
-name to find its Blueprint implementation.
+Cross-check both directions with the unified relation index, then read the source and Blueprint documents it names.
+Do not treat a short-name candidate as compiler/UHT identity or a resolved call. For
+`BlueprintImplementableEvent`/`BlueprintNativeEvent`, interface, virtual and RPC relations, retain the reported
+runtime/UHT uncertainty even when only one source candidate exists.
 
 The saved declaration projection is `digest.json` → `blueprints[path].declaration_ir` (schema 1). Use it for structured variable types/flags/authored defaults, parent and function graph references, and widget bindings. Check `saved_fields`, `status` and unknown reasons: absent tags, non-map terminal types and unsupported older saved layouts remain unknown; CDO, inherited/runtime defaults and map Level Blueprint declarations are outside this projection. Display text is not a substitute for these fields.
 

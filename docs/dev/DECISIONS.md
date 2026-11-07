@@ -319,3 +319,66 @@
 - 영향: 두 SKILL·INDEX/CATALOG·Graph IR 문서를 같이 갱신하고 graph_membership.py를 캐시 지문에 포함한다.
   선택적 --no-pch는 소유한 임시 에디터 smoke 호스트에만 적용하며 실제5.8.4 빌드/수집으로 검증했다.
   엔진 구현·고정 버전 이후 uasset_read 코드를 복사하지 않았고 새 제품 의존성은 없다.
+
+## D-030 저장 멤버 정체성과 의사코드 연결 추정을 분리 (2026-11-07, codex)
+- 결정: v1.18.0. Markdown 의사코드의 임의 graph-wide GUID fallback을 제거한다. 저장 링크는 exact owner object path 또는
+  유일한 owner name+pin GUID가 있을 때만 연결하며, owner 부재/불일치와 duplicate owner는 unresolved로 둔다.
+- 이유: 기존 graph_ir는 같은 입력을 unresolved로 보존했지만 GraphRenderer는 GUID가 그래프에서 하나라는 이유로 연결해
+  두 공개 결과가 서로 다른 사실을 말할 수 있었다. full path가 실패한 object reference를 같은 short name의 첫 export로
+  바꾸는 경로도 잘못된 graph/widget/component를 선택할 수 있어 exact/unique 규칙으로 통일한다.
+- 구조화 결과: graph_ir schema1의 additive node field `semantic_references`에 Function/Event/Variable/Delegate reference,
+  MacroGraph, create-delegate/custom-event 이름의 saved field presence, package index, exact resolved path, GUID components,
+  self-context와 unknown 이유를 보존한다. top-level complete는 기존 pin projection 계약이며 각 semantic record의 partial을
+  승격하지 않는다.
+- 검증: missing/wrong owner, duplicate short name, invalid package index/GUID component, absent field, structural-reference 경계
+  반례를 추가했다. 실제 eg에서1195개 reference, exact parent path613개를 보존했다. 전체 회귀와 MCP smoke는 통과했으나
+  기존 Native Oracle은 새 member-reference 필드를 수집하지 않으므로 이 필드는 partial verification이다.
+- 후속: UE5.7/5.8 Oracle producer와 비교기에 FMemberReference/MacroGraph identity를 추가해 새 독립 캡처로 검증한다.
+  C++ 정밀 색인은 F10에서 tree-sitter syntax 결과와 선택적 Clang-resolved 결과를 provenance/status로 분리한다.
+
+## D-031 semantic reference의 저장 관측과 editor loaded target을 별도 profile로 비교 (2026-11-07, codex)
+- 결정: 기존 all/graph profile과 정답8개를 바꾸지 않고 `semantic-references` profile을 추가한다. 새 native producer는
+  FMemberReference UPROPERTY field를 Unreal reflection으로 읽고 모든 값에 `loaded-editor` provenance를 붙인다.
+  reader 쪽은 graph_ir의 `saved-package` 관측만 사용한다. exact graph/node object path와 node GUID, owner/self, member name/GUID를
+  비교하며 short name, unknown, 중복 identity를 일치로 처리하지 않는다.
+- 이유: 1.18.0의 semantic reference는 저장 tagged field와 합성 반례만 검증됐다. 기존 native producer는 target identity를
+  관측하지 않아 all/graph 통과로 이를 증명할 수 없다. engine load fixup도 저장값과 다를 수 있으므로 한 표현으로 합치면 실제 차이가 사라진다.
+- 불완전 계약: native target resolution 실패, saved parent/GUID 부재, unsupported field는 unavailable이다. CreateDelegate는
+  SelectedFunctionName만으로 owner를 확인할 수 없어 이름이 같아도 incomplete다. 기존 capture에는 capability key가 없어 새 profile에서
+  incomplete이며 정답 JSON을 reader 결과로 갱신하지 않는다.
+- 검증 경계: Linux에서는 exact/wrong/missing/duplicate/partial/hash 반례와 기존 회귀만 실행한다. UE5.7/5.8 plugin build와 새 capture가
+  완료되기 전에는 독립 검증 완료가 아니다. 원본 package SHA-256, clean package, engine build/source provenance를 갖춘 새 파일만 후속 정답 후보다.
+
+## D-032 C++ 구문 관측과 타입 의미 해석을 분리 (2026-11-07, codex)
+- 결정: v1.19.0. 기존 `cpp.modules/classes`와 CLASSES.md를 유지하고 tree-sitter-cpp 기반 schema1 정밀 IR을
+  `cpp.precision`/CXX_INDEX.json과 FUNCTIONS/CALL_GRAPH/UNRESOLVED.md로 추가한다. 모든 tree-sitter 심볼은
+  syntax_observed, 호출 대상은 유일 후보여도 unresolved이며 semantic_resolved는 typed resolver 전용으로 비워 둔다.
+- 파서: tree-sitter0.25.2/tree-sitter-cpp0.23.4를 선택 의존성으로 고정한다. 부재/ABI 오류면 기존 색인은 계속 만들고
+  정밀 결과를 unavailable로 기록한다. UE 리플렉션/GENERATED_BODY와 *_API는 원문 범위·바이트를 보존한 채 같은 길이의
+  공백으로 파서 입력에서만 마스킹한다. 전처리·include/UHT/UBT를 실행하거나 그 결과를 추측하지 않는다.
+- 관계: 선언/정의는 qualified spelling+parameter syntax, _Implementation/_Validate는 owner+이름으로 후보만 연결한다.
+  Build.cs/Target.cs도 lexical 관측이며 실제 UBT 모듈 그래프로 승격하지 않는다. 기존 BP↔C++ 이름 카탈로그는 의미 정답이 아니다.
+- 영향: 스킬 스냅샷에 requirements-cxx.txt와 새 모듈을 포함한다. Clang AST는 compile commands, 동일 UE 헤더/생성 코드/
+  정의가 준비된 별도 semantic resolver로 후속 구현하며 syntax IR을 덮어쓰지 않는다.
+
+## D-033 C++·Blueprint 원본 IR 위에 보수적 통합 관계 계층 추가 (2026-11-07, codex)
+- 결정: v1.20.0. `graph_ir`, `declaration_ir`, `cpp.precision`의 의미를 바꾸지 않고 schema1
+  `analysis/UNIFIED_ANALYSIS.json`/`digest.json.unified_analysis`를 합성한다. 관계마다 source/target 또는 모든 후보,
+  asset/graph/node/pin·source span, provenance/evidence/issues와 verified/candidate/ambiguous/unavailable을 보존한다.
+  source 및 target-or-candidate 관계 색인을 제공해 C++→BP와 BP→C++를 같은 원본 관계에서 탐색한다.
+- 정확성: compiler/UHT 심볼 ID가 없는 모든 C++↔BP 관계는 유일한 `/Script` 경로+member spelling 후보여도
+  candidate 이하로 유지한다. overload/중복은 ambiguous, identity 부족은 unavailable이다. verified는 기존 IR 안의 정확한
+  저장 pin source/target 또는 정확한 저장 MacroGraph object path에 한하며 runtime 순서·의미가 아니다. 함수 result pin 전체를 return으로 보지 않고 이름 후보도
+  candidate로 둔다. P2 native 미실행, P3/graph/declaration partial과 saved-loaded mismatch를 전체 상태에 전파한다.
+- 범위: type parent, function/event/interface, variable/delegate, saved pin flow, MacroGraph object path, C++ call/base/override/read-write,
+  _Implementation/_Validate를 연결한다. BlueprintNativeEvent/RPC/interface/virtual dispatch에는 UHT/runtime 미확정을 남긴다.
+  정확한 cross-language 승격은 matching engine/generated headers/defines의 typed resolver를 별도 provenance로 추가해야 한다.
+
+## D-034 exact saved MemberParent와 생략된 self-context를 독립 비교 (2026-11-08, codex)
+- 결정: semantic reference 비교에서 `bSelfContext=true`는 self owner의 긍정 증거이고, exact saved `MemberParent.object_path`는
+  external owner의 긍정 증거다. 한쪽의 저장 tag가 생략됐다는 이유로 다른 쪽의 exact 증거를 버리지 않는다.
+- 보존 경계: external parent가 있어도 생략된 `bSelfContext`를 false로 만들지 않고 그 field는 unavailable로 유지한다.
+  saved GUID 부재도 loaded zero GUID로 채우지 않는다. parent와 self 둘 다 exact하지 않으면 owner는 unknown이다.
+- 근거: UE5.8.4 P5 고정 package의 external reference 13개 모두 exact parent/name을 저장하고 self tag를 생략했다. Native
+  loaded 값은 같은 parent와 false였으나 수정 전 비교기는 owner도 unavailable로 중복 보고했다. exact owner 비교를 복원한
+  뒤 같은 증거가 checked85→111, mismatch0 유지, unavailable61→48이 됐다. 원본/Oracle/parser output은 바꾸지 않았다.

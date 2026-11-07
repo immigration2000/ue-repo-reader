@@ -17,6 +17,15 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import bp_reader as B  # noqa: E402
 import ue_repo_digest as D  # noqa: E402
+from cxx_index_tests import (test_cxx_precision_build_rules_and_digest_outputs_are_additive,
+                             test_cxx_precision_keeps_overloads_duplicates_namespaces_and_ambiguity,
+                             test_cxx_precision_observes_unreal_functions_bodies_and_source_spans,
+                             test_cxx_precision_reports_invalid_source_and_missing_parser_without_false_success)
+from unified_analysis_tests import (
+    test_unified_duplicate_cpp_classes_and_blueprint_function_names_never_collapse,
+    test_unified_exact_native_path_stays_candidate_and_overloads_are_ambiguous,
+    test_unified_inheritance_native_event_interface_and_implementation_are_candidates,
+    test_unified_pin_flow_variable_use_and_partial_inputs_preserve_boundaries)
 from native_repeat_tests import (test_native_repeats_identical_clean_capture_is_stable_under_reordering,
                                  test_native_repeats_scalar_guid_and_hidden_changes_are_retained,
                                  test_native_repeats_package_hash_engine_and_project_drift_fail_closed,
@@ -50,6 +59,7 @@ from declaration_ir_tests import (test_declaration_native_type_decodes_map_objec
                                   test_declaration_reader_keeps_indices_and_rejects_duplicate_nested_fields,
                                   test_declaration_malformed_and_duplicate_records_preserve_unknown_and_stream_errors)
 from editor_compare_tests import (test_editor_compare_dirty_display_text_and_profile_exclusions_are_explicit,
+                                 test_context_reference_resolution_never_guesses_duplicate_short_names,
                                  test_editor_compare_duplicate_and_malformed_identity_refused,
                                  test_editor_compare_hash_binding_and_binary_read_race,
                                  test_editor_compare_partial_assets_keep_other_results_and_metadata_still_compares,
@@ -59,13 +69,21 @@ from editor_compare_tests import (test_editor_compare_dirty_display_text_and_pro
                                  test_editor_compare_unknown_never_becomes_default_or_success,
                                  test_editor_compare_word_order_owner_scope_and_order_independence,
                                  test_editor_oracle_absolute_import_paths_are_not_prefixed_twice,
-                                 test_native_replay_rejects_wrong_values_and_new_gaps)
+                                 test_native_replay_rejects_wrong_values_and_new_gaps,
+                                 test_semantic_reference_profile_matches_exact_loaded_and_saved_function_identity,
+                                 test_semantic_reference_profile_rejects_same_name_wrong_class_and_guid,
+                                 test_semantic_reference_profile_uses_exact_parent_without_inventing_omitted_self_context,
+                                 test_semantic_reference_profile_covers_member_macro_and_custom_event_records,
+                                 test_semantic_reference_profile_missing_duplicate_and_unknown_fail_closed,
+                                 test_semantic_reference_profile_preserves_loaded_saved_boundary_and_partial_name_kinds,
+                                 test_semantic_reference_oracle_profile_requires_hash_and_new_native_capability)
 from editor_export_tests import (test_editor_oracle_captures_requested_assets_in_order_with_pinned_bytes,
                                 test_editor_oracle_pins_nothing_it_cannot_read_but_still_captures_the_asset,
                                 test_editor_oracle_preserves_native_text_source_and_flags_display_text,
                                 test_editor_oracle_records_every_failure_without_dropping_an_asset,
                                 test_editor_oracle_refuses_bad_configuration_before_reading_or_replacing_anything,
                                 test_editor_oracle_reports_package_bytes_that_changed_during_a_capture,
+                                test_native_oracle_semantic_capture_declares_loaded_state_and_no_mutators,
                                 test_editor_oracle_touches_no_editor_mutators_and_shares_no_reader_code,
                                 test_editor_oracle_will_not_read_a_dirty_package_as_the_saved_asset,
                                 test_editor_oracle_write_failure_keeps_the_previous_oracle_and_leaves_no_debris)
@@ -90,7 +108,10 @@ from graph_ir_tests import (test_graph_ir_full_pin_literals_and_type_fields,
                             test_graph_ir_duplicate_pin_and_invalid_values_remain_unknown,
                             test_graph_ir_semantic_mutations_visible_without_rendering,
                             test_graph_ir_object_defaults_and_unknown_reference_fields_are_not_lost,
-                            test_graph_ir_partial_decode_and_structural_pin_references)
+                            test_graph_ir_partial_decode_and_structural_pin_references,
+                            test_graph_ir_preserves_saved_semantic_references_without_name_inference,
+                            test_graph_ir_semantic_references_reject_bad_or_missing_saved_identity,
+                            test_pseudocode_resolver_never_repairs_links_from_a_unique_guid)
 from failure_tests import (test_partial_map_reporting, test_empty_and_partial_level_blueprints,
                           test_map_preserves_unlisted_level_script_exports_separately,
                           test_graph_render_failure_reporting, test_property_failure_reporting,
@@ -302,6 +323,11 @@ def test_output_rerun():
             assert _digest_cli(args) == 0
             assert (out / "INDEX.md").is_file() and not stale.exists()
             assert (out / "CATALOG.md").is_file() and not (out / "CATALOG.part10.md").exists()
+            assert (out / "analysis" / "OVERVIEW.md").is_file()
+            assert (out / "analysis" / "UNRESOLVED.md").is_file()
+            unified = json.loads((out / "analysis" / "UNIFIED_ANALYSIS.json").read_text(encoding="utf-8"))
+            digest = json.loads((out / "digest.json").read_text(encoding="utf-8"))
+            assert unified["schema_version"] == 1 and digest["unified_analysis"] == unified
             assert (source / "Game.uproject").is_file()
 
 

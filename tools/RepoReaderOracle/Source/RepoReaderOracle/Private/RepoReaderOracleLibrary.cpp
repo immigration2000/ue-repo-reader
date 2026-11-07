@@ -12,6 +12,7 @@
 #include "Engine/Blueprint.h"
 #include "Internationalization/Text.h"
 #include "K2Node_FunctionEntry.h"
+#include "K2Node_MacroInstance.h"
 #include "Misc/EngineVersionComparison.h"
 #include "Misc/Guid.h"
 #include "Policies/CondensedJsonPrintPolicy.h"
@@ -19,6 +20,7 @@
 #include "Templates/Casts.h"
 #include "UObject/Class.h"
 #include "UObject/Package.h"
+#include "UObject/UnrealType.h"
 #include "WidgetBlueprint.h"
 
 // Guarded rather than pinned to one release: the reads below are declared the same way in 5.7 and 5.8,
@@ -159,6 +161,266 @@ namespace
 		Writer.WriteObjectEnd();
 	}
 
+	bool MemberReferenceDescriptor(const UEdGraphNode& Node, const TCHAR*& Kind, const TCHAR*& SourceProperty)
+	{
+		const FString ClassName = Node.GetClass()->GetName();
+		if (ClassName == TEXT("K2Node_Message"))
+		{
+			Kind = TEXT("interface_function");
+			SourceProperty = TEXT("FunctionReference");
+			return true;
+		}
+		if (ClassName == TEXT("K2Node_CallFunction")
+			|| ClassName == TEXT("K2Node_CallParentFunction")
+			|| ClassName == TEXT("K2Node_CallArrayFunction")
+			|| ClassName == TEXT("K2Node_CallMaterialParameterCollectionFunction")
+			|| ClassName == TEXT("K2Node_CallFunctionOnMember")
+			|| ClassName == TEXT("K2Node_CommutativeAssociativeBinaryOperator")
+			|| ClassName == TEXT("K2Node_PromotableOperator"))
+		{
+			Kind = TEXT("function");
+			SourceProperty = TEXT("FunctionReference");
+			return true;
+		}
+		if (ClassName == TEXT("K2Node_Event"))
+		{
+			Kind = TEXT("event");
+			SourceProperty = TEXT("EventReference");
+			return true;
+		}
+		if (ClassName == TEXT("K2Node_VariableGet") || ClassName == TEXT("K2Node_VariableSet"))
+		{
+			Kind = TEXT("variable");
+			SourceProperty = TEXT("VariableReference");
+			return true;
+		}
+		if (ClassName == TEXT("K2Node_CallDelegate") || ClassName == TEXT("K2Node_AddDelegate")
+			|| ClassName == TEXT("K2Node_AssignDelegate") || ClassName == TEXT("K2Node_RemoveDelegate")
+			|| ClassName == TEXT("K2Node_ClearDelegate"))
+		{
+			Kind = TEXT("delegate");
+			SourceProperty = TEXT("DelegateReference");
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Capture one loaded FMemberReference without depending on its private C++ layout.
+	 *
+	 * The named UPROPERTY fields are the same serialized fields that the binary reader observes, but
+	 * this code reads the editor's loaded structure through reflection. The JSON labels that state
+	 * explicitly: load fixups can make it differ from the package bytes and the comparator must retain
+	 * that difference. No setter, reconstruction or Blueprint compilation API is called here.
+	 */
+	void WriteLoadedMemberReference(FOracleWriter& Writer, const UEdGraphNode& Node,
+		const TCHAR* Kind, const TCHAR* SourceProperty)
+	{
+		Writer.WriteObjectStart();
+		Writer.WriteValue(TEXT("kind"), Kind);
+		Writer.WriteValue(TEXT("source_property"), SourceProperty);
+		Writer.WriteValue(TEXT("state"), TEXT("loaded-editor"));
+
+		const FStructProperty* ReferenceProperty =
+			FindFProperty<FStructProperty>(Node.GetClass(), FName(SourceProperty));
+		const bool bReferenceSupported = ReferenceProperty != nullptr
+			&& ReferenceProperty->Struct != nullptr
+			&& ReferenceProperty->Struct->GetName() == TEXT("MemberReference");
+		if (!bReferenceSupported)
+		{
+			Writer.WriteValue(TEXT("status"), TEXT("unsupported"));
+			Writer.WriteValue(TEXT("reason"), TEXT("the expected loaded FMemberReference property is unavailable"));
+			Writer.WriteObjectEnd();
+			return;
+		}
+
+		const void* Reference = ReferenceProperty->ContainerPtrToValuePtr<void>(&Node);
+		const FObjectPropertyBase* ParentProperty =
+			FindFProperty<FObjectPropertyBase>(ReferenceProperty->Struct, TEXT("MemberParent"));
+		const FNameProperty* NameProperty =
+			FindFProperty<FNameProperty>(ReferenceProperty->Struct, TEXT("MemberName"));
+		const FStructProperty* GuidProperty =
+			FindFProperty<FStructProperty>(ReferenceProperty->Struct, TEXT("MemberGuid"));
+		const FBoolProperty* SelfProperty =
+			FindFProperty<FBoolProperty>(ReferenceProperty->Struct, TEXT("bSelfContext"));
+
+		const bool bParentSupported = ParentProperty != nullptr;
+		const bool bNameSupported = NameProperty != nullptr;
+		const bool bGuidSupported = GuidProperty != nullptr && GuidProperty->Struct != nullptr
+			&& GuidProperty->Struct->GetName() == TEXT("Guid");
+		const bool bSelfSupported = SelfProperty != nullptr;
+		const UObject* Parent = bParentSupported
+			? ParentProperty->GetObjectPropertyValue(ParentProperty->ContainerPtrToValuePtr<void>(Reference))
+			: nullptr;
+		const FName MemberName = bNameSupported
+			? NameProperty->GetPropertyValue(NameProperty->ContainerPtrToValuePtr<void>(Reference))
+			: NAME_None;
+		const FGuid* MemberGuid = bGuidSupported
+			? GuidProperty->ContainerPtrToValuePtr<FGuid>(Reference)
+			: nullptr;
+		const bool bSelfContext = bSelfSupported
+			? SelfProperty->GetPropertyValue(SelfProperty->ContainerPtrToValuePtr<void>(Reference))
+			: false;
+
+		Writer.WriteObjectStart(TEXT("field_states"));
+		Writer.WriteValue(TEXT("parent"), bParentSupported ? TEXT("loaded") : TEXT("unsupported"));
+		Writer.WriteValue(TEXT("name"), bNameSupported ? TEXT("loaded") : TEXT("unsupported"));
+		Writer.WriteValue(TEXT("guid"), bGuidSupported ? TEXT("loaded") : TEXT("unsupported"));
+		Writer.WriteValue(TEXT("self_context"), bSelfSupported ? TEXT("loaded") : TEXT("unsupported"));
+		Writer.WriteObjectEnd();
+
+		WritePath(Writer, TEXT("parent_object_path"), Parent);
+		WritePath(Writer, TEXT("parent_class_path"), Cast<UClass>(Parent));
+		if (bNameSupported)
+		{
+			Writer.WriteValue(TEXT("name"), MemberName.ToString());
+		}
+		else
+		{
+			Writer.WriteNull(TEXT("name"));
+		}
+		if (MemberGuid != nullptr)
+		{
+			Writer.WriteValue(TEXT("guid"), GuidDigits(*MemberGuid));
+		}
+		else
+		{
+			Writer.WriteNull(TEXT("guid"));
+		}
+		if (bSelfSupported)
+		{
+			Writer.WriteValue(TEXT("self_context"), bSelfContext);
+		}
+		else
+		{
+			Writer.WriteNull(TEXT("self_context"));
+		}
+
+		const UClass* EffectiveOwner = Cast<UClass>(Parent);
+		if (EffectiveOwner == nullptr && bSelfSupported && bSelfContext)
+		{
+			if (const UBlueprint* Blueprint = Node.GetTypedOuter<UBlueprint>())
+			{
+				EffectiveOwner = Blueprint->SkeletonGeneratedClass != nullptr
+					? Blueprint->SkeletonGeneratedClass.Get() : Blueprint->GeneratedClass.Get();
+			}
+		}
+		WritePath(Writer, TEXT("effective_owner_class_path"), EffectiveOwner);
+
+		FString ResolvedMemberPath;
+		const UStruct* ResolvedOwner = nullptr;
+		if (EffectiveOwner != nullptr && bNameSupported && !MemberName.IsNone())
+		{
+			if (FCString::Strcmp(Kind, TEXT("function")) == 0
+				|| FCString::Strcmp(Kind, TEXT("interface_function")) == 0
+				|| FCString::Strcmp(Kind, TEXT("event")) == 0)
+			{
+				if (const UFunction* Function = EffectiveOwner->FindFunctionByName(MemberName))
+				{
+					ResolvedMemberPath = Function->GetPathName();
+					ResolvedOwner = Function->GetOwnerClass();
+				}
+			}
+			else if (const FProperty* Property = FindFProperty<FProperty>(EffectiveOwner, MemberName))
+			{
+				ResolvedOwner = Property->GetOwnerStruct();
+				ResolvedMemberPath = FString::Printf(TEXT("%s.%s"),
+					ResolvedOwner != nullptr ? *ResolvedOwner->GetPathName() : TEXT("<unknown-owner>"),
+					*Property->GetName());
+			}
+		}
+		if (ResolvedMemberPath.IsEmpty())
+		{
+			Writer.WriteNull(TEXT("resolved_member_path"));
+			Writer.WriteNull(TEXT("resolved_owner_class_path"));
+			Writer.WriteValue(TEXT("resolution_status"), TEXT("unresolved"));
+		}
+		else
+		{
+			Writer.WriteValue(TEXT("resolved_member_path"), ResolvedMemberPath);
+			WritePath(Writer, TEXT("resolved_owner_class_path"), ResolvedOwner);
+			Writer.WriteValue(TEXT("resolution_status"), TEXT("resolved"));
+		}
+
+		const bool bFieldsComplete = bParentSupported && bNameSupported && bGuidSupported && bSelfSupported;
+		const bool bOwnerIdentified = (bSelfSupported && bSelfContext) || Parent != nullptr;
+		const bool bComplete = bFieldsComplete && bOwnerIdentified && !MemberName.IsNone()
+			&& !ResolvedMemberPath.IsEmpty();
+		Writer.WriteValue(TEXT("status"), bComplete ? TEXT("complete") : TEXT("partial"));
+		if (!bComplete)
+		{
+			Writer.WriteValue(TEXT("reason"), TEXT("one or more loaded identity fields or the exact member target are unavailable"));
+		}
+		Writer.WriteObjectEnd();
+	}
+
+	void WriteLoadedNameReference(FOracleWriter& Writer, const UEdGraphNode& Node,
+		const TCHAR* Kind, const TCHAR* SourceProperty, const bool bNameAloneIsComplete)
+	{
+		Writer.WriteObjectStart();
+		Writer.WriteValue(TEXT("kind"), Kind);
+		Writer.WriteValue(TEXT("source_property"), SourceProperty);
+		Writer.WriteValue(TEXT("state"), TEXT("loaded-editor"));
+		const FNameProperty* Property = FindFProperty<FNameProperty>(Node.GetClass(), FName(SourceProperty));
+		if (Property == nullptr)
+		{
+			Writer.WriteNull(TEXT("value"));
+			Writer.WriteValue(TEXT("status"), TEXT("unsupported"));
+			Writer.WriteValue(TEXT("reason"), TEXT("the loaded FName property is unavailable"));
+		}
+		else
+		{
+			const FName Value = Property->GetPropertyValue(Property->ContainerPtrToValuePtr<void>(&Node));
+			Writer.WriteValue(TEXT("value"), Value.ToString());
+			Writer.WriteValue(TEXT("status"), bNameAloneIsComplete && !Value.IsNone()
+				? TEXT("complete") : TEXT("partial"));
+			if (!bNameAloneIsComplete || Value.IsNone())
+			{
+				Writer.WriteValue(TEXT("reason"), bNameAloneIsComplete
+					? TEXT("the loaded name is empty")
+					: TEXT("the selected function name does not identify its owning class"));
+			}
+		}
+		Writer.WriteObjectEnd();
+	}
+
+	void WriteSemanticReferences(FOracleWriter& Writer, const UEdGraphNode& Node)
+	{
+		Writer.WriteArrayStart(TEXT("semantic_references"));
+		const TCHAR* Kind = nullptr;
+		const TCHAR* SourceProperty = nullptr;
+		if (MemberReferenceDescriptor(Node, Kind, SourceProperty))
+		{
+			WriteLoadedMemberReference(Writer, Node, Kind, SourceProperty);
+		}
+		else if (const UK2Node_MacroInstance* Macro = Cast<UK2Node_MacroInstance>(&Node))
+		{
+			Writer.WriteObjectStart();
+			Writer.WriteValue(TEXT("kind"), TEXT("macro_graph"));
+			Writer.WriteValue(TEXT("source_property"), TEXT("MacroGraphReference"));
+			Writer.WriteValue(TEXT("state"), TEXT("loaded-editor"));
+			const UEdGraph* MacroGraph = Macro->GetMacroGraph();
+			WritePath(Writer, TEXT("object_path"), MacroGraph);
+			Writer.WriteValue(TEXT("status"), MacroGraph != nullptr ? TEXT("complete") : TEXT("partial"));
+			if (MacroGraph == nullptr)
+			{
+				Writer.WriteValue(TEXT("reason"), TEXT("the editor did not resolve a macro graph"));
+			}
+			Writer.WriteObjectEnd();
+		}
+		else if (Node.GetClass()->GetName() == TEXT("K2Node_CreateDelegate"))
+		{
+			WriteLoadedNameReference(Writer, Node, TEXT("delegate_function"),
+				TEXT("SelectedFunctionName"), false);
+		}
+		else if (Node.GetClass()->GetName() == TEXT("K2Node_CustomEvent"))
+		{
+			WriteLoadedNameReference(Writer, Node, TEXT("custom_event"),
+				TEXT("CustomFunctionName"), true);
+		}
+		Writer.WriteArrayEnd();
+	}
+
 	void WriteNode(FOracleWriter& Writer, const UEdGraphNode& Node, TArray<FString>& Issues)
 	{
 		const FString NodePath = Node.GetPathName();
@@ -167,6 +429,7 @@ namespace
 		Writer.WriteValue(TEXT("object_path"), NodePath);
 		Writer.WriteValue(TEXT("class"), Node.GetClass()->GetName());
 		Writer.WriteValue(TEXT("guid"), GuidDigits(Node.NodeGuid));
+		WriteSemanticReferences(Writer, Node);
 
 		Writer.WriteArrayStart(TEXT("pins"));
 		for (int32 Index = 0; Index < Node.Pins.Num(); ++Index)
@@ -337,6 +600,7 @@ FString URepoReaderOracleLibrary::CaptureBlueprint(UBlueprint* Blueprint)
 	// Declares what every FText-derived field in this snapshot holds, so a later change of mind about
 	// source vs. display text is visible to the comparator instead of silently shifting its meaning.
 	Writer->WriteValue(TEXT("text_values"), TEXT("source"));
+	Writer->WriteValue(TEXT("semantic_reference_state"), TEXT("loaded-editor"));
 
 	// An editor that is holding unsaved edits reports graph state that is not in the package file, and
 	// the file's bytes are unchanged while it does, so hashes alone cannot catch it. Reported, never

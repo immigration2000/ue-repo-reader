@@ -57,7 +57,8 @@ def test_graph_ir_full_pin_literals_and_type_fields():
     assert data["type"]["map_key_terminal_category"] == "bool" and data["type"]["is_const"] is False
     assert data["hidden"] is False and data["orphaned_pin"] is False
     assert json.loads(json.dumps(ir, ensure_ascii=False, allow_nan=False)) == ir
-    assert ir["status"] == "complete" and "excludes node properties" in ir["scope"]
+    assert ir["status"] == "complete" and "selected saved semantic references" in ir["scope"]
+    assert "excludes arbitrary node properties" in ir["scope"]
     assert ir["pin_guid_encoding"] == "serialized-byte-order-hex"
     assert "guid_raw" in ir["graphs"][0] and "guid_raw" in ir["graphs"][0]["nodes"][0]
     assert "asset package snapshot" in ir["identity_scope"]
@@ -172,3 +173,77 @@ def test_graph_ir_object_defaults_and_unknown_reference_fields_are_not_lost():
     # A malformed explicit owner is not an absent owner eligible for local fallback.
     actual = project([node("N1", 1, [pin(A), pin(B, parent_pin={"owning_node": 5, "pin_guid": A})])])
     assert actual["graphs"][0]["nodes"][0]["pins"][1]["parent_pin"]["status"] == "unresolved"
+
+
+def test_graph_ir_preserves_saved_semantic_references_without_name_inference():
+    function_guid = NS(fields={"A": 1, "B": 2, "C": 3, "D": 4})
+    objects = {-7: NS(path="/Script/Engine.KismetMathLibrary"),
+               9: NS(path="/Game/BP.BP.LocalMacro")}
+    properties = {
+        1: {"FunctionReference": NS(fields={"MemberParent": -7, "MemberName": "GetAxes",
+                                             "MemberGuid": function_guid, "bSelfContext": 0})},
+        2: {"MacroGraphReference": NS(fields={"MacroGraph": 9})},
+        3: {"VariableReference": NS(fields={"MemberName": "Health", "bSelfContext": 1})},
+    }
+    ctx = NS(obj=lambda index: objects.get(index), full_name=lambda obj: obj.path,
+             props=lambda index: properties.get(index, {}))
+    call = node("Call", 1, [pin()])
+    macro = node("Macro", 2, [pin(B)])
+    macro.class_name = "K2Node_MacroInstance"
+    variable = node("Variable", 3, [pin(C)])
+    variable.class_name = "K2Node_VariableGet"
+    graph = NS(graph_name="EventGraph", nodes=[call, macro, variable])
+    ir = build_graph_ir([("/Game/BP.BP.EventGraph", graph)], ctx, "/Game/BP", 3, 3)
+    call_ref, macro_ref, variable_ref = [n["semantic_references"][0] for n in ir["graphs"][0]["nodes"]]
+    assert call_ref["status"] == "complete"
+    assert call_ref["name"] == "GetAxes" and call_ref["parent"] == {
+        "package_index": -7, "object_path": "/Script/Engine.KismetMathLibrary"}
+    assert call_ref["guid"] == {"encoding": "saved-uint32-components",
+                                "components": {"A": 1, "B": 2, "C": 3, "D": 4}}
+    assert call_ref["self_context"] is False
+    assert macro_ref["value"] == {"package_index": 9, "object_path": "/Game/BP.BP.LocalMacro"}
+    # Missing parent/GUID fields stay unknown. A self-context name is not promoted
+    # to a guessed owner class, and it does not make the pin projection partial.
+    assert variable_ref["status"] == "partial" and variable_ref["name"] == "Health"
+    assert variable_ref["parent"]["status"] == "unknown"
+    assert ir["status"] == "complete"
+
+
+def test_graph_ir_semantic_references_reject_bad_or_missing_saved_identity():
+    bad = {1: {"FunctionReference": NS(fields={"MemberParent": -99, "MemberName": object(),
+                                                "MemberGuid": NS(fields={"A": 1, "B": -1}),
+                                                "bSelfContext": 2})}}
+    ctx = NS(obj=lambda index: None, full_name=lambda obj: obj.path,
+             props=lambda index: bad.get(index, {}))
+    ir = build_graph_ir([("/Game/BP.BP.EventGraph", NS(graph_name="EventGraph",
+                                                        nodes=[node("Call", 1, [pin()]), node("Missing", 2, [pin(B)])]))],
+                        ctx, "/Game/BP", 2, 2)
+    bad_ref = ir["graphs"][0]["nodes"][0]["semantic_references"][0]
+    missing_ref = ir["graphs"][0]["nodes"][1]["semantic_references"][0]
+    assert bad_ref["status"] == "partial"
+    assert bad_ref["parent"]["package_index"] == -99
+    assert bad_ref["parent"]["object_path"]["status"] == "unknown"
+    assert bad_ref["name"]["status"] == "unknown" and bad_ref["self_context"]["status"] == "unknown"
+    assert bad_ref["guid"]["components"]["B"]["status"] == "unknown"
+    assert missing_ref["status"] == "partial" and missing_ref["value"]["status"] == "unknown"
+    json.dumps(ir, allow_nan=False)
+
+
+def test_pseudocode_resolver_never_repairs_links_from_a_unique_guid():
+    import bp_reader as B
+    renderer = object.__new__(B.GraphRenderer)
+    target1, target2 = NS(name="target1"), NS(name="target2")
+    owner1, owner2 = NS(_export_object_name="Duplicate"), NS(_export_object_name="Duplicate")
+    renderer.ctx = NS(full_name=lambda obj: obj.path)
+    renderer.pin_owner = {("Exact", A): [(owner1, target1)],
+                          ("Duplicate", A): [(owner1, target1), (owner2, target2)]}
+    renderer.pin_owner_path = {("/Game/BP.BP.EventGraph.First", A): [(owner1, target1)],
+                               ("/Game/BP.BP.EventGraph.Second", A): [(owner2, target2)]}
+    assert renderer.resolve({"pin_guid": A}) is None
+    assert renderer.resolve({"owning_node": "Wrong", "pin_guid": A}) is None
+    assert renderer.resolve({"owning_node": "Duplicate", "pin_guid": A}) is None
+    assert renderer.resolve({"owning_node": "Exact", "pin_guid": A}) == (owner1, target1)
+    assert renderer.resolve({"owning_node": "Duplicate", "pin_guid": A,
+                             "owning_node_object": NS(path="/Game/BP.BP.EventGraph.Second")}) == (owner2, target2)
+    # Current-node fallback is reserved for structural parent/sub-pin references.
+    assert renderer.resolve({"pin_guid": A}, NS(_export_object_name="Exact")) == (owner1, target1)
