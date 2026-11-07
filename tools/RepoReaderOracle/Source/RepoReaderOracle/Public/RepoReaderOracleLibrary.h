@@ -27,9 +27,10 @@ class REPOREADERORACLE_API URepoReaderOracleLibrary : public UBlueprintFunctionL
 
 public:
 	/**
-	 * Returns one JSON object describing the Blueprint's native editor state (schema v1: see
+	 * Returns one JSON object describing the Blueprint's native loaded editor state (schema v1: see
 	 * tools/export_editor_oracle.py). Returns an empty string, never a partial or plausible-looking
-	 * object, when there is nothing trustworthy to report.
+	 * object, when there is nothing trustworthy to report. Semantic-reference records are explicitly
+	 * labelled loaded-editor so they cannot be mistaken for the package's saved fields.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Repo Reader Oracle")
 	static FString CaptureBlueprint(UBlueprint* Blueprint);
