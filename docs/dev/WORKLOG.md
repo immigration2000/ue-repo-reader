@@ -11,6 +11,22 @@
 
 ---
 
+## 2026-11-07 23:48 KST · codex · A11 (P5 Windows UE5.8 Native 검증 준비·환경 차단)
+- 한 일: ad854085에서 `codex/p5-windows-native-validation`을 만들고 실제 실행 환경을 검사했다. 연결된 실행기는
+  Debian13 Linux이며 Windows mount/PowerShell/cmd/MSVC/MSBuild/Unreal이 없고 VPN도 구성되지 않았다. GitHub self-hosted
+  runner 조회는 이 인증의 권한 부족으로403이라 runner 유무를 확인하지 못했다. UE 설치·경로 추측은 하지 않았다.
+  고정 ar31bd384의 `/Game/ActionRoguelike/UI/PlayerHealth_Widget`을 함수14/변수3/event1/delegate1/
+  delegate-function1/macro2/custom-event1의 실제 saved 기준으로 선택하고 Git blob·SHA-256을 고정했다. Windows preflight,
+  full validation clone, ActionRoguelikeEditor build, read-only capture, same-hash semantic compare와 보존 산출물을 P5 보고서에 작성했다.
+- 검증: P2/P3/P4 전체 regress 단위173/173·외부 asset6/6·기존 Native Oracle8그룹·evidence2개·고정 프로젝트4/4 PASS.
+  기존 eg native JSON에 semantic-references profile을 실행하면 의도대로 exit1/incomplete, checked0, unavailable1이며 새 P2
+  capability가 없는 정답을 성공으로 승격하지 않는다. 선택 ar package는 working file과 commit blob SHA-256이
+  `2687fa...b37e`로 일치하고 graph IR complete, nodes32/32, asset issues0이다. 실제 UE build/capture/compare는 미실행이다.
+- 남은 일·주의: A11은 Windows UE5.8+VS C++ 실행기에 접근할 때까지 blocked다. 해당 실행기에서 새 full project copy와
+  새 output을 사용해 build.log/native JSON/semantic comparison/pre-post hash/dirty status를 수집해야 한다. 실제 관측 전
+  match/mismatch/unavailable 수를0이나 pass로 쓰지 않는다. 자세한 상태와 명령은
+  `docs/reports/P5_WINDOWS_NATIVE_VALIDATION.md`, `P5_SEMANTIC_ACCURACY.md`에 있다.
+
 ## 2026-11-07 19:44 KST · codex · F13 (C++ ↔ Blueprint 통합 정밀 분석)
 - 한 일: P2 d4012f9와 P3 0c945e6을 dcb99dc 기반 `codex/p4-unified-analysis`에 merge하고 문서 충돌2개만
   양쪽 의미를 유지해 해결했다. v1.20.0에서 원본 graph/declaration/cpp.precision을 바꾸지 않는 schema1 unified IR,
