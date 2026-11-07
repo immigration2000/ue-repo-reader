@@ -11,6 +11,18 @@
 
 ---
 
+## 2026-11-07 02:00 KST · codex · A10 (P2 semantic reference Native Oracle)
+- 한 일: 기준 dcb99dc에서 loaded-editor semantic reference를 읽는 RepoReaderOracle 확장과 saved-package graph IR을
+  대조하는 `semantic-references` profile을 추가했다. exact graph/node path·node GUID·owner/self·member name/GUID를 비교하고,
+  같은 short name, unknown, duplicate identity, unresolved target을 성공으로 처리하지 않는다. Function/Event/Variable/Delegate,
+  MacroGraph, CreateDelegate/CustomEvent의 지원 경계를 기록하고 CreateDelegate name-only는 incomplete로 유지한다(D-031).
+  새 P2 보고서와 UE5.7/5.8 Windows build/capture/hash/compare 절차를 작성했다. 기존 native 정답 JSON은 변경하지 않았다.
+- 검증: 변경 전/후 전체 regress PASS. unit 전체, 외부 에셋6/6, 기존 Native Oracle8/8, eg49BP/1778노드·ar·ves·bt PASS.
+  exact 정상 참조와 동명 타 class/wrong GUID/missing parent·reference/duplicate node/partial/saved-load/hash 반례 PASS.
+  Python compile·diff check PASS. 기존 fixture/oracle/evidence diff 없음. dirty LFS clone은 reset하지 않고 보존 이름으로 이동했다.
+- 남은 일·주의: Cloud에는 UE header/toolchain이 없어 새 C++ producer를 실제 빌드·실행하지 못했다. UE5.8 우선, 5.7 별도
+  Windows capture가 완료되기 전에는 semantic reference 독립 검증 완료가 아니다. 새 정답은 기존 JSON을 덮어쓰지 말고 별도 추가한다.
+
 ## 2026-11-07 00:41 KST · codex · A9 (정확도 감사와 P0/P1 참조 정체성)
 - 한 일: v1.18.0. GraphRenderer가 owner 없는 링크를 graph-wide unique GUID로 연결하던 추정을 제거하고,
   tagged reference가 틀린 full path 뒤 같은 이름의 첫 export로 떨어지던 경로를 exact/unique 해석으로 변경했다.

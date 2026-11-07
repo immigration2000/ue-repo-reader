@@ -24,6 +24,12 @@ Q1/Q12/Q14 독립 에디터 정답: `editor_oracles/`에는 실제 UE 5.7.4/5.8.
 사용법과 비교 범위/제외/출처는 [독립 에디터 정답 수집·비교](../docs/EDITOR_ORACLE.md)를 참고한다.
 정답의 native snapshot은 에디터에서 수집하며 리더 결과로 재생성하지 않는다. `known_reader_gaps`만 현재 비교기의 정확한 미확정 경계다.
 
+P2 `semantic-references` profile은 새 native capture의 loaded function/variable/event/delegate/macro identity를 1.18.0의
+saved graph IR과 대조한다. 기존 8개 JSON에는 이 capability가 없으며 profile 통과 정답으로 취급하지 않는다. Linux unit 검사는
+exact owner path와 GUID, 동명 타 class, missing/duplicate/partial identity, saved/load 차이와 package hash 거부를 합성 입력으로
+검사한다. 이것은 실제 UE 수집을 대신하지 않는다. 새 정답은 [Windows 절차](../docs/EDITOR_ORACLE.md#p2-semantic-reference-windows-검증-절차)로
+별도 파일에 수집하고 기존 `editor_oracles/` 파일을 덮어쓰지 않는다.
+
 Q10/Q11: 프로젝트 선언은 eg/ar=5.8, ves=5.7, bt=4.19로 고정한다. 에셋의 저장 버전과 별개다.
 기본 회귀의 bt만 명시적 `--best-effort`로 돌며, 기존 26/98·정확한 issue 기준은 유지한다.
 정책은 5.7/5.8 숫자 선언을 기본 허용하고 구버전·미확정·미검증 신버전은 거부한다. 독립 검사는

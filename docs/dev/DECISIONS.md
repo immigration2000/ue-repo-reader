@@ -335,3 +335,16 @@
   기존 Native Oracle은 새 member-reference 필드를 수집하지 않으므로 이 필드는 partial verification이다.
 - 후속: UE5.7/5.8 Oracle producer와 비교기에 FMemberReference/MacroGraph identity를 추가해 새 독립 캡처로 검증한다.
   C++ 정밀 색인은 F10에서 tree-sitter syntax 결과와 선택적 Clang-resolved 결과를 provenance/status로 분리한다.
+
+## D-031 semantic reference의 저장 관측과 editor loaded target을 별도 profile로 비교 (2026-11-07, codex)
+- 결정: 기존 all/graph profile과 정답8개를 바꾸지 않고 `semantic-references` profile을 추가한다. 새 native producer는
+  FMemberReference UPROPERTY field를 Unreal reflection으로 읽고 모든 값에 `loaded-editor` provenance를 붙인다.
+  reader 쪽은 graph_ir의 `saved-package` 관측만 사용한다. exact graph/node object path와 node GUID, owner/self, member name/GUID를
+  비교하며 short name, unknown, 중복 identity를 일치로 처리하지 않는다.
+- 이유: 1.18.0의 semantic reference는 저장 tagged field와 합성 반례만 검증됐다. 기존 native producer는 target identity를
+  관측하지 않아 all/graph 통과로 이를 증명할 수 없다. engine load fixup도 저장값과 다를 수 있으므로 한 표현으로 합치면 실제 차이가 사라진다.
+- 불완전 계약: native target resolution 실패, saved parent/GUID 부재, unsupported field는 unavailable이다. CreateDelegate는
+  SelectedFunctionName만으로 owner를 확인할 수 없어 이름이 같아도 incomplete다. 기존 capture에는 capability key가 없어 새 profile에서
+  incomplete이며 정답 JSON을 reader 결과로 갱신하지 않는다.
+- 검증 경계: Linux에서는 exact/wrong/missing/duplicate/partial/hash 반례와 기존 회귀만 실행한다. UE5.7/5.8 plugin build와 새 capture가
+  완료되기 전에는 독립 검증 완료가 아니다. 원본 package SHA-256, clean package, engine build/source provenance를 갖춘 새 파일만 후속 정답 후보다.
