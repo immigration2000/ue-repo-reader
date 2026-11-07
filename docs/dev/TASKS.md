@@ -49,6 +49,7 @@
 | F10 | done | codex | C++ 색인(tree-sitter)과 BP↔C++ 링크 | M |
 | F11 | todo | - | Kismet 바이트코드 대체 섹션 | S / M |
 | F12 | todo | - | Niagara, MetaSound, PCG, LevelSequence | M–L |
+| F13 | doing | codex | P2/P3 C++ ↔ Blueprint 통합 분석 IR과 탐색 | L |
 
 ## P3 — 에디터 없는 diff·린트·CI
 
