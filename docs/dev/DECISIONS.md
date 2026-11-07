@@ -373,3 +373,12 @@
 - 범위: type parent, function/event/interface, variable/delegate, saved pin flow, MacroGraph object path, C++ call/base/override/read-write,
   _Implementation/_Validate를 연결한다. BlueprintNativeEvent/RPC/interface/virtual dispatch에는 UHT/runtime 미확정을 남긴다.
   정확한 cross-language 승격은 matching engine/generated headers/defines의 typed resolver를 별도 provenance로 추가해야 한다.
+
+## D-034 exact saved MemberParent와 생략된 self-context를 독립 비교 (2026-11-08, codex)
+- 결정: semantic reference 비교에서 `bSelfContext=true`는 self owner의 긍정 증거이고, exact saved `MemberParent.object_path`는
+  external owner의 긍정 증거다. 한쪽의 저장 tag가 생략됐다는 이유로 다른 쪽의 exact 증거를 버리지 않는다.
+- 보존 경계: external parent가 있어도 생략된 `bSelfContext`를 false로 만들지 않고 그 field는 unavailable로 유지한다.
+  saved GUID 부재도 loaded zero GUID로 채우지 않는다. parent와 self 둘 다 exact하지 않으면 owner는 unknown이다.
+- 근거: UE5.8.4 P5 고정 package의 external reference 13개 모두 exact parent/name을 저장하고 self tag를 생략했다. Native
+  loaded 값은 같은 parent와 false였으나 수정 전 비교기는 owner도 unavailable로 중복 보고했다. exact owner 비교를 복원한
+  뒤 같은 증거가 checked85→111, mismatch0 유지, unavailable61→48이 됐다. 원본/Oracle/parser output은 바꾸지 않았다.
