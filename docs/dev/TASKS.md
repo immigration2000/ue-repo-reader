@@ -87,6 +87,7 @@
 | A8 | done | codex | UE 5.7+ 프로젝트 지원 가정과 높은 정확도·레포 이해를 기준으로 HTML 보고서/우선순위 재작성; 실제 지원 제한 코드는 이번 범위 밖 | S |
 | A9 | done | codex | 정확도 재감사와 P0/P1 개선: 의사코드 핀 연결 추정 제거, 저장된 함수·변수·델리게이트·매크로 참조를 구조화 IR로 보존, Cloud/Editor 검증 경계 문서화 | M |
 | A10 | done | codex | P2 semantic reference 독립 검증: Native Oracle 읽기 전용 수집·saved/loaded 비교 profile·Linux 반례·Windows UE5.7/5.8 절차 | M |
+| A11 | doing | codex | P5 Windows UE5.8 Native Oracle 실제 빌드·semantic reference 수집·동일 패키지 비교 | M |
 | O1 | done | codex | 실제 Claude Code 작업 배정·재지시·중단/복구·도구 감사·검토 기록 구축; Q7 구현과 Q4 교차 검토로 실증(D-021) | S |
 
 ## 후속 — 작업 중 발견 (2026-10-27, claude)
