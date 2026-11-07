@@ -335,3 +335,15 @@
   기존 Native Oracle은 새 member-reference 필드를 수집하지 않으므로 이 필드는 partial verification이다.
 - 후속: UE5.7/5.8 Oracle producer와 비교기에 FMemberReference/MacroGraph identity를 추가해 새 독립 캡처로 검증한다.
   C++ 정밀 색인은 F10에서 tree-sitter syntax 결과와 선택적 Clang-resolved 결과를 provenance/status로 분리한다.
+
+## D-031 C++ 구문 관측과 타입 의미 해석을 분리 (2026-11-07, codex)
+- 결정: v1.19.0. 기존 `cpp.modules/classes`와 CLASSES.md를 유지하고 tree-sitter-cpp 기반 schema1 정밀 IR을
+  `cpp.precision`/CXX_INDEX.json과 FUNCTIONS/CALL_GRAPH/UNRESOLVED.md로 추가한다. 모든 tree-sitter 심볼은
+  syntax_observed, 호출 대상은 유일 후보여도 unresolved이며 semantic_resolved는 typed resolver 전용으로 비워 둔다.
+- 파서: tree-sitter0.25.2/tree-sitter-cpp0.23.4를 선택 의존성으로 고정한다. 부재/ABI 오류면 기존 색인은 계속 만들고
+  정밀 결과를 unavailable로 기록한다. UE 리플렉션/GENERATED_BODY와 *_API는 원문 범위·바이트를 보존한 채 같은 길이의
+  공백으로 파서 입력에서만 마스킹한다. 전처리·include/UHT/UBT를 실행하거나 그 결과를 추측하지 않는다.
+- 관계: 선언/정의는 qualified spelling+parameter syntax, _Implementation/_Validate는 owner+이름으로 후보만 연결한다.
+  Build.cs/Target.cs도 lexical 관측이며 실제 UBT 모듈 그래프로 승격하지 않는다. 기존 BP↔C++ 이름 카탈로그는 의미 정답이 아니다.
+- 영향: 스킬 스냅샷에 requirements-cxx.txt와 새 모듈을 포함한다. Clang AST는 compile commands, 동일 UE 헤더/생성 코드/
+  정의가 준비된 별도 semantic resolver로 후속 구현하며 syntax IR을 덮어쓰지 않는다.
