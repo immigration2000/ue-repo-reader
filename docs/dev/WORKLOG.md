@@ -11,6 +11,20 @@
 
 ---
 
+## 2026-11-08 12:20 KST · codex · A14 (GridInventory 읽기 전용 정밀 분석)
+- 한 일: final main `bf79221`의 ue-repo-reader 1.20.0으로 GridInventory 고정 커밋 `f9131d8`을 별도 clone에서
+  분석했다. Blueprint30·data25·map1의 구조와 Graph/Declaration/Unified IR을 대조하고 전체 클래스, 핵심 함수, 실제
+  노드·핀·GUID, 호출·역참조, item/점유/UI 데이터 흐름을 8개 보고서로 작성했다. 삭제·Drop·swap·write-back 부재를
+  미구현/미발견으로 구분하고, PickUpItem NewItem 미연결, Bag→ChestRigItem 연결, GetPlaceSlotIndex의 Y/Y loop bound를
+  저장 pin 근거로 기록했다. 원본 게임과 대형 digest/cache는 Git에 넣지 않았다.
+- 검증: 고정 SHA와 분석기 version 재확인, Blueprint30/30·data25/25·map1/1 렌더 성공, Graph IR 핵심 함수 GUID와
+  수치 assertions PASS, 보고서8개 상대 링크 및 `git diff --check` PASS. 전체 `tests/regress.py`에서 단위 검사,
+  external asset6종, UE5.7/5.8 Native Oracle/evidence, eg/ar/ves/bt4프로젝트가 모두 PASS했다. 게임 clone의 세 삭제
+  표시는 2MB 초과 아트 파일을 materialize하지 않은 의도된 partial-clone 상태다.
+- 남은 일·주의: CtrlRig_FPWarp는11/24노드 partial이고 GridInventory 전용 Editor Native Oracle·runtime 실행은 하지
+  않았다. Blueprint 함수 target은 shared GUID/UHT identity가 없어 candidate이며 저장 pin link verified와 구분해야 한다.
+  원격 main 병합은 하지 않는다.
+
 ## 2026-11-08 01:48 KST · codex · A13 (P0~P6 최종 통합·릴리스 준비)
 - 한 일: GitHub refs와 PR #1~#5를 재조회하고 main→P0/P1, P0/P1→P2/P3, P2+P3→P4, P4→P5,
   P5→P6 exact ancestry를 확인했다. P2/P3 heads가 P4 조상이라 중복 병합하지 않는 bottom-up 계획을 문서화했다. 누락됐던
